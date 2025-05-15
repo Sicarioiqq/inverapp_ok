@@ -18,7 +18,7 @@ import {
   Timer,
   Edit,
   ChevronDown,
-  ChevronRight, // Asegurado que está importado
+  ChevronRight,
   Edit2,
   Users,
   ListChecks,
@@ -27,16 +27,14 @@ import {
   DollarSign,
   Plus
 } from 'lucide-react';
-// import { formatDistanceToNow, format, differenceInDays, addDays } from 'date-fns'; // formatDistanceToNow y format no se usan directamente
 import { differenceInDays, addDays } from 'date-fns';
-import { es } from 'date-fns/locale'; // Importado para date-fns si se usara con localización
+import { es } from 'date-fns/locale';
 import CommissionTaskCommentPopup from '../../components/CommissionTaskCommentPopup';
 import CommissionTaskCommentList from '../../components/CommissionTaskCommentList';
 
-// --- MODIFICACIÓN ---: Añadida la propiedad opcional isCollapsed y commission_flow_task_id
 interface Task {
-  id: string; // ID de la plantilla de tarea (payment_flow_tasks.id)
-  commission_flow_task_id?: string; // ID de la instancia de la tarea en este flujo (commission_flow_tasks.id)
+  id: string;
+  commission_flow_task_id?: string;
   name: string;
   status: string;
   started_at?: string;
@@ -57,7 +55,7 @@ interface Task {
     avatar_url?: string;
   };
   comments_count: number;
-  isCollapsed?: boolean; // --- NUEVO ---: Para manejar el estado de colapso
+  isCollapsed?: boolean;
 }
 
 interface Stage {
@@ -143,7 +141,7 @@ const retryOperation = async (
   }
 };
 
-const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
+const PaymentFlowPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { showPopup } = usePopup();
@@ -155,10 +153,10 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
   const [startingFlow, setStartingFlow] = useState(false);
   const [editingStartDate, setEditingStartDate] = useState(false);
   const [editingTaskDate, setEditingTaskDate] = useState<{
-    taskId: string; // ID de la plantilla de la tarea
+    taskId: string;
     type: 'start' | 'complete';
   } | null>(null);
-  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null); // Para comentarios
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [commentRefreshTrigger, setCommentRefreshTrigger] = useState(0);
   const [creatingSecondFlow, setCreatingSecondFlow] = useState(false);
   const [tempDateValue, setTempDateValue] = useState('');
@@ -175,7 +173,6 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
       navigate('/pagos');
     }
   }, [id, commentRefreshTrigger]);
-
 
   const checkAdminStatus = async () => {
     try {
@@ -270,7 +267,6 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
           const isCompleted = flowTaskInstance?.status === 'completed';
           const taskCommentCount = flowTaskInstance ? (commentCounts[flowTaskInstance.id] || 0) : 0;
 
-          // --- MODIFICACIÓN: Inicializar isCollapsed ---
           return {
             id: taskTemplate.id,
             commission_flow_task_id: flowTaskInstance?.id,
@@ -283,7 +279,7 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
             assignee: flowTaskInstance?.assignee,
             default_assignee: taskTemplate.default_assignee,
             comments_count: taskCommentCount,
-            isCollapsed: isCompleted, // Colapsar si está completada por defecto
+            isCollapsed: isCompleted, 
           };
         });
 
@@ -292,7 +288,7 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
           name: stage.name,
           tasks: stageTasks,
           isCompleted: stageTasks.every(task => task.status === 'completed'),
-          isExpanded: true, // Las etapas pueden seguir expandidas por defecto
+          isExpanded: true,
         };
       }) || [];
 
@@ -426,7 +422,7 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
       const updateData: { status: string, completed_at?: string, started_at?: string } = { status: newStatus };
       if (newStatus === 'completed') {
         updateData.completed_at = new Date().toISOString();
-        if (!flowTask?.started_at) { // Si no tiene fecha de inicio, y se completa, se pone la actual.
+        if (!flowTask?.started_at) {
           updateData.started_at = new Date().toISOString();
         }
       } else if (newStatus === 'in_progress' && !flowTask?.started_at) {
@@ -447,7 +443,7 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
           if (createError) throw createError;
         });
       }
-      fetchFlow(); // Esto recargará el estado de las tareas, incluyendo isCollapsed
+      fetchFlow();
     } catch (err: any) { setError(err.message); }
   };
   
@@ -467,13 +463,12 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
     setExpandedTaskId(expandedTaskId === taskInstanceId ? null : taskInstanceId);
   };
 
-  // --- NUEVA FUNCIÓN ---
   const toggleTaskCollapse = (stageIndex: number, taskIndex: number) => {
     if (!flow) return;
     const newStages = flow.stages.map((stage, sIndex) => {
       if (sIndex === stageIndex) {
         const newTasks = stage.tasks.map((task, tIndex) => {
-          if (tIndex === taskIndex && task.status === 'completed') { // Solo permitir alternar si está completada
+          if (tIndex === taskIndex && task.status === 'completed') {
             return { ...task, isCollapsed: !task.isCollapsed };
           }
           return task;
@@ -492,32 +487,116 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
     setFlow({ ...flow, stages: updatedStages });
   };
 
-  const getStatusIcon = (status: string) => { /* ... (sin cambios) ... */ };
-  const getStatusText = (status: string) => { /* ... (sin cambios) ... */ };
-  const getStatusColor = (status: string) => { /* ... (sin cambios) ... */ };
-  const calculateProgress = () => { /* ... (sin cambios, asegurarse que totalTasks no sea 0) ... */
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed': return <CheckCircle2 className="h-5 w-5 text-green-600" />;
+      case 'in_progress': return <Clock className="h-5 w-5 text-blue-600" />;
+      case 'blocked': return <AlertCircle className="h-5 w-5 text-red-600" />;
+      default: return <Clock className="h-5 w-5 text-gray-400" />;
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'completed': return 'Completada';
+      case 'in_progress': return 'En Proceso';
+      case 'blocked': return 'Bloqueada';
+      default: return 'Pendiente';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'in_progress': return 'bg-blue-100 text-blue-800';
+      case 'blocked': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const calculateProgress = () => {
     if (!flow) return 0;
     const totalTasks = flow.stages.reduce((sum, stage) => sum + stage.tasks.length, 0);
-    if (totalTasks === 0) return 0; // Evitar división por cero
+    if (totalTasks === 0) return 0;
     const completedTasks = flow.stages.reduce((sum, stage) =>
       sum + stage.tasks.filter(task => task.status === 'completed').length, 0);
     return (completedTasks / totalTasks) * 100;
   };
-  const getDaysElapsed = (startDate?: string, endDate?: string) => { /* ... (sin cambios) ... */ };
-  const getExpectedDate = (task: Task) => { /* ... (sin cambios) ... */ };
-  const getDaysOverdue = (task: Task) => { /* ... (sin cambios) ... */ };
+
+  const getDaysElapsed = (startDate?: string, endDate?: string) => {
+    if (!startDate) return 0;
+    const start = new Date(startDate);
+    const end = endDate ? new Date(endDate) : new Date();
+    return differenceInDays(end, start);
+  };
+
+  const getExpectedDate = (task: Task) => {
+    if (!flow?.started_at || !task.days_to_complete) return null;
+    return addDays(new Date(flow.started_at), task.days_to_complete);
+  };
+
+  const getDaysOverdue = (task: Task) => {
+    if (task.status === 'completed' || !task.started_at || !task.days_to_complete) return 0;
+    const endDateToCompare = new Date();
+    const daysElapsed = differenceInDays(endDateToCompare, new Date(task.started_at));
+    return Math.max(0, daysElapsed - task.days_to_complete!);
+  };
+  
   const formatDate = (dateString: string) => formatDateChile(dateString);
   const formatDateTime = (dateString: string) => formatDateTimeChile(dateString);
-  const navigateToEditClient = () => { /* ... (sin cambios) ... */ };
-  const navigateToEditReservation = () => { /* ... (sin cambios) ... */ };
-  const navigateToEditCommission = () => { /* ... (sin cambios) ... */ };
-  const navigateToReservationFlow = async () => { /* ... (sin cambios) ... */ };
-  const navigateToDocuments = () => { /* ... (sin cambios) ... */ };
-  const navigateToTaskTracking = () => { /* ... (sin cambios) ... */ };
-  const handleCreateSecondPaymentFlow = async () => { /* ... (sin cambios) ... */ };
-  const handleDateInputChange = async (e: React.ChangeEvent<HTMLInputElement>, templateTaskId: string, type: 'start' | 'complete') => { /* ... (sin cambios) ... */ };
-  const handleToggleAtRisk = () => { /* ... (sin cambios) ... */ };
 
+  const navigateToEditClient = () => { if (flow?.broker_commission.reservation.client.id) navigate(`/clientes/editar/${flow.broker_commission.reservation.client.id}`); };
+  const navigateToEditReservation = () => { if (flow?.broker_commission.reservation.id) navigate(`/reservas/editar/${flow.broker_commission.reservation.id}`); };
+  const navigateToEditCommission = () => { if (flow?.broker_commission.reservation.id) navigate(`/pagos/${flow.broker_commission.reservation.id}`); };
+  const navigateToReservationFlow = async () => {
+    if (!flow?.broker_commission.reservation.id) return;
+    try {
+      const { data, error: fetchError } = await supabase.from('reservation_flows').select('id').eq('reservation_id', flow.broker_commission.reservation.id).single();
+      if (fetchError) throw fetchError;
+      if (data) navigate(`/flujo-reservas/${data.id}`);
+    } catch (err: any) { setError(err.message); }
+  };
+  const navigateToDocuments = () => showPopup(<div className="p-4"><p>Funcionalidad de documentos en desarrollo.</p></div>, { title: 'Documentos del Cliente', size: 'md' });
+  const navigateToTaskTracking = () => navigate('/seguimiento');
+
+  const handleCreateSecondPaymentFlow = async () => {
+    if (!flow || !flow.broker_commission.id) return;
+    try {
+      setCreatingSecondFlow(true);
+      const { data: existingFlow, error: checkError } = await supabase.from('commission_flows').select('id').eq('broker_commission_id', flow.broker_commission.id).eq('is_second_payment', true).maybeSingle();
+      if (checkError) throw checkError;
+      if (existingFlow) { navigate(`/pagos/flujo/${existingFlow.id}`); return; }
+
+      const { data: flowData, error: flowError } = await supabase.from('payment_flows').select('id, stages:payment_flow_stages(id, order)').eq('name', 'Flujo de Segundo Pago').single();
+      if (flowError || !flowData || !flowData.stages || flowData.stages.length === 0) throw flowError || new Error("Flujo de segundo pago o sus etapas no configurados.");
+      
+      const firstStage = flowData.stages.sort((a:any, b:any) => a.order - b.order)[0];
+
+      const { data: newFlow, error: createError } = await supabase.from('commission_flows').insert({ broker_commission_id: flow.broker_commission.id, flow_id: flowData.id, current_stage_id: firstStage.id, status: 'pending', started_at: null, is_second_payment: true }).select().single();
+      if (createError) throw createError;
+      navigate(`/pagos/flujo/${newFlow.id}`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setCreatingSecondFlow(false);
+    }
+  };
+
+  const handleDateInputChange = async (e: React.ChangeEvent<HTMLInputElement>, templateTaskId: string, type: 'start' | 'complete') => {
+    const newDate = e.target.value;
+    setTempDateValue(newDate);
+    if (newDate) {
+      await handleTaskDateChange(templateTaskId, newDate, type);
+    }
+  };
+  
+  const handleToggleAtRisk = () => {
+    if (!flow) return;
+    showPopup(
+      <AtRiskPopup commissionId={flow.broker_commission.id} isAtRisk={flow.broker_commission.at_risk || false} reason={flow.broker_commission.at_risk_reason || ''} onSave={fetchFlow} onClose={() => { /* hidePopup() si es necesario */ }} />,
+      { title: flow.broker_commission.at_risk ? 'Editar Estado En Riesgo' : 'Marcar Como En Riesgo', size: 'md' }
+    );
+  };
 
   if (loading) { return <Layout><div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 text-blue-600 animate-spin" /></div></Layout>; }
   if (error || !flow) { return <Layout><div className="bg-red-50 text-red-600 p-4 rounded-lg">{error || 'Flujo no encontrado'}</div></Layout>; }
@@ -527,7 +606,7 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
   return (
     <Layout>
       <div className="max-w-5xl mx-auto">
-        {/* Header y Navegación de Iconos (sin cambios) */}
+        {/* Header y Navegación de Iconos */}
         <div className="flex items-center justify-between mb-6">
             <button onClick={() => navigate('/pagos')} className="flex items-center text-gray-600 hover:text-gray-900">
                 <ArrowLeft className="h-5 w-5 mr-2" /> Volver
@@ -544,7 +623,8 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
                 <button onClick={navigateToTaskTracking} className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" title="Seguimiento de Tareas"><ClipboardList className="h-5 w-5" /></button>
             </div>
         </div>
-        {/* Información General y Estado del Proceso (sin cambios) */}
+        
+        {/* Información General y Estado del Proceso */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div> {/* Información General */}
@@ -600,13 +680,15 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
                   {/* --- MODIFICACIÓN: Lógica de renderizado de tareas --- */}
                   {stage.tasks.map((task, taskIndex) => {
                     const isTaskCompleted = task.status === 'completed';
+                    // --- USA task.isCollapsed para determinar la vista ---
                     const showCollapsedView = isTaskCompleted && task.isCollapsed;
 
                     const completionTime = task.completed_at && task.started_at ? getDaysElapsed(task.started_at, task.completed_at) : null;
                     const daysOverdue = getDaysOverdue(task);
                     
                     return (
-                      <div key={task.id} className={`p-6 ${showCollapsedView ? 'py-3' : 'hover:bg-gray-50'}`}> {/* Menos padding si está colapsada */}
+                      // --- El key DEBE estar en el elemento raíz del map ---
+                      <div key={task.id} className={`p-6 ${showCollapsedView ? 'py-3' : 'hover:bg-gray-50'}`}>
                         {showCollapsedView ? (
                           // --- VISTA COLAPSADA DE LA TAREA ---
                           <div className="flex items-center justify-between">
@@ -630,7 +712,7 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
                             <div className="flex items-center justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center justify-between mb-2">
-                                  <h4 className={`text-base font-medium ${isTaskCompleted ? 'text-gray-700' : 'text-gray-900'}`}> {/* Sin tachado si está completa y expandida */}
+                                  <h4 className={`text-base font-medium ${isTaskCompleted ? 'text-gray-700' : 'text-gray-900'}`}> {/* Sin tachado aquí tampoco */}
                                     {task.name}
                                   </h4>
                                   {isTaskCompleted ? (
@@ -644,7 +726,7 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
                                   ) : (
                                     <select
                                       value={task.status}
-                                      onChange={(e) => handleStatusChange(task.id, e.target.value)}
+                                      onChange={(e) => handleStatusChange(task.id, e.target.value)} // task.id es el ID de la plantilla
                                       disabled={flow.status === 'pending'}
                                       className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                                         getStatusColor(task.status)
@@ -685,7 +767,7 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
                                         {editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'start' ? (
                                           <input type="datetime-local" defaultValue={task.started_at.split('.')[0]} onChange={(e) => handleDateInputChange(e, task.id, 'start')} className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"/>
                                         ) : (
-                                          <div className="flex items-center"><Calendar className="h-4 w-4 mr-1" /><span>Iniciada el {formatDateTime(task.started_at)}</span>{isAdmin && (<button onClick={() => { setEditingTaskDate({ taskId: task.id, type: 'start' }); setTempDateValue(task.started_at!.split('.')[0]); }} className="ml-2 text-blue-600 hover:text-blue-800" title="Editar fecha de inicio"><Edit className="h-4 w-4" /></button>)}</div>
+                                          <div className="flex items-center"><Calendar className="h-4 w-4 mr-1" /><span>Iniciada el {formatDateTime(task.started_at)}</span>{isAdmin && (<button onClick={() => { setEditingTaskDate({ taskId: task.id, type: 'start' }); if(task.started_at){setTempDateValue(task.started_at.split('.')[0])}; }} className="ml-2 text-blue-600 hover:text-blue-800" title="Editar fecha de inicio"><Edit className="h-4 w-4" /></button>)}</div>
                                         )}
                                       </div>
                                       {task.completed_at && (
@@ -693,11 +775,19 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
                                           {editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'complete' ? (
                                             <input type="datetime-local" defaultValue={task.completed_at.split('.')[0]} onChange={(e) => handleDateInputChange(e, task.id, 'complete')} className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"/>
                                           ) : (
-                                            <div className="flex items-center text-green-600"><CheckCircle2 className="h-4 w-4 mr-1" /><span>Completada el {formatDateTime(task.completed_at)}</span>{isAdmin && (<button onClick={() => { setEditingTaskDate({ taskId: task.id, type: 'complete' }); setTempDateValue(task.completed_at!.split('.')[0]); }} className="ml-2 text-blue-600 hover:text-blue-800" title="Editar fecha de completado"><Edit className="h-4 w-4" /></button>)}</div>
+                                            <div className="flex items-center text-green-600"><CheckCircle2 className="h-4 w-4 mr-1" /><span>Completada el {formatDateTime(task.completed_at)}</span>{isAdmin && (<button onClick={() => { setEditingTaskDate({ taskId: task.id, type: 'complete' }); if(task.completed_at){setTempDateValue(task.completed_at.split('.')[0])}; }} className="ml-2 text-blue-600 hover:text-blue-800" title="Editar fecha de completado"><Edit className="h-4 w-4" /></button>)}</div>
                                           )}
                                         </div>
                                       )}
-                                      {completionTime !== null && (<div className="flex items-center text-green-600"><Timer className="h-4 w-4 mr-1" /><span>Gestionado en {completionTime} {completionTime === 1 ? 'día' : 'días'}</span></div>)}
+                                      {/* --- CORRECCIÓN: Mostrar Días de Gestión (completionTime) --- */}
+                                      {completionTime !== null && (
+                                        <div className="flex items-center text-green-600">
+                                          <Timer className="h-4 w-4 mr-1" />
+                                          <span>
+                                            Gestionado en {completionTime} {completionTime === 1 ? 'día' : 'días'}
+                                          </span>
+                                        </div>
+                                      )}
                                       {task.days_to_complete && (<div className="flex items-center"><span>Plazo: {task.days_to_complete} días</span>{daysOverdue > 0 && (<span className="ml-2 flex items-center text-red-600"><AlertTriangle className="h-4 w-4 mr-1" />{daysOverdue} días de retraso</span>)}</div>)}
                                     </div>
                                   )}
@@ -708,7 +798,7 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
                             {expandedTaskId === task.commission_flow_task_id && task.comments_count > 0 && (
                               <div className="mt-4 pt-4 border-t border-gray-200">
                                 <CommissionTaskCommentList
-                                  taskId={task.commission_flow_task_id!} // Usar el ID de instancia aquí
+                                  taskId={task.commission_flow_task_id!}
                                   commissionFlowId={flow.id}
                                   refreshTrigger={commentRefreshTrigger}
                                 />
@@ -729,7 +819,6 @@ const PaymentFlowPage: React.FC = () => { // Renombrado para evitar conflicto
   );
 };
 
-// Componente AtRiskPopup (sin cambios)
 interface AtRiskPopupProps {
   commissionId: string;
   isAtRisk: boolean;
@@ -782,4 +871,4 @@ const AtRiskPopup: React.FC<AtRiskPopupProps> = ({ commissionId, isAtRisk, reaso
   );
 };
 
-export default PaymentFlowPage; // Exportar con el nombre renombrado
+export default PaymentFlowPage;
