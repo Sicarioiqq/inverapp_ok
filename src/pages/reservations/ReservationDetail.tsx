@@ -113,7 +113,7 @@ const ReservationDetail: React.FC = () => {
           project:projects(*),
           seller:profiles(*),
           broker:brokers(*),
-          rescinded_by_user:users(first_name, last_name),
+          rescinded_by_user:profiles(first_name, last_name),
           broker_commission:broker_commissions(
             id, 
             commission_amount,
