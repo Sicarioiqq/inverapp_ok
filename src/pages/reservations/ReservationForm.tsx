@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { usePopup } from '../../contexts/PopupContext';
 import Layout from '../../components/Layout';
-import PromotionPopup from '../../components/PromotionPopup';
+//import PromotionPopup from '../../components/PromotionPopup';
 import BrokerCommissionPopup from '../../components/BrokerCommissionPopup';
 import { ArrowLeft, Save, Loader2, Search, UserPlus } from 'lucide-react';
 
