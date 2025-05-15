@@ -387,87 +387,92 @@ const ReservationForm = () => {
 
       let newReservationId: string | null = null;
 
-      // Si es una venta con broker, primero mostrar el popup
-      if (formData.is_with_broker && formData.broker_id) {
-        const { data, error } = await supabase
-          .from('reservations')
-          .upsert([{ 
-            ...reservationData, 
-            created_by: session?.user.id,
-            id: id || undefined // Only include id if we're updating
-          }])
-          .select()
-          .single();
+// --- INICIO DE SECCIÓN MODIFICADA ---
 
-        if (error) {
-          console.error('Error creating/updating reservation:', error);
-          throw error;
-        }
-        if (!data) throw new Error('No se pudo crear/actualizar la reserva');
-        
-        newReservationId = data.id;
+      // 1. Realizar la operación de guardado (upsert) de la reserva
+      const { data: upsertedReservation, error: upsertError } = await supabase
+        .from('reservations')
+        .upsert([{
+          // Usar el objeto reservationData que ya preparaste,
+          // asegurándote de que no incluye campos generados por la BD
+          // como total_price, minimum_price, etc.
+          // Tu objeto reservationData ya está bien definido según tu último código.
+          ...reservationData,
+          // Asegurar que broker_id sea null si is_with_broker es false
+          broker_id: formData.is_with_broker ? formData.broker_id : null,
+          // created_by solo se establece en la creación
+          created_by: id ? undefined : session?.user.id,
+          id: id || undefined // Solo incluye id si estamos actualizando
+        }])
+        .select()
+        .single();
 
-        if (!id) {
-          // Only create reservation flow for new reservations
-          await createReservationFlow(newReservationId, formData.seller_id);
-        }
+      if (upsertError) {
+        console.error('Error creating/updating reservation:', upsertError);
+        throw upsertError;
+      }
+      if (!upsertedReservation) {
+        throw new Error('No se pudo crear/actualizar la reserva');
+      }
 
-        setLoading(false);
+      newReservationId = upsertedReservation.id;
 
+      // 2. Crear el flujo de reserva SOLO SI ES UNA NUEVA RESERVA
+      if (!id) {
+        // Only create reservation flow for new reservations
+        await createReservationFlow(newReservationId, formData.seller_id);
+      }
+
+      setLoading(false); // Mover setLoading(false) aquí
+
+      // 3. Lógica para mostrar el popup o navegar
+      if (formData.is_with_broker && formData.broker_id && !id) {
+        // MOSTRAR POPUP solo si es venta con broker Y es una NUEVA reserva
         showPopup(
           <BrokerCommissionPopup
-            reservationId={newReservationId}
-            brokerId={formData.broker_id}
-            onSave={() => navigate('/reservas')}
+            reservationId={newReservationId} // newReservationId no será null aquí
+            brokerId={formData.broker_id}    // formData.broker_id no será null aquí
+            onSave={() => {
+              showPopup(null); // Cierra el popup actual
+              navigate('/reservas');
+            }}
             onClose={async () => {
-              if (!id) {
-                // Only delete if this was a new reservation
-                await supabase
-                  .from('reservations')
-                  .delete()
-                  .eq('id', newReservationId);
+              showPopup(null); // Cierra el popup actual
+              // La lógica para eliminar la reserva si se cierra el popup durante la creación
+              // ya está condicionada por !id, lo cual es correcto.
+              // Solo se ejecuta si es una nueva reserva y se cierra el popup sin guardar comisión.
+              if (!id) { // Esta comprobación interna es redundante si el bloque showPopup ya está condicionado por !id, pero no hace daño.
+                try {
+                  // Es buena práctica también eliminar el flujo de reserva si se elimina la reserva
+                  await supabase
+                    .from('reservation_flows')
+                    .delete()
+                    .eq('reservation_id', newReservationId);
+                  await supabase
+                    .from('reservations')
+                    .delete()
+                    .eq('id', newReservationId);
+                } catch (deleteError) {
+                  console.error("Error cleaning up reservation after closing popup:", deleteError);
+                  // Podrías querer notificar al usuario aquí o manejarlo de otra forma
+                }
               }
               navigate('/reservas');
             }}
           />,
           {
             title: 'Comisión del Broker',
-            size: 'md'
+            size: 'md',
+            // Opcional: hacer el popup no descartable fácilmente si es crítico
+            // isDismissable: false 
           }
         );
       } else {
-        // Si no es venta con broker, guardar directamente
-        const { error } = await supabase
-          .from('reservations')
-          .upsert([{
-            ...reservationData,
-            created_by: session?.user.id,
-            id: id || undefined // Only include id if we're updating
-          }]);
-
-        if (error) {
-          console.error('Error creating/updating reservation:', error);
-          throw error;
-        }
-
-        if (!id) {
-          // Get the newly created reservation
-          const { data: newReservation, error: fetchError } = await supabase
-            .from('reservations')
-            .select('id')
-            .eq('reservation_number', formData.reservation_number)
-            .single();
-
-          if (fetchError || !newReservation) {
-            throw new Error('Error retrieving new reservation');
-          }
-
-          // Create reservation flow for new reservations
-          await createReservationFlow(newReservation.id, formData.seller_id);
-        }
-
+        // Si NO es venta con broker, O SI ES UNA EDICIÓN (id existe),
+        // simplemente navegar a la lista de reservas.
         navigate('/reservas');
       }
+      // --- FIN DE SECCIÓN MODIFICADA ---
     } catch (err: any) {
       console.error('Error in handleSubmit:', err);
       setError(err.message);
