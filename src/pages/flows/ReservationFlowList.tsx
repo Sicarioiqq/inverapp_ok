@@ -287,6 +287,11 @@ const ReservationFlowList = () => {
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {flow.reservation.reservation_number}
+                    {flow.reservation.is_rescinded && ( // Añadir estas líneas
+                    <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                      Resciliada
+                    </span>
+                  )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {`${flow.reservation.client.first_name} ${flow.reservation.client.last_name}`}
