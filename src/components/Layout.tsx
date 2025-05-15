@@ -275,7 +275,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             type: 'apartment',
             title: `Depto. ${apartment.apartment_number}`,
             subtitle: `${apartment.project.name} ${apartment.project.stage} - ${apartment.client.first_name} ${apartment.client.last_name}`,
-            reservationFlowId: flowData?.id
+            reservationFlowId: flowData?.id,
+            is_rescinded: apartment.is_rescinded
           });
         }
       }
