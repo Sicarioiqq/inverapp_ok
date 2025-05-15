@@ -352,16 +352,37 @@ const ReservationForm = () => {
 
       // Convert percentage values to decimals for storage
       const reservationData = {
-        ...formData,
+        // Campos que SÍ se deben enviar desde formData:
+        reservation_number: formData.reservation_number,
+        client_id: formData.client_id,
+        project_id: formData.project_id,
+        seller_id: formData.seller_id,
+        reservation_date: formData.reservation_date,
+        apartment_number: formData.apartment_number,
+        parking_number: formData.parking_number,
+        storage_number: formData.storage_number,
+        apartment_price: formData.apartment_price,
+        parking_price: formData.parking_price,
+        storage_price: formData.storage_price,
+        reservation_payment: formData.reservation_payment,
+        promise_payment: formData.promise_payment,
+        down_payment: formData.down_payment,
+        credit_payment: formData.credit_payment,
+        subsidy_payment: formData.subsidy_payment,
+        is_with_broker: formData.is_with_broker,
+        broker_id: formData.broker_id,
+        is_rescinded: formData.is_rescinded, // Asumiendo que tienes este campo en tu formData si permites marcarla como rescindida desde el form.
+                                         // Si no, y se maneja por otra vía, puedes omitirlo.
+
+        // Campos de descuentos convertidos
         column_discount: formData.column_discount / 100,
         additional_discount: formData.additional_discount / 100,
         other_discount: formData.other_discount / 100,
-        updated_by: session?.user.id,
-        minimum_price: minimumPrice,
-        total_price, // Add total_price to the data
-        total_payment: totalPayment,
-        deed_payment: formData.credit_payment > 0 ? formData.credit_payment : formData.down_payment,
-        recovery_payment: recoveryPayment
+        
+        // Metadatos
+        updated_by: session?.user.id
+        // El campo 'created_by' y 'id' se manejan más adelante en la lógica del upsert
+        // NO INCLUIR: total_price, minimum_price, total_payment, deed_payment, recovery_payment
       };
 
       let newReservationId: string | null = null;
