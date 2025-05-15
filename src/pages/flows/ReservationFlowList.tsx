@@ -144,7 +144,7 @@ const ReservationFlowList = () => {
           reservation:reservations!inner(
             reservation_number,
             apartment_number,
-            is_rescinded, // Añadir esta línea
+            is_rescinded,
             client:clients(first_name, last_name),
             project:projects(name, stage)
           ),
