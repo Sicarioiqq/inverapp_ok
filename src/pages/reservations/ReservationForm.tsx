@@ -7,7 +7,7 @@ import Layout from '../../components/Layout';
 import PromotionPopup from '../../components/PromotionPopup';
 import BrokerCommissionPopup from '../../components/BrokerCommissionPopup';
 import { ArrowLeft, Save, Loader2, Search, UserPlus, Plus } from 'lucide-react'; // Plus añadido
-import { ArrowLeft, Save, Loader2, Search, UserPlus, Plus, Trash2 } from 'lucide-react';
+
 
 // --- INICIO: Definiciones de Tipos para Promociones ---
 // Estos tipos también los necesitará PromotionPopup.tsx. Idealmente, estarían en un archivo types.ts central.
