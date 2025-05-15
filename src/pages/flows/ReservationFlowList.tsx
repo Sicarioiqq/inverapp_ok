@@ -282,7 +282,7 @@ const ReservationFlowList = () => {
               {flows.map((flow) => (
                 <tr 
                   key={flow.id} 
-                  className="hover:bg-gray-50 cursor-pointer"d
+                  className={`hover:bg-gray-50 cursor-pointer ${flow.reservation.is_rescinded ? 'bg-red-50' : ''}`} // Modificar esta línea
                   onClick={() => handleRowClick(flow.id)}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
