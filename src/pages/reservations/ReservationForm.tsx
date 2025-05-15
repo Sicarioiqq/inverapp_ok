@@ -358,6 +358,7 @@ const ReservationForm = () => {
         other_discount: formData.other_discount / 100,
         updated_by: session?.user.id,
         minimum_price: minimumPrice,
+        total_price, // Add total_price to the data
         total_payment: totalPayment,
         deed_payment: formData.credit_payment > 0 ? formData.credit_payment : formData.down_payment,
         recovery_payment: recoveryPayment
