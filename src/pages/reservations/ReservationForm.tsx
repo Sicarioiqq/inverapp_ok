@@ -511,6 +511,7 @@ const ReservationForm = () => {
   return (
     <Layout>
       <div className="max-w-5xl mx-auto">
+        {/* Header (sin cambios) */}
         <div className="flex items-center justify-between mb-6">
           <button onClick={() => navigate('/reservas')} className="flex items-center text-gray-600 hover:text-gray-900">
             <ArrowLeft className="h-5 w-5 mr-2" />Volver
@@ -521,6 +522,7 @@ const ReservationForm = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (<div className="bg-red-50 text-red-600 p-4 rounded-lg mb-4">{error}</div>)}
 
+          {/* Cliente Seleccionado (sin cambios) */}
           {selectedClient && (
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-4">
