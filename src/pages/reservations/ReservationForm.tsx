@@ -425,37 +425,7 @@ const ReservationForm = () => {
     );
   };
 
-  // --- NUEVA FUNCIÓN PARA ELIMINAR PROMOCIÓN ---
-  const handleDeletePromotion = async (promotionId: string) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar esta promoción? Esta acción no se puede deshacer.')) {
-      return;
-    }
-    setLoading(true); // Podrías tener un estado de carga específico para promociones si prefieres
-    setError(null);
-    try {
-      const { error: deleteError } = await supabase
-        .from('promotions')
-        .delete()
-        .eq('id', promotionId);
-
-      if (deleteError) {
-        console.error('Error deleting promotion:', deleteError);
-        throw deleteError;
-      }
-
-      // Actualizar el estado local para reflejar la eliminación
-      setAppliedPromotions(prevPromotions => prevPromotions.filter(promo => promo.id !== promotionId));
-      // Opcionalmente, mostrar una notificación de éxito
-      alert('Promoción eliminada exitosamente.'); 
-
-    } catch (err: any) {
-      console.error('Error en handleDeletePromotion:', err);
-      setError(err.message || 'Ocurrió un error al eliminar la promoción.');
-      alert(`Error al eliminar la promoción: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  
 
   if (!selectedClient && !id) {
     return (
