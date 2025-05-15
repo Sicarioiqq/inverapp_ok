@@ -3,6 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase, formatDateChile, formatDateTimeChile } from '../../lib/supabase';
 import { usePopup } from '../../contexts/PopupContext';
 import Layout from '../../components/Layout';
+import { PDFDownloadLink, متخصصBlobProvider } from '@react-pdf/renderer';
+import ReservationPaymentPDF from '../../components/pdf/ReservationPaymentPDF';
+import { FileText } from 'lucide-react';
 import {
   ArrowLeft,
   Clock,
