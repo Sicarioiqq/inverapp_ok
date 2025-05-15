@@ -1,248 +1,205 @@
 import React from 'react';
-import { Page, Text, View, Document, StyleSheet, Font, Image } from '@react-pdf/renderer';
-import { AppliedPromotion, PromotionType } from '../../pages/payments/PaymentEdit'; // Ajusta esta ruta si defines los tipos en otro lugar
-// O define los tipos aquí si no los exportas desde PaymentEdit o un archivo central:
-// export const PROMOTION_TYPES_ARRAY = [...] as const;
-// export type PromotionType = typeof PROMOTION_TYPES_ARRAY[number];
-// export interface AppliedPromotion { ... }
+import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
+// Asegúrate de que estas interfaces sean las correctas y estén accesibles
+// Podrías importarlas desde donde las tengas definidas (ej. PaymentFlow.tsx, PaymentEdit.tsx o un archivo de tipos)
+// o definirlas aquí si es más simple para este componente PDF.
+
+// --- INICIO: Definiciones de Tipos (Ejemplo, ajusta/importa las tuyas) ---
+export const PROMOTION_TYPES_ARRAY = [ /* ...tus tipos... */ ] as const;
+export type PromotionType = typeof PROMOTION_TYPES_ARRAY[number];
+export interface AppliedPromotion { /* ...tus campos... */ }
+interface ReservationInfo {
+  reservation_number: string;
+  client: { first_name: string; last_name: string; rut: string };
+  project: { name: string; stage: string };
+  apartment_number: string;
+  broker: { name: string; business_name: string };
+  // ... más campos de la reserva ...
+}
+interface BrokerCommissionInfo {
+  commission_amount: number;
+  number_of_payments: number;
+  first_payment_percentage: number;
+  purchase_order?: string | null;
+  invoice_1?: string | null;
+  invoice_1_date?: string | null;
+  payment_1_date?: string | null;
+  invoice_2?: string | null;
+  invoice_2_date?: string | null;
+  payment_2_date?: string | null;
+  // ... más campos de la comisión ...
+}
+interface PaymentFlowInfo { // La prop 'flow' que pasas desde PaymentFlow.tsx
+  id: string;
+  status: string;
+  started_at: string | null;
+  completed_at: string | null;
+  is_second_payment: boolean;
+  broker_commission: BrokerCommissionInfo & { reservation: ReservationInfo }; // Anidado como en tu estado
+  current_stage: { name: string } | null;
+  // ... más campos del flujo de comisión ...
+}
+// --- FIN: Definiciones de Tipos ---
 
 
-// Es buena práctica registrar las fuentes que usarás, especialmente si no son estándar.
-// Font.register({
-//   family: 'Roboto', // Ejemplo
-//   fonts: [
-//     { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-regular-webfont.ttf', fontWeight: 'normal' },
-//     { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-bold-webfont.ttf', fontWeight: 'bold' },
-//   ]
-// });
-
-// Define los estilos usando StyleSheet
+// --- Estilos para el PDF ---
 const styles = StyleSheet.create({
   page: {
     flexDirection: 'column',
     backgroundColor: '#FFFFFF',
-    padding: 30,
-    fontFamily: 'Helvetica', // Fuente base
+    paddingTop: 35,
+    paddingBottom: 65, // Espacio para el pie de página
+    paddingHorizontal: 35,
+    fontFamily: 'Helvetica',
+  },
+  header: {
+    fontSize: 20,
+    marginBottom: 20,
+    textAlign: 'center',
+    color: 'black',
+    fontWeight: 'bold',
   },
   section: {
     marginBottom: 15,
-    paddingBottom: 10,
+    paddingBottom: 5,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB', // Gris claro
+    borderBottomColor: '#cccccc',
   },
-  header: {
-    fontSize: 24,
-    marginBottom: 20,
-    textAlign: 'center',
-    color: '#111827', // Gris oscuro
-    // fontFamily: 'Roboto', // Si registraste una fuente
+  sectionTitle: {
+    fontSize: 14,
     fontWeight: 'bold',
-  },
-  title: {
-    fontSize: 16,
     marginBottom: 8,
-    fontWeight: 'bold',
-    color: '#374151', // Gris medio-oscuro
+    color: '#333333',
   },
-  subtitle: {
-    fontSize: 12,
-    color: '#6B7280', // Gris medio
-    marginBottom: 2,
-  },
-  text: {
-    fontSize: 11,
-    color: '#1F2937', // Gris oscuro
+  textRow: {
+    flexDirection: 'row',
     marginBottom: 4,
-    lineHeight: 1.4,
   },
-  boldText: {
-    fontSize: 11,
+  label: {
+    fontSize: 10,
+    color: '#555555',
+    width: '35%', // Ajusta según necesidad
+  },
+  value: {
+    fontSize: 10,
+    color: '#000000',
+    width: '65%', // Ajusta según necesidad
+    fontWeight: 'normal',
+  },
+  boldValue: {
+    fontSize: 10,
+    color: '#000000',
+    width: '65%',
     fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    position: 'absolute',
-    top: 20,
-    right: 30,
   },
   footer: {
     position: 'absolute',
+    fontSize: 8,
     bottom: 30,
-    left: 30,
-    right: 30,
+    left: 35,
+    right: 35,
     textAlign: 'center',
     color: 'grey',
-    fontSize: 9,
   },
-  table: { 
-    display: "flex", // Cambiado de 'table' a 'flex' para compatibilidad
-    width: "auto", 
-    borderStyle: "solid", 
-    borderWidth: 1, 
-    borderColor: '#E5E7EB',
-    borderRightWidth: 0, 
-    borderBottomWidth: 0,
-    marginBottom: 10,
-  },
-  tableRow: { 
-    margin: "auto", 
-    flexDirection: "row" 
-  }, 
-  tableColHeader: { 
-    width: "25%", // Ajusta según el número de columnas
-    borderStyle: "solid", 
-    borderWidth: 1, 
-    borderColor: '#E5E7EB',
-    borderLeftWidth: 0, 
-    borderTopWidth: 0,
-    backgroundColor: '#F9FAFB', // Gris muy claro para cabeceras
-    padding: 5,
-  },
-  tableCol: { 
-    width: "25%", // Ajusta según el número de columnas
-    borderStyle: "solid", 
-    borderWidth: 1, 
-    borderColor: '#E5E7EB',
-    borderLeftWidth: 0, 
-    borderTopWidth: 0,
-    padding: 5,
-  },
-  tableCellHeader: {
-    margin: 5, 
-    fontSize: 10,
-    fontWeight: 'bold'
-  },
-  tableCell: { 
-    margin: 5, 
-    fontSize: 9 
-  }
+  // Agrega más estilos según necesites (para tablas, etc.)
 });
 
-// Define la interfaz para las props de tu documento PDF
-interface ReservationPaymentPDFProps {
-  flow: any; // Usa la interfaz PaymentFlow que ya tienes definida en PaymentFlow.tsx
-  appliedPromotions?: AppliedPromotion[]; // Promociones aplicadas
-  financialSummary?: any; // Usa la interfaz FinancialSummary que definiste en PaymentEdit.tsx
-  // Podrías pasar también formatDateChile y formatCurrency como props si es más fácil
+interface LiquidacionPagoBrokerPDFProps {
+  flowData: PaymentFlowInfo; // Usa la interfaz completa del flujo de pago
+  appliedPromotions?: AppliedPromotion[]; // Opcional, si se incluyen promociones
+  // funciones de formateo
   formatDate: (dateStr: string | null | undefined) => string;
   formatCurrency: (amount: number) => string;
 }
 
-const ReservationPaymentPDF: React.FC<ReservationPaymentPDFProps> = ({ 
-  flow, 
-  appliedPromotions, 
-  financialSummary,
+const LiquidacionPagoBrokerPDF: React.FC<LiquidacionPagoBrokerPDFProps> = ({
+  flowData,
+  appliedPromotions,
   formatDate,
-  formatCurrency
+  formatCurrency,
 }) => {
-  if (!flow || !flow.broker_commission || !flow.broker_commission.reservation) {
-    // Manejo de caso donde los datos no están completos
+  if (!flowData || !flowData.broker_commission || !flowData.broker_commission.reservation) {
     return (
       <Document>
-        <Page style={styles.page}>
-          <Text>Error: Datos incompletos para generar el PDF.</Text>
-        </Page>
+        <Page style={styles.page}><Text>Datos insuficientes para generar la liquidación.</Text></Page>
       </Document>
     );
   }
 
-  const { reservation } = flow.broker_commission;
-  const commission = flow.broker_commission;
+  const { reservation } = flowData.broker_commission;
+  const commission = flowData.broker_commission;
+  // Calcula los montos de pago aquí también si los necesitas en el PDF
+  const firstPaymentAmount = commission.commission_amount * (commission.first_payment_percentage / 100);
+  const secondPaymentAmount = commission.number_of_payments === 2 ? commission.commission_amount - firstPaymentAmount : 0;
 
   return (
-    <Document>
+    <Document title={`Liquidación Pago Reserva ${reservation.reservation_number}`}>
       <Page size="A4" style={styles.page}>
-        {/* <Image style={styles.logo} src="/inverapp-logo.svg" />  // Necesitarías una URL completa o convertirlo a base64 */}
-        <Text style={styles.header}>Resumen de Reserva y Flujo de Pago</Text>
+        {/* Aquí puedes añadir un logo si lo tienes como URL o data URI */}
+        {/* <Image style={styles.logo} src="URL_DEL_LOGO_O_DATA_URI" /> */}
 
-        {/* Información de la Reserva */}
+        <Text style={styles.header}>Liquidación de Pago a Broker</Text>
+
         <View style={styles.section}>
-          <Text style={styles.title}>Información de la Reserva</Text>
-          <Text style={styles.text}><Text style={styles.boldText}>N° Reserva:</Text> {reservation.reservation_number}</Text>
-          <Text style={styles.text}><Text style={styles.boldText}>Cliente:</Text> {reservation.client.first_name} {reservation.client.last_name} (RUT: {reservation.client.rut})</Text>
-          <Text style={styles.text}><Text style={styles.boldText}>Proyecto:</Text> {reservation.project.name} - {reservation.project.stage}</Text>
-          <Text style={styles.text}><Text style={styles.boldText}>Unidad:</Text> Depto. {reservation.apartment_number}
-            {reservation.parking_number && ` | Est. ${reservation.parking_number}`}
-            {reservation.storage_number && ` | Bod. ${reservation.storage_number}`}
-          </Text>
-          <Text style={styles.text}><Text style={styles.boldText}>Broker:</Text> {reservation.broker.name}</Text>
+          <Text style={styles.sectionTitle}>Información de la Reserva</Text>
+          <View style={styles.textRow}><Text style={styles.label}>N° Reserva:</Text><Text style={styles.value}>{reservation.reservation_number}</Text></View>
+          <View style={styles.textRow}><Text style={styles.label}>Cliente:</Text><Text style={styles.value}>{reservation.client.first_name} {reservation.client.last_name}</Text></View>
+          <View style={styles.textRow}><Text style={styles.label}>RUT Cliente:</Text><Text style={styles.value}>{reservation.client.rut}</Text></View>
+          <View style={styles.textRow}><Text style={styles.label}>Proyecto:</Text><Text style={styles.value}>{reservation.project.name} - {reservation.project.stage}</Text></View>
+          <View style={styles.textRow}><Text style={styles.label}>Unidad:</Text><Text style={styles.value}>Depto. {reservation.apartment_number}</Text></View>
+          <View style={styles.textRow}><Text style={styles.label}>Broker:</Text><Text style={styles.value}>{reservation.broker.name}</Text></View>
         </View>
 
-        {/* Detalles de la Comisión */}
         <View style={styles.section}>
-          <Text style={styles.title}>Detalles de la Comisión</Text>
-          <Text style={styles.text}><Text style={styles.boldText}>Monto Comisión Bruta:</Text> {formatCurrency(commission.commission_amount)} UF</Text>
-          <Text style={styles.text}><Text style={styles.boldText}>N° de Pagos:</Text> {commission.number_of_payments}</Text>
-          <Text style={styles.text}><Text style={styles.boldText}>% Primer Pago:</Text> {commission.first_payment_percentage}%</Text>
-          {/* Agrega más detalles de la comisión si es necesario */}
+          <Text style={styles.sectionTitle}>Detalles de la Comisión</Text>
+          <View style={styles.textRow}><Text style={styles.label}>Monto Comisión Bruta:</Text><Text style={styles.boldValue}>{formatCurrency(commission.commission_amount)} UF</Text></View>
+          <View style={styles.textRow}><Text style={styles.label}>N° de Pagos:</Text><Text style={styles.value}>{commission.number_of_payments}</Text></View>
+          <View style={styles.textRow}><Text style={styles.label}>% Primer Pago:</Text><Text style={styles.value}>{commission.first_payment_percentage}% ({formatCurrency(firstPaymentAmount)} UF)</Text></View>
+          {commission.number_of_payments === 2 && (
+            <View style={styles.textRow}><Text style={styles.label}>% Segundo Pago:</Text><Text style={styles.value}>{100 - commission.first_payment_percentage}% ({formatCurrency(secondPaymentAmount)} UF)</Text></View>
+          )}
+          {commission.purchase_order && <View style={styles.textRow}><Text style={styles.label}>N° OC:</Text><Text style={styles.value}>{commission.purchase_order}</Text></View>}
         </View>
 
-        {/* Promociones Aplicadas */}
-        {appliedPromotions && appliedPromotions.length > 0 && (
+        {/* Información del Primer Pago */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Primer Pago</Text>
+          {commission.invoice_1 && <View style={styles.textRow}><Text style={styles.label}>N° Factura 1:</Text><Text style={styles.value}>{commission.invoice_1}</Text></View>}
+          {commission.invoice_1_date && <View style={styles.textRow}><Text style={styles.label}>Fecha Emisión Fact. 1:</Text><Text style={styles.value}>{formatDate(commission.invoice_1_date)}</Text></View>}
+          {commission.payment_1_date && <View style={styles.textRow}><Text style={styles.label}>Fecha Pago 1:</Text><Text style={styles.boldValue}>{formatDate(commission.payment_1_date)}</Text></View>}
+        </View>
+
+        {/* Información del Segundo Pago (si aplica) */}
+        {commission.number_of_payments === 2 && (
           <View style={styles.section}>
-            <Text style={styles.title}>Promociones Aplicadas</Text>
+            <Text style={styles.sectionTitle}>Segundo Pago</Text>
+            {commission.invoice_2 && <View style={styles.textRow}><Text style={styles.label}>N° Factura 2:</Text><Text style={styles.value}>{commission.invoice_2}</Text></View>}
+            {commission.invoice_2_date && <View style={styles.textRow}><Text style={styles.label}>Fecha Emisión Fact. 2:</Text><Text style={styles.value}>{formatDate(commission.invoice_2_date)}</Text></View>}
+            {commission.payment_2_date && <View style={styles.textRow}><Text style={styles.label}>Fecha Pago 2:</Text><Text style={styles.boldValue}>{formatDate(commission.payment_2_date)}</Text></View>}
+          </View>
+        )}
+
+        {/* Promociones (si se incluyen en esta liquidación) */}
+        {appliedPromotions && appliedPromotions.length > 0 && (
+          <View style={styles.section} wrap={false}> {/* wrap={false} para intentar mantener la sección en una página si es posible */}
+            <Text style={styles.sectionTitle}>Promociones Asociadas</Text>
             {appliedPromotions.map(promo => (
-              <View key={promo.id} style={{ marginBottom: 8, paddingLeft: 10, borderLeftWidth: 2, borderLeftColor: '#D1D5DB' }}>
-                <Text style={styles.boldText}>{promo.promotion_type}: {formatCurrency(promo.amount)} UF</Text>
-                <Text style={styles.text}>Contra Descuento: {promo.is_against_discount ? 'Sí' : 'No'}</Text>
-                {promo.observations && <Text style={styles.text}><Text style={styles.boldText}>Obs:</Text> {promo.observations}</Text>}
-                 {/* Puedes añadir más detalles de la promoción si es necesario */}
+              <View key={promo.id} style={{ marginBottom: 5, paddingLeft: 5 }}>
+                <Text style={styles.value}><Text style={styles.label}>{promo.promotion_type}:</Text> {formatCurrency(promo.amount)} UF ({promo.is_against_discount ? 'Contra Dcto.' : 'No Contra Dcto.'})</Text>
+                {promo.observations && <Text style={{...styles.text, fontSize: 9, marginLeft: 10}}>Obs: {promo.observations}</Text>}
               </View>
             ))}
           </View>
         )}
-        
-        {/* Resumen Financiero (si lo pasas como prop) */}
-        {financialSummary && (
-            <View style={styles.section}>
-                <Text style={styles.title}>Resumen Financiero</Text>
-                <Text style={styles.text}><Text style={styles.boldText}>Total Escrituración:</Text> {formatCurrency(financialSummary.totalPayment)} UF</Text>
-                <Text style={styles.text}><Text style={styles.boldText}>Total Recuperación:</Text> {formatCurrency(financialSummary.recoveryPayment)} UF</Text>
-                <Text style={styles.text}><Text style={styles.boldText}>Precio Mínimo:</Text> {formatCurrency(financialSummary.minimumPrice)} UF</Text>
-                <Text style={styles.text}><Text style={styles.boldText}>Comisión Bruta:</Text> {formatCurrency(financialSummary.totalCommissionUF)} UF</Text>
-                {financialSummary.totalPromotionsAgainstDiscount > 0 && (
-                    <Text style={styles.text}><Text style={styles.boldText}>Promociones (Contra Dcto.):</Text> -{formatCurrency(financialSummary.totalPromotionsAgainstDiscount)} UF</Text>
-                )}
-                <Text style={styles.text}><Text style={styles.boldText}>Diferencia:</Text> {formatCurrency(financialSummary.difference)} UF</Text>
-            </View>
-        )}
 
-        {/* Estado del Flujo de Pago */}
-        <View style={styles.section}>
-          <Text style={styles.title}>Estado del Flujo de Pago</Text>
-          <Text style={styles.text}><Text style={styles.boldText}>Estado General:</Text> {flow.status}</Text>
-          <Text style={styles.text}><Text style={styles.boldText}>Etapa Actual:</Text> {flow.current_stage?.name || 'N/A'}</Text>
-          {flow.started_at && <Text style={styles.text}><Text style={styles.boldText}>Iniciado el:</Text> {formatDate(flow.started_at)}</Text>}
-          {flow.completed_at && <Text style={styles.text}><Text style={styles.boldText}>Completado el:</Text> {formatDate(flow.completed_at)}</Text>}
-        </View>
-        
-        {/* Detalle de Etapas y Tareas (Ejemplo básico, podrías hacerlo más detallado o con tablas) */}
-        {flow.stages && flow.stages.length > 0 && (
-            <View style={styles.section}>
-                <Text style={styles.title}>Detalle de Etapas y Tareas</Text>
-                {flow.stages.map((stage: any) => ( // Usa tu interfaz Stage aquí
-                    <View key={stage.id} style={{ marginBottom: 8, paddingLeft: 10 }}>
-                        <Text style={{...styles.boldText, fontSize: 12, marginBottom: 4 }}>Etapa: {stage.name} ({stage.isCompleted ? 'Completada' : 'Pendiente'})</Text>
-                        {stage.tasks.map((task: any) => ( // Usa tu interfaz Task aquí
-                            <View key={task.id} style={{ marginLeft: 10, marginBottom: 3 }}>
-                                <Text style={styles.text}>- {task.name}: <Text style={styles.boldText}>{task.status}</Text>
-                                    {task.assignee && ` (Asignado a: ${task.assignee.first_name} ${task.assignee.last_name})`}
-                                </Text>
-                            </View>
-                        ))}
-                    </View>
-                ))}
-            </View>
-        )}
+        {/* Puedes agregar más secciones según necesites */}
 
         <Text style={styles.footer} render={({ pageNumber, totalPages }) => (
-          `Página ${pageNumber} de ${totalPages}`
+          `${reservation.project.name} | Reserva ${reservation.reservation_number} | Página ${pageNumber} de ${totalPages}`
         )} fixed />
       </Page>
     </Document>
   );
-}
+};
 
-export default ReservationPaymentPDF;
+export default LiquidacionPagoBrokerPDF;
