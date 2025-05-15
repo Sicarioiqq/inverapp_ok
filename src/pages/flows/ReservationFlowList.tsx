@@ -20,6 +20,7 @@ interface ReservationFlow {
       stage: string;
     };
     apartment_number: string;
+    is_rescinded: boolean; // Añadir esta línea
   };
   current_stage: {
     name: string;
@@ -65,6 +66,7 @@ const ReservationFlowList = () => {
           reservation:reservations!inner(
             reservation_number,
             apartment_number,
+            is_rescinded, // Añadir esta línea
             client:clients(first_name, last_name),
             project:projects(name, stage)
           ),
@@ -142,6 +144,7 @@ const ReservationFlowList = () => {
           reservation:reservations!inner(
             reservation_number,
             apartment_number,
+            is_rescinded, // Añadir esta línea
             client:clients(first_name, last_name),
             project:projects(name, stage)
           ),
@@ -259,7 +262,7 @@ const ReservationFlowList = () => {
                   Cliente
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Proyecto
+                  dd
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Depto.
@@ -279,7 +282,7 @@ const ReservationFlowList = () => {
               {flows.map((flow) => (
                 <tr 
                   key={flow.id} 
-                  className="hover:bg-gray-50 cursor-pointer"
+                  className="hover:bg-gray-50 cursor-pointer"d
                   onClick={() => handleRowClick(flow.id)}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
