@@ -23,6 +23,7 @@ interface SearchResult {
   title: string;
   subtitle: string;
   reservationFlowId?: string;
+  is_rescinded?: boolean;
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
