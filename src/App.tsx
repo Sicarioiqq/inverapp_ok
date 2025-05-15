@@ -9,6 +9,7 @@ import ClientList from './pages/clients/ClientList';
 import ClientForm from './pages/clients/ClientForm';
 import ReservationList from './pages/reservations/ReservationList';
 import ReservationForm from './pages/reservations/ReservationForm';
+import ReservationDetail from './pages/reservations/ReservationDetail';
 import BrokerList from './pages/brokers/BrokerList';
 import BrokerForm from './pages/brokers/BrokerForm';
 import PaymentList from './pages/payments/PaymentList';
@@ -84,6 +85,11 @@ function App() {
           <Route path="/reservas/editar/:id" element={
             <ProtectedRoute>
               <ReservationForm />
+            </ProtectedRoute>
+          } />
+          <Route path="/reservas/detalle/:id" element={
+            <ProtectedRoute>
+              <ReservationDetail />
             </ProtectedRoute>
           } />
           <Route path="/flujo-reservas" element={
