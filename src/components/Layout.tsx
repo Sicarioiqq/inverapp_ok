@@ -239,7 +239,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           type: 'reservation',
           title: `Reserva ${reservation.reservation_number}`,
           subtitle: `${reservation.client.first_name} ${reservation.client.last_name} - ${reservation.project.name} ${reservation.project.stage}`,
-          reservationFlowId: flowData?.id
+          reservationFlowId: flowData?.id,
+          is_rescinded: reservation.is_rescinded
         });
       }
       
