@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
-import { useAuthStore } from '../../stores/authStore';
-import { usePopup } from '../../contexts/PopupContext';
+// --- MODIFICACIÓN: Corregida la ruta de importación ---
+import { supabase } from '../lib/supabase'; // <- RUTA CORREGIDA (un solo ../)
+import { useAuthStore } from '../stores/authStore';
+import { usePopup } from '../contexts/PopupContext';
 import { Loader2, Save } from 'lucide-react';
 
 // --- INICIO: Definiciones de Tipos para Promociones ---
-// Definidos aquí ya que no hay un archivo types.ts central
+// Definidos aquí para que el componente sea autocontenido.
 export const PROMOTION_TYPES_ARRAY = [
   'Arriendo garantizado',
   'Cashback',
@@ -28,7 +29,7 @@ export interface AppliedPromotion {
   observations?: string | null;
 
   // Campos existentes de tu tabla 'promotions' (según la imagen que mostraste)
-  amount: number; // Asumiendo que este es amount_uf y siempre es numérico
+  amount: number; // Este es el campo para UF en tu tabla 'promotions'
   beneficiary: string;
   rut: string;
   bank: string;
@@ -43,13 +44,12 @@ export interface AppliedPromotion {
   created_at?: string;
   updated_at?: string;
   created_by?: string;
-  // updated_by?: string; // No visible en la imagen, pero común
 }
 // --- FIN: Definiciones de Tipos para Promociones ---
 
 interface PromotionPopupProps {
   reservationId: string;
-  onSave: (newPromotion: AppliedPromotion) => void;
+  onSave: (newPromotion: AppliedPromotion) => void; // Callback para notificar al padre
   onClose: () => void;
   // existingPromotion?: AppliedPromotion; // Para futura edición
 }
@@ -64,23 +64,23 @@ const PromotionPopup: React.FC<PromotionPopupProps> = ({
   reservationId,
   onSave,
   onClose,
-  // existingPromotion, // Para futura edición
+  // existingPromotion,
 }) => {
   const { session } = useAuthStore();
-  const { hidePopup } = usePopup(); 
+  const { hidePopup } = usePopup();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Omit<AppliedPromotion, 'id' | 'created_at' | 'updated_at' | 'created_by'>>({
     reservation_id: reservationId,
-    promotion_type: PROMOTION_TYPES_ARRAY[0], 
-    amount: 0, 
-    is_against_discount: true, 
+    promotion_type: PROMOTION_TYPES_ARRAY[0],
+    amount: 0,
+    is_against_discount: true,
     observations: '',
     beneficiary: '',
     rut: '',
     bank: '',
-    account_type: ACCOUNT_TYPES_OPTIONS[0], 
+    account_type: ACCOUNT_TYPES_OPTIONS[0],
     account_number: '',
     email: '',
     purchase_order: '',
@@ -94,7 +94,7 @@ const PromotionPopup: React.FC<PromotionPopupProps> = ({
     
     if (type === 'checkbox') {
       setFormData(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
-    } else if (name === 'amount') { // 'amount' es el único campo numérico esperado aquí
+    } else if (name === 'amount') { 
       setFormData(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
@@ -118,7 +118,6 @@ const PromotionPopup: React.FC<PromotionPopupProps> = ({
       setError('Debe seleccionar un tipo de promoción.');
       return;
     }
-    // Aquí puedes añadir más validaciones para los otros campos si son obligatorios
 
     setLoading(true);
     setError(null);
@@ -127,7 +126,7 @@ const PromotionPopup: React.FC<PromotionPopupProps> = ({
       const dataToSave = {
         ...formData,
         created_by: session?.user?.id,
-        updated_by: session?.user?.id,
+        updated_by: session?.user?.id, // Para el trigger de updated_at
         document_date: formData.document_date || null,
         payment_date: formData.payment_date || null,
         observations: formData.observations?.trim() === '' ? null : formData.observations?.trim(),
@@ -149,7 +148,7 @@ const PromotionPopup: React.FC<PromotionPopupProps> = ({
       if (data) {
         onSave(data as AppliedPromotion);
       }
-      hidePopup(); 
+      hidePopup();
     } catch (err: any) {
       console.error('Error en handleSave:', err);
       setError(err.message || 'Ocurrió un error al guardar la promoción.');
@@ -158,8 +157,6 @@ const PromotionPopup: React.FC<PromotionPopupProps> = ({
     }
   };
 
-  // El resto del JSX del popup permanece igual al que te proporcioné anteriormente.
-  // Solo me aseguro que los names de los inputs coincidan con los campos de formData.
   return (
     <div className="p-6 bg-white rounded-lg shadow-xl w-full max-w-lg">
       <h2 className="text-xl font-semibold text-gray-900 mb-6">
@@ -172,7 +169,8 @@ const PromotionPopup: React.FC<PromotionPopupProps> = ({
         </div>
       )}
 
-      <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-0"> {/* Evitar doble submit */}
+      {/* // --- MODIFICACIÓN: Añadido onSubmit al form --- */}
+      <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-0">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
           {/* Columna 1 */}
           <div>
@@ -247,7 +245,7 @@ const PromotionPopup: React.FC<PromotionPopupProps> = ({
             <input type="date" id="payment_date" name="payment_date" value={formData.payment_date || ''} onChange={handleDateChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" />
           </div>
-            <div className="md:col-span-2">
+           <div className="md:col-span-2">
             <label htmlFor="observations" className="block text-sm font-medium text-gray-700">Observaciones</label>
             <textarea id="observations" name="observations" rows={3} value={formData.observations || ''} onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
@@ -260,7 +258,8 @@ const PromotionPopup: React.FC<PromotionPopupProps> = ({
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
             Cancelar
           </button>
-          <button type="submit" /* Cambiado de button a submit */ disabled={loading} 
+          {/* --- MODIFICACIÓN: El botón de guardar ahora es de tipo submit --- */}
+          <button type="submit" disabled={loading} 
             className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
             {loading ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <Save className="h-5 w-5 mr-2" />}
             Guardar Promoción
