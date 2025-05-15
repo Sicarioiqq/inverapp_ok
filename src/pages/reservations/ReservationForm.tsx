@@ -424,7 +424,6 @@ const ReservationForm = () => {
       { title: 'Agregar Promoción', size: 'lg' } 
     );
   };
-  
 
   if (!selectedClient && !id) {
     return (
