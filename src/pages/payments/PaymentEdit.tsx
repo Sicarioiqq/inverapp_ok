@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase, formatDateChile } from '../../lib/supabase'; // formatDateChile ya está aquí
 import { useAuthStore } from '../../stores/authStore';
 import Layout from '../../components/Layout';
-import { ArrowLeft, Save, Loader2, TrendingUp, Wallet, DollarSign, TrendingDown, Minus, Gift, Info } from 'lucide-react'; // --- MODIFICACIÓN: Añadido Gift, Info ---
+import { ArrowLeft, Save, Loader2, TrendingUp, Wallet, DollarSign, TrendingDown, Minus, Gift, Info, Edit, FileText } from 'lucide-react'; // Added Edit and FileText icons
 
 // --- INICIO: Definiciones de Tipos para Promociones (consistente con ReservationForm y PromotionPopup) ---
 export const PROMOTION_TYPES_ARRAY = [
