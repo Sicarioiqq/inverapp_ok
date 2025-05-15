@@ -4,7 +4,7 @@ import { supabase, formatDateChile, formatDateTimeChile } from '../../lib/supaba
 import { usePopup } from '../../contexts/PopupContext';
 import Layout from '../../components/Layout';
 import { PDFDownloadLink, متخصصBlobProvider } from '@react-pdf/renderer';
-import ReservationPaymentPDF from '../../components/pdf/ReservationPaymentPDF';
+import ReservationPaymentPDF from '../../components/pdf/LiquidacionPagoBrokerPDF';
 import { FileText } from 'lucide-react';
 import {
   ArrowLeft,
