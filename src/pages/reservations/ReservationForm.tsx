@@ -627,7 +627,71 @@ const ReservationForm = () => {
               )}
             </div>
           )}
-          {/* --- FIN NUEVA SECCIÓN --- */}
+          {/* --- FIN NUEVA SECCIÓN --- */}{/* --- SECCIÓN MODIFICADA Y AMPLIADA: Promociones Aplicadas --- */}
+          {id && ( 
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Promociones Aplicadas</h2>
+                <button
+                  type="button"
+                  onClick={handleShowPromotionPopup}
+                  disabled={!id || loading} 
+                  className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Agregar Promoción
+                </button>
+              </div>
+              {appliedPromotions.length > 0 ? (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {appliedPromotions.map((promo) => (
+                    <div key={promo.id} className="p-4 border rounded-md bg-slate-50 shadow">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="font-semibold text-blue-700">
+                            {promo.promotion_type}
+                          </p>
+                          <p className="text-lg font-bold text-blue-600">
+                            {formatCurrency(promo.amount)} UF
+                          </p>
+                        </div>
+                        {/* --- NUEVO: Botón para Eliminar Promoción --- */}
+                        <button 
+                          type="button" // Importante para no hacer submit del form principal
+                          onClick={() => handleDeletePromotion(promo.id)}
+                          className="p-1 text-red-500 hover:text-red-700 disabled:opacity-50"
+                          title="Eliminar Promoción"
+                          disabled={loading} // Deshabilitar mientras se guarda la reserva
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
+                      <p className={`text-sm font-medium ${promo.is_against_discount ? 'text-orange-600' : 'text-green-600'}`}>
+                        {promo.is_against_discount ? 'Es Contra Descuento' : 'No es Contra Descuento'}
+                      </p>
+                      {promo.observations && (
+                        <p className="text-sm text-gray-600 mt-1 italic">
+                          Obs: {promo.observations}
+                        </p>
+                      )}
+                      <div className="mt-3 text-xs text-gray-500 border-t pt-3 space-y-1">
+                        <p><strong>Beneficiario:</strong> {promo.beneficiary || 'N/D'}{promo.rut && ` (RUT: ${promo.rut})`}</p>
+                        {promo.email && <p><strong>Email:</strong> {promo.email}</p>}
+                        {(promo.bank || promo.account_type || promo.account_number) && 
+                          <p><strong>Banco:</strong> {promo.bank || 'N/D'}, Tipo Cta: {promo.account_type || 'N/D'}, N° Cta: {promo.account_number || 'N/D'}</p>
+                        }
+                        {promo.purchase_order && <p><strong>N° OC:</strong> {promo.purchase_order}</p>}
+                        {promo.document_number && <p><strong>Doc. N°:</strong> {promo.document_number} {promo.document_date ? `(Fecha: ${formatDate(promo.document_date)})` : ''}</p>}
+                        {promo.payment_date && <p><strong>Fecha Pago Promoción:</strong> {formatDate(promo.payment_date)}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No hay promociones aplicadas a esta reserva.</p>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end space-x-4 mt-8">
             <button
