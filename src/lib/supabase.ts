@@ -194,3 +194,12 @@ export const formatMonthYear = (dateStr: string): string => {
     return '';
   }
 };
+
+// Format currency values in UF with 2 decimal places
+export const formatCurrency = (value: number | null): string => {
+  if (value === null || value === undefined) return '0,00';
+  return value.toLocaleString('es-CL', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+};
