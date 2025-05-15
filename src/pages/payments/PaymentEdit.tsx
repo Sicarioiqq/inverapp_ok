@@ -69,6 +69,17 @@ interface CommissionFormData {
   payment_2_date: string | null;
 }
 
+interface FinancialSummary {
+    totalPayment: number;
+    recoveryPayment: number;
+    minimumPrice: number;
+    difference: number;
+    totalCommissionUF?: number; 
+    firstPaymentUF?: number;    
+    secondPaymentUF?: number; 
+    totalPromotionsAgainstDiscount?: number; // --- NUEVO ---
+}
+
 const PaymentEdit = () => {
   const { id: reservationId } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -101,7 +112,11 @@ const PaymentEdit = () => {
     totalPayment: 0,
     recoveryPayment: 0,
     minimumPrice: 0,
-    difference: 0
+    difference: 0,
+    totalCommissionUF: 0,
+    firstPaymentUF: 0,
+    secondPaymentUF: 0,
+    totalPromotionsAgainstDiscount: 0
   });
 
   const [appliedPromotions, setAppliedPromotions] = useState<AppliedPromotion[]>([]);
@@ -123,22 +138,40 @@ const PaymentEdit = () => {
     }
   }, [reservationId]);
 
+  // --- MODIFICACIÓN: useEffect para calcular Resumen Financiero ---
   useEffect(() => {
-    if (reservation) {
+    if (reservation && formData) {
       const totalPaymentVal = reservation.total_payment || 0;
       const subsidyPaymentVal = reservation.subsidy_payment || 0;
       const recoveryPaymentVal = totalPaymentVal - subsidyPaymentVal;
       const minimumPriceVal = reservation.minimum_price || 0;
-      const differenceVal = recoveryPaymentVal - minimumPriceVal - formData.commission_amount;
+      const commissionAmountForCalc = formData.commission_amount || 0;
+
+      // --- NUEVO: Calcular total de promociones contra descuento ---
+      const totalPromotionsAgainstDiscountVal = appliedPromotions.reduce((sum, promo) => {
+        if (promo.is_against_discount) {
+          return sum + (promo.amount || 0);
+        }
+        return sum;
+      }, 0);
+      
+      const differenceVal = recoveryPaymentVal - minimumPriceVal - commissionAmountForCalc - totalPromotionsAgainstDiscountVal;
+      
+      const firstPaymentUFCalc = commissionAmountForCalc * (formData.first_payment_percentage / 100);
+      const secondPaymentUFCalc = formData.number_of_payments === 2 ? commissionAmountForCalc - firstPaymentUFCalc : 0;
 
       setFinancialSummary({
         totalPayment: totalPaymentVal,
         recoveryPayment: recoveryPaymentVal,
         minimumPrice: minimumPriceVal,
-        difference: differenceVal
+        difference: differenceVal,
+        totalCommissionUF: commissionAmountForCalc,
+        firstPaymentUF: firstPaymentUFCalc,
+        secondPaymentUF: secondPaymentUFCalc,
+        totalPromotionsAgainstDiscount: totalPromotionsAgainstDiscountVal, // Guardar para posible visualización
       });
     }
-  }, [reservation, formData.commission_amount]);
+  }, [reservation, formData, appliedPromotions]); // --- MODIFICACIÓN: Añadida appliedPromotions a las dependencias ---
 
   const fetchReservationAndCommission = async (resId: string) => {
     try {
