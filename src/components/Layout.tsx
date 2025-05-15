@@ -216,6 +216,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         .select(`
           id, 
           reservation_number,
+          is_rescinded,
           client:clients(first_name, last_name),
           project:projects(name, stage),
           apartment_number
