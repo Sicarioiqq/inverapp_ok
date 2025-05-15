@@ -343,10 +343,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   onClick={() => navigate('/dashboard')}
                   className="flex items-center space-x-2 cursor-pointer ml-2 lg:ml-0"
                 >
-                  <img src="/inverapp-logo.png" alt="InverAPP" className="h-8 w-8 text-blue-600" />
-                  <span className="text-xl font-semibold text-gray-900">
-                    InverAPP
-                  </span>
+                  
                 </button>
               </div>
 
