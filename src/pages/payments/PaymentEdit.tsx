@@ -657,7 +657,7 @@ const PaymentEdit = () => {
                     ? 'text-red-600'
                     : 'text-gray-900'
                 }
-                subtitle="(Recuperación - Mínimo - Comisión Bruta - Comisiones)"
+                subtitle="(Recuperación - Mínimo - Comisión Bruta - Promociones)"
               />
             </div>
           </div>
