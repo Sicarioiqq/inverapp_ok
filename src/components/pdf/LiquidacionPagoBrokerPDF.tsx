@@ -138,7 +138,7 @@ value: {
     paddingTop: 35,
     paddingBottom: 55, // Espacio para el pie de página
     paddingHorizontal: 35,
-    fontFamily: 'Lato-Regular', // CAMBIA a 'Lato' o 'Montserrat' después de registrar la fuente
+    fontFamily: 'Helvetica', // CAMBIA a 'Lato' o 'Montserrat' después de registrar la fuente
   },
   logo: {
     width: 120,
