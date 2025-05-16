@@ -2236,28 +2236,7 @@ interface Task {
 
 	></div>
 
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-  <h2 className="text-lg font-semibold text-gray-900 mb-4">Informes y Documentos</h2>
-  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-    <p className="text-sm text-gray-600">
-      Descarga el PDF con el detalle del pago de comisión y promociones aplicadas.
-    </p>
-    <PDFDownloadLink
-      document={
-        <LiquidacionPagoBrokerPDF
-          flow={flow}
-        />
-      }
-      fileName={`liquidacion_pago_broker_${flow.broker_commission.reservation.reservation_number}.pdf`}
-      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
-    >
-      {({ loading }) =>
-        loading ? 'Generando PDF...' : 'Descargar Liquidación PDF'
-      }
-    </PDFDownloadLink>
-  </div>
-</div>
-
+    
 
 	</div>
     
