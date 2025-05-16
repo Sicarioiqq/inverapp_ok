@@ -142,12 +142,10 @@ const styles = StyleSheet.create({
   },
 });
 
-// --- Secciones ---
-  section: {
+section: {
     marginBottom: 20,
     paddingBottom: 10,
   },
-  
 
 const LiquidacionPagoBrokerPDF: React.FC<LiquidacionPagoBrokerPDFProps> = ({
   flowData,
