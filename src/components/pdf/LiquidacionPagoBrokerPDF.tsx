@@ -411,6 +411,36 @@ const InformeGeneralNegocioPDF: React.FC<InformeDataProps> = ({
   );
 };
 
+// --- Datos de Ejemplo para Pruebas ---
+// (Deberás reemplazar esto con datos reales)
+export const ejemploDataInforme: InformeDataProps = {
+  reportTitle: "Informe de Gestión Comercial Inverapp",
+  generationDate: "16/05/2025",
+  periodCovered: "Q1 2025",
+  companyLogoUrl: undefined, // "URL_DEL_LOGO_EMPRESA.png", // <-- PON TU LOGO AQUÍ
+  kpis: [
+    { title: "Total Reservas (Periodo)", value: "120", trend: "+15% vs Q4 2024", trendPositive: true },
+    { title: "Valor Total Comisiones", value: "UF 350,000", trend: "+10%", trendPositive: true },
+    { title: "Nuevos Clientes", value: "85", trend: "-5% vs Q4 2024", trendPositive: false },
+    { title: "Proyectos Activos", value: "12" },
+  ],
+  monthlyReservationsTrend: [
+    { month: "Ene 2025", value: 35 },
+    { month: "Feb 2025", value: 40 },
+    { month: "Mar 2025", value: 45 },
+  ],
+  projectStatuses: [
+    { id: "p1", name: "AIRES LA FLORIDA 2", stage: "En Venta", totalUnits: 100, reservedUnits: 60, availableUnits: 40, totalReservedValue: "UF 180,000" },
+    { id: "p2", name: "EDIFICIO CENTRAL PARK", stage: "Entrega Inmediata", totalUnits: 50, reservedUnits: 45, availableUnits: 5, totalReservedValue: "UF 150,000" },
+    { id: "p3", name: "NUEVO HORIZONTE", stage: "En Blanco", totalUnits: 200, reservedUnits: 30, availableUnits: 170, totalReservedValue: "UF 60,000" },
+  ],
+  brokerPerformances: [
+    { id: "b1", name: "PROBITAL (PROPITAL SpA)", reservationsCount: 25, commissionsValue: "UF 75,000" },
+    { id: "b2", name: "Broker Asociados Ltda.", reservationsCount: 20, commissionsValue: "UF 60,000" },
+    { id: "b3", name: "Inversiones Seguras SpA", reservationsCount: 18, commissionsValue: "UF 50,000" },
+  ],
+};
+
 const LiquidacionPagoBrokerPDF: React.FC<LiquidacionPagoBrokerPDFProps> = ({
   flowData,
   formatDate,
