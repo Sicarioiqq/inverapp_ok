@@ -60,25 +60,25 @@ export interface AppliedPromotion {
 
 }
 
-export interface FinancialSummaryForPDF {
+//export interface FinancialSummaryForPDF {
 
-  totalPayment: number;
+  //totalPayment: number;
 
-  recoveryPayment: number;
+  //recoveryPayment: number;
 
-  minimumPrice: number;
+ // minimumPrice: number;
 
-  difference: number;
+ // difference: number;
 
-  totalCommissionUF: number;
+//  totalCommissionUF: number;
 
-  firstPaymentUF: number;
+ // firstPaymentUF: number;
 
-  secondPaymentUF?: number;
+//  secondPaymentUF?: number;
 
-  totalPromotionsAgainstDiscount: number;
+ // totalPromotionsAgainstDiscount: number;
 
-}
+//}
 
 
 
