@@ -13,8 +13,38 @@ import { PaymentFlow } from '../../pages/payments/PaymentFlow';
 interface KPI {
   title: string;
   value: string;
-  trend?: string; // Ej: "+5% vs mes anterior"
+  trend?: string;
   trendPositive?: boolean;
+}
+
+interface MonthlyTrend {
+  month: string;
+  value: number;
+}
+
+interface ProjectStatus {
+  id: string;
+  name: string;
+  stage: string;
+  totalUnits: number;
+  reservedUnits: number;
+  availableUnits: number;
+  totalReservedValue?: string; // Ej: "UF 150,000"
+}
+
+interface BrokerPerformance {
+  id: string;
+  name: string;
+  reservationsCount: number;
+  commissionsValue: string; // Ej: "UF 10,000"
+}
+
+interface RecentActivityItem {
+  id: string;
+  type: 'Reserva' | 'Pago';
+  description: string;
+  date: string;
+  amount?: string;
 }
 
 interface LiquidacionPagoBrokerPDFProps {
