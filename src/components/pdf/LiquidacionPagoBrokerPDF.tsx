@@ -417,7 +417,7 @@ export const ejemploDataInforme: InformeDataProps = {
   reportTitle: "Informe de Gestión Comercial Inverapp",
   generationDate: "16/05/2025",
   periodCovered: "Q1 2025",
-  companyLogoUrl: undefined, // "URL_DEL_LOGO_EMPRESA.png", // <-- PON TU LOGO AQUÍ
+  companyLogoUrl: undefined, "public/inverapp-logo.png", // <-- PON TU LOGO AQUÍ
   kpis: [
     { title: "Total Reservas (Periodo)", value: "120", trend: "+15% vs Q4 2024", trendPositive: true },
     { title: "Valor Total Comisiones", value: "UF 350,000", trend: "+10%", trendPositive: true },
