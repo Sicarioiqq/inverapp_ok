@@ -273,7 +273,143 @@ const styles = StyleSheet.create({
   
 });
 
+// --- Componente Principal del PDF ---
+const InformeGeneralNegocioPDF: React.FC<InformeDataProps> = ({
+  reportTitle,
+  generationDate,
+  periodCovered,
+  companyLogoUrl,
+  kpis,
+  monthlyReservationsTrend,
+  projectStatuses,
+  brokerPerformances,
+  // ... y otros datos que pases
+}) => {
+  const today = new Date();
+  const defaultGenerationDate = generationDate || `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
 
+  return (
+    <Document title={reportTitle || "Informe General del Negocio"}>
+      <Page size="A4" style={styles.page}>
+        {/* --- Encabezado y Portada --- */}
+        {companyLogoUrl && <Image style={styles.logo} src={companyLogoUrl} />}
+        <Text style={styles.headerText}>{reportTitle || "Informe General del Negocio"}</Text>
+        <Text style={styles.subHeaderText}>
+          Fecha de Generación: {defaultGenerationDate}
+          {periodCovered && ` | Periodo: ${periodCovered}`}
+        </Text>
+
+        {/* --- Sección: KPIs Principales --- */}
+        <View style={styles.section}>
+          <View style={styles.sectionTitleContainer}>
+            {/* <Image src="URL_ICONO_KPI.png" style={styles.sectionTitleIcon} />  Alternativa con Imagen */}
+            <Text style={styles.sectionTitleIcon}>📊</Text>
+            <Text style={styles.sectionTitle}>Indicadores Clave de Rendimiento (KPIs)</Text>
+          </View>
+          <View style={styles.kpiContainer}>
+            {kpis.map((kpi, index) => (
+              <View key={index} style={styles.kpiCard}>
+                <Text style={styles.kpiTitle}>{kpi.title}</Text>
+                <Text style={styles.kpiValue}>{kpi.value}</Text>
+                {kpi.trend && (
+                  <Text style={[
+                      styles.kpiTrend,
+                      kpi.trendPositive === true ? styles.textPositive : kpi.trendPositive === false ? styles.textNegative : {}
+                    ]}
+                  >
+                    {kpi.trend}
+                  </Text>
+                )}
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* --- Sección: Desempeño General (Ej: Reservas Mensuales) --- */}
+        {monthlyReservationsTrend && monthlyReservationsTrend.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionTitleContainer}>
+              <Text style={styles.sectionTitleIcon}>📈</Text>
+              <Text style={styles.sectionTitle}>Tendencia de Reservas Mensuales</Text>
+            </View>
+            {/* Aquí iría un gráfico. Como placeholder, mostramos un texto. */}
+            <View style={styles.chartPlaceholder}>
+              <Text style={styles.chartPlaceholderText}>[Espacio para Gráfico de Reservas Mensuales]</Text>
+            </View>
+            {/* Podrías listar los datos también o en lugar del gráfico si es simple */}
+            {/* <View style={styles.table}>
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableColHeader, {width: '50%'}]}>Mes</Text>
+                <Text style={[styles.tableColHeader, {width: '50%'}, styles.textRight]}>Cantidad</Text>
+              </View>
+              {monthlyReservationsTrend.map(item => (
+                <View key={item.month} style={styles.tableRow}>
+                  <Text style={[styles.tableCol, {width: '50%'}]}>{item.month}</Text>
+                  <Text style={[styles.tableCol, {width: '50%'}, styles.textRight]}>{item.value}</Text>
+                </View>
+              ))}
+            </View> */}
+          </View>
+        )}
+
+        {/* --- Sección: Análisis de Proyectos --- */}
+        <View style={styles.section} wrap={false}> {/* wrap={false} para intentar mantener la sección en una página */}
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitleIcon}>🏗️</Text>
+            <Text style={styles.sectionTitle}>Estado de Proyectos</Text>
+          </View>
+          <View style={styles.table}>
+            <View style={styles.tableHeader}>
+              <Text style={[styles.tableColHeader, styles.colWidthLg]}>Proyecto</Text>
+              <Text style={[styles.tableColHeader, styles.colWidthSm, styles.textRight]}>Total U.</Text>
+              <Text style={[styles.tableColHeader, styles.colWidthSm, styles.textRight]}>Reser. U.</Text>
+              <Text style={[styles.tableColHeader, styles.colWidthSm, styles.textRight]}>Disp. U.</Text>
+              <Text style={[styles.tableColHeader, styles.colWidthMd, styles.textRight]}>Valor Res.</Text>
+            </View>
+            {projectStatuses.map((project) => (
+              <View key={project.id} style={styles.tableRow}>
+                <Text style={[styles.tableCol, styles.colWidthLg]}>{project.name} ({project.stage})</Text>
+                <Text style={[styles.tableCol, styles.colWidthSm, styles.textRight]}>{project.totalUnits}</Text>
+                <Text style={[styles.tableCol, styles.colWidthSm, styles.textRight]}>{project.reservedUnits}</Text>
+                <Text style={[styles.tableCol, styles.colWidthSm, styles.textRight]}>{project.availableUnits}</Text>
+                <Text style={[styles.tableCol, styles.colWidthMd, styles.textRight]}>{project.totalReservedValue || 'N/A'}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* --- Sección: Análisis de Brokers --- */}
+         {brokerPerformances && brokerPerformances.length > 0 && (
+          <View style={styles.section} wrap={false}>
+            <View style={styles.sectionTitleContainer}>
+              <Text style={styles.sectionTitleIcon}>🤝</Text>
+              <Text style={styles.sectionTitle}>Rendimiento de Brokers</Text>
+            </View>
+            <View style={styles.table}>
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableColHeader, styles.colWidthXl]}>Broker</Text>
+                <Text style={[styles.tableColHeader, styles.colWidthMd, styles.textRight]}>N° Reservas</Text>
+                <Text style={[styles.tableColHeader, styles.colWidthMd, styles.textRight]}>Comisiones</Text>
+              </View>
+              {brokerPerformances.map((broker) => (
+                <View key={broker.id} style={styles.tableRow}>
+                  <Text style={[styles.tableCol, styles.colWidthXl]}>{broker.name}</Text>
+                  <Text style={[styles.tableCol, styles.colWidthMd, styles.textRight]}>{broker.reservationsCount}</Text>
+                  <Text style={[styles.tableCol, styles.colWidthMd, styles.textRight]}>{broker.commissionsValue}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* --- Pie de Página --- */}
+        <Text style={styles.footer} render={({ pageNumber, totalPages }) => (
+          `Inverapp | ${reportTitle || "Informe General"} | Página ${pageNumber} de ${totalPages}`
+        )} fixed />
+      </Page>
+    </Document>
+  );
+};
 
 const LiquidacionPagoBrokerPDF: React.FC<LiquidacionPagoBrokerPDFProps> = ({
   flowData,
