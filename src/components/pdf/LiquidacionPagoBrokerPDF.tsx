@@ -140,6 +140,13 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     paddingTop: 5,
   },
+
+// --- Secciones ---
+  section: {
+    marginBottom: 20,
+    paddingBottom: 10,
+  },
+  
 });
 
 
