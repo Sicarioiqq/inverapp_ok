@@ -7,7 +7,6 @@ import CommissionTaskCommentPopup from '../../components/CommissionTaskCommentPo
 import CommissionTaskCommentList from '../../components/CommissionTaskCommentList';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import LiquidacionPagoBrokerPDF from '../../components/pdf/LiquidacionPagoBrokerPDF';
-import InformeGeneralNegocioPDF from '../../components/pdf/LiquidacionPagoBrokerPDF';
 import {
   ArrowLeft, Clock, CheckCircle2, AlertCircle, UserCircle, UserPlus,
   MessageSquare, Play, Loader2, Calendar, AlertTriangle, Timer, Edit,
