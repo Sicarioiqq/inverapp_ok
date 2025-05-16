@@ -442,6 +442,22 @@ interface Task {
 
     }
 
+    // --- INICIO MODIFICACIÓN IMPORTANTE ---
+      if (!flowData) {
+        // Si .single() no encontró el flujo, flowData será null
+        setFlow(null); // Asegura que flow se limpie
+        throw new Error(`Flujo de comisión con ID ${id} no encontrado.`);
+      }
+      if (!flowData.broker_commission) {
+        setFlow(null);
+        throw new Error(`El flujo de comisión ${flowData.id} no tiene una comisión de broker asociada.`);
+      }
+      if (!flowData.broker_commission.reservation) {
+        setFlow(null);
+        throw new Error(`La comisión del broker para el flujo ${flowData.id} no tiene una reserva asociada.`);
+      }
+      // --- FIN MODIFICACIÓN IMPORTANTE ---
+
 	const { data: stagesData, error: stagesError } = await supabase
 
 	.from('payment_flow_stages')
