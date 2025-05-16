@@ -155,7 +155,11 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     marginBottom: 12,
   },
-  
+  sectionTitleIcon: { // Placeholder para si usas imágenes de iconos
+    fontSize: 18,
+    marginRight: 8,
+    color: colors.primary,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
