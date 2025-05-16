@@ -1,128 +1,96 @@
-// src/components/pdf/InformeGeneralNegocioPDF.tsx
 import React from 'react';
-import {
-  Page,
-  Text,
-  View,
-  Document,
-  StyleSheet,
-  Font,
-  Image,
-} from '@react-pdf/renderer';
+import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
+// Asegúrate de que estas interfaces sean las correctas y estén accesibles
+// Podrías importarlas desde donde las tengas definidas (ej. PaymentFlow.tsx, PaymentEdit.tsx o un archivo de tipos)
+// o definirlas aquí si es más simple para este componente PDF.
 
-// --- INICIO: Definiciones de Tipos de Datos (Ejemplo, ajusta según tus necesidades) ---
-// Inspirado en DashboardStats y otras estructuras de Inverapp
-
-interface KPI {
-  title: string;
-  value: string;
-  trend?: string; // Ej: "+5% vs mes anterior"
-  trendPositive?: boolean;
+// --- INICIO: Definiciones de Tipos (Ejemplo, ajusta/importa las tuyas) ---
+export const PROMOTION_TYPES_ARRAY = [ /* ...tus tipos... */ ] as const;
+export type PromotionType = typeof PROMOTION_TYPES_ARRAY[number];
+export interface AppliedPromotion { /* ...tus campos... */ }
+interface ReservationInfo {
+  reservation_number: string;
+  client: { first_name: string; last_name: string; rut: string };
+  project: { name: string; stage: string };
+  apartment_number: string;
+  broker: { name: string; business_name: string };
+  // ... más campos de la reserva ...
 }
-
-interface MonthlyTrend {
-  month: string;
-  value: number;
+interface BrokerCommissionInfo {
+  commission_amount: number;
+  number_of_payments: number;
+  first_payment_percentage: number;
+  purchase_order?: string | null;
+  invoice_1?: string | null;
+  invoice_1_date?: string | null;
+  payment_1_date?: string | null;
+  invoice_2?: string | null;
+  invoice_2_date?: string | null;
+  payment_2_date?: string | null;
+  // ... más campos de la comisión ...
 }
-
-interface ProjectStatus {
+interface PaymentFlowInfo { // La prop 'flow' que pasas desde PaymentFlow.tsx
   id: string;
-  name: string;
-  stage: string;
-  totalUnits: number;
-  reservedUnits: number;
-  availableUnits: number;
-  totalReservedValue?: string; // Ej: "UF 150,000"
+  status: string;
+  started_at: string | null;
+  completed_at: string | null;
+  is_second_payment: boolean;
+  broker_commission: BrokerCommissionInfo & { reservation: ReservationInfo }; // Anidado como en tu estado
+  current_stage: { name: string } | null;
+  // ... más campos del flujo de comisión ...
 }
+// --- FIN: Definiciones de Tipos ---
 
-interface BrokerPerformance {
-  id: string;
-  name: string;
-  reservationsCount: number;
-  commissionsValue: string; // Ej: "UF 10,000"
-}
-
-interface RecentActivityItem {
-  id: string;
-  type: 'Reserva' | 'Pago';
-  description: string;
-  date: string;
-  amount?: string;
-}
-
-export interface InformeDataProps {
-  reportTitle: string;
-  generationDate: string;
-  periodCovered?: string;
-  companyLogoUrl?: string; // URL a tu logo
-  kpis: KPI[];
-  monthlyReservationsTrend?: MonthlyTrend[];
-  monthlyCommissionsTrend?: MonthlyTrend[];
-  projectStatuses: ProjectStatus[];
-  brokerPerformances: BrokerPerformance[];
-  recentActivities?: RecentActivityItem[];
-  // Añade más datos que necesites
-}
-// --- FIN: Definiciones de Tipos de Datos ---
-
-// --- Configuración de Fuentes (IMPORTANTE: Reemplaza con tus rutas de fuentes) ---
-// Descarga archivos .ttf (ej. de Google Fonts) y ponlos en tu carpeta public o sírvelos desde una URL.
-// Font.register({
-//   family: 'Lato',
-//   fonts: [
-//     { src: 'URL_A_LATO_REGULAR.ttf' }, // Reemplaza esta URL/ruta
-//     { src: 'URL_A_LATO_BOLD.ttf', fontWeight: 'bold' }, // Reemplaza esta URL/ruta
-//   ],
-// });
-// Font.register({
-//   family: 'Montserrat',
-//   fonts: [
-//     { src: 'URL_A_MONTSERRAT_REGULAR.ttf' }, // Reemplaza esta URL/ruta
-//     { src: 'URL_A_MONTSERRAT_BOLD.ttf', fontWeight: 'bold' }, // Reemplaza esta URL/ruta
-//   ]
-// });
 
 // --- Estilos para el PDF ---
-const colors = {
-  primary: '#2A679F', // Un azul corporativo (ejemplo)
-  secondary: '#4CAF50', // Verde para acentos positivos (ejemplo)
-  accent: '#FF9800', // Naranja para otros acentos (ejemplo)
-  textPrimary: '#212121', // Casi negro para texto principal
-  textSecondary: '#757575', // Gris para texto secundario
-  border: '#E0E0E0', // Gris claro para bordes y separadores
-  backgroundLight: '#F5F5F5', // Un fondo muy claro para algunas secciones (opcional)
-  white: '#FFFFFF',
-  red: '#D32F2F', // Para tendencias negativas
-};
-
 const styles = StyleSheet.create({
-  // --- Generales ---
   page: {
     flexDirection: 'column',
-    backgroundColor: colors.white,
+    backgroundColor: '#FFFFFF',
     paddingTop: 35,
-    paddingBottom: 55, // Espacio para el pie de página
+    paddingBottom: 65, // Espacio para el pie de página
     paddingHorizontal: 35,
-    fontFamily: 'Helvetica', // CAMBIA a 'Lato' o 'Montserrat' después de registrar la fuente
+    fontFamily: 'Helvetica',
   },
-  logo: {
-    width: 120,
-    height: 40,
+  header: {
+    fontSize: 20,
     marginBottom: 20,
-    alignSelf: 'flex-end', // o 'flex-start' o 'center'
-  },
-  headerText: {
-    fontSize: 24,
+    textAlign: 'center',
+    color: 'black',
     fontWeight: 'bold',
-    color: colors.primary,
-    textAlign: 'center',
-    marginBottom: 10,
   },
-  subHeaderText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 25,
+  section: {
+    marginBottom: 15,
+    paddingBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#cccccc',
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333333',
+  },
+  textRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  label: {
+    fontSize: 10,
+    color: '#555555',
+    width: '35%', // Ajusta según necesidad
+  },
+  value: {
+    fontSize: 10,
+    color: '#000000',
+    width: '65%', // Ajusta según necesidad
+    fontWeight: 'normal',
+  },
+  boldValue: {
+    fontSize: 10,
+    color: '#000000',
+    width: '65%',
+    fontWeight: 'bold',
   },
   footer: {
     position: 'absolute',
@@ -131,330 +99,107 @@ const styles = StyleSheet.create({
     left: 35,
     right: 35,
     textAlign: 'center',
-    color: colors.textSecondary,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 5,
+    color: 'grey',
   },
-
-  // --- Secciones ---
-  section: {
-    marginBottom: 20,
-    paddingBottom: 10,
-  },
-  sectionTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: colors.primary,
-    paddingBottom: 6,
-    marginBottom: 12,
-  },
-  sectionTitleIcon: { // Placeholder para si usas imágenes de iconos
-    fontSize: 18,
-    marginRight: 8,
-    color: colors.primary,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
-
-  // --- Tarjetas KPI ---
-  kpiContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  kpiCard: {
-    backgroundColor: colors.white, // Podría ser colors.backgroundLight para contraste
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 5,
-    padding: 12,
-    width: '48%', // Aproximadamente 2 por fila, ajusta con gap
-    marginBottom: 10,
-    minHeight: 70,
-  },
-  kpiTitle: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  kpiValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  kpiTrend: {
-    fontSize: 9,
-  },
-
-  // --- Tablas ---
-  table: {
-    // display: "table", // @react-pdf/renderer usa flexbox, esto es conceptual
-    width: '100%',
-    borderStyle: 'solid',
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 10,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: colors.backgroundLight, // Un gris muy claro
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    '&:last-child': {
-      borderBottomWidth: 0,
-    },
-  },
-  tableColHeader: {
-    padding: 6,
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: colors.primary,
-    borderRightWidth: 1,
-    borderRightColor: colors.border,
-    '&:last-child': {
-      borderRightWidth: 0,
-    },
-  },
-  tableCol: {
-    padding: 6,
-    fontSize: 9,
-    color: colors.textPrimary,
-    borderRightWidth: 1,
-    borderRightColor: colors.border,
-    '&:last-child': {
-      borderRightWidth: 0,
-    },
-  },
-  // Anchos de columna (ejemplos, necesitarás ajustarlos)
-  colWidthSm: { width: '15%' },
-  colWidthMd: { width: '25%' },
-  colWidthLg: { width: '35%' },
-  colWidthXl: { width: '50%' },
-  textRight: { textAlign: 'right' },
-
-  // --- Gráficos (Placeholder) ---
-  chartPlaceholder: {
-    width: '100%',
-    height: 150,
-    backgroundColor: colors.backgroundLight,
-    borderWidth: 1,
-    borderColor: colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  chartPlaceholderText: {
-    fontSize: 10,
-    color: colors.textSecondary,
-  },
-   // --- Helpers ---
-  boldText: {
-    fontWeight: 'bold',
-  },
-  textPositive: { color: colors.secondary },
-  textNegative: { color: colors.red },
-
+  // Agrega más estilos según necesites (para tablas, etc.)
 });
 
+interface LiquidacionPagoBrokerPDFProps {
+  flowData: PaymentFlowInfo; // Usa la interfaz completa del flujo de pago
+  appliedPromotions?: AppliedPromotion[]; // Opcional, si se incluyen promociones
+  // funciones de formateo
+  formatDate: (dateStr: string | null | undefined) => string;
+  formatCurrency: (amount: number) => string;
+}
 
-// --- Componente Principal del PDF ---
-const InformeGeneralNegocioPDF: React.FC<InformeDataProps> = ({
-  reportTitle,
-  generationDate,
-  periodCovered,
-  companyLogoUrl,
-  kpis,
-  monthlyReservationsTrend,
-  projectStatuses,
-  brokerPerformances,
-  // ... y otros datos que pases
+const LiquidacionPagoBrokerPDF: React.FC<LiquidacionPagoBrokerPDFProps> = ({
+  flowData,
+  appliedPromotions,
+  formatDate,
+  formatCurrency,
 }) => {
-  const today = new Date();
-  const defaultGenerationDate = generationDate || `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
+  if (!flowData || !flowData.broker_commission || !flowData.broker_commission.reservation) {
+    return (
+      <Document>
+        <Page style={styles.page}><Text>Datos insuficientes para generar la liquidación.</Text></Page>
+      </Document>
+    );
+  }
+
+  const { reservation } = flowData.broker_commission;
+  const commission = flowData.broker_commission;
+  // Calcula los montos de pago aquí también si los necesitas en el PDF
+  const firstPaymentAmount = commission.commission_amount * (commission.first_payment_percentage / 100);
+  const secondPaymentAmount = commission.number_of_payments === 2 ? commission.commission_amount - firstPaymentAmount : 0;
 
   return (
-    <Document title={reportTitle || "Informe General del Negocio"}>
+    <Document title={`Liquidación Pago Reserva ${reservation.reservation_number}`}>
       <Page size="A4" style={styles.page}>
-        {/* --- Encabezado y Portada --- */}
-        {companyLogoUrl && <Image style={styles.logo} src={companyLogoUrl} />}
-        <Text style={styles.headerText}>{reportTitle || "Informe General del Negocio"}</Text>
-        <Text style={styles.subHeaderText}>
-          Fecha de Generación: {defaultGenerationDate}
-          {periodCovered && ` | Periodo: ${periodCovered}`}
-        </Text>
+        {/* Aquí puedes añadir un logo si lo tienes como URL o data URI */}
+        {/* <Image style={styles.logo} src="URL_DEL_LOGO_O_DATA_URI" /> */}
 
-        {/* --- Sección: KPIs Principales --- */}
+        <Text style={styles.header}>Liquidación de Pago a Broker</Text>
+
         <View style={styles.section}>
-          <View style={styles.sectionTitleContainer}>
-            {/* <Image src="URL_ICONO_KPI.png" style={styles.sectionTitleIcon} />  Alternativa con Imagen */}
-            <Text style={styles.sectionTitleIcon}>📊</Text>
-            <Text style={styles.sectionTitle}>Indicadores Clave de Rendimiento (KPIs)</Text>
-          </View>
-          <View style={styles.kpiContainer}>
-            {kpis.map((kpi, index) => (
-              <View key={index} style={styles.kpiCard}>
-                <Text style={styles.kpiTitle}>{kpi.title}</Text>
-                <Text style={styles.kpiValue}>{kpi.value}</Text>
-                {kpi.trend && (
-                  <Text style={[
-                      styles.kpiTrend,
-                      kpi.trendPositive === true ? styles.textPositive : kpi.trendPositive === false ? styles.textNegative : {}
-                    ]}
-                  >
-                    {kpi.trend}
-                  </Text>
-                )}
-              </View>
-            ))}
-          </View>
+          <Text style={styles.sectionTitle}>Información de la Reserva</Text>
+          <View style={styles.textRow}><Text style={styles.label}>N° Reserva:</Text><Text style={styles.value}>{reservation.reservation_number}</Text></View>
+          <View style={styles.textRow}><Text style={styles.label}>Cliente:</Text><Text style={styles.value}>{reservation.client.first_name} {reservation.client.last_name}</Text></View>
+          <View style={styles.textRow}><Text style={styles.label}>RUT Cliente:</Text><Text style={styles.value}>{reservation.client.rut}</Text></View>
+          <View style={styles.textRow}><Text style={styles.label}>Proyecto:</Text><Text style={styles.value}>{reservation.project.name} - {reservation.project.stage}</Text></View>
+          <View style={styles.textRow}><Text style={styles.label}>Unidad:</Text><Text style={styles.value}>Depto. {reservation.apartment_number}</Text></View>
+          <View style={styles.textRow}><Text style={styles.label}>Broker:</Text><Text style={styles.value}>{reservation.broker.name}</Text></View>
         </View>
 
-        {/* --- Sección: Desempeño General (Ej: Reservas Mensuales) --- */}
-        {monthlyReservationsTrend && monthlyReservationsTrend.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Detalles de la Comisión</Text>
+          <View style={styles.textRow}><Text style={styles.label}>Monto Comisión Bruta:</Text><Text style={styles.boldValue}>{formatCurrency(commission.commission_amount)} UF</Text></View>
+          <View style={styles.textRow}><Text style={styles.label}>N° de Pagos:</Text><Text style={styles.value}>{commission.number_of_payments}</Text></View>
+          <View style={styles.textRow}><Text style={styles.label}>% Primer Pago:</Text><Text style={styles.value}>{commission.first_payment_percentage}% ({formatCurrency(firstPaymentAmount)} UF)</Text></View>
+          {commission.number_of_payments === 2 && (
+            <View style={styles.textRow}><Text style={styles.label}>% Segundo Pago:</Text><Text style={styles.value}>{100 - commission.first_payment_percentage}% ({formatCurrency(secondPaymentAmount)} UF)</Text></View>
+          )}
+          {commission.purchase_order && <View style={styles.textRow}><Text style={styles.label}>N° OC:</Text><Text style={styles.value}>{commission.purchase_order}</Text></View>}
+        </View>
+
+        {/* Información del Primer Pago */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Primer Pago</Text>
+          {commission.invoice_1 && <View style={styles.textRow}><Text style={styles.label}>N° Factura 1:</Text><Text style={styles.value}>{commission.invoice_1}</Text></View>}
+          {commission.invoice_1_date && <View style={styles.textRow}><Text style={styles.label}>Fecha Emisión Fact. 1:</Text><Text style={styles.value}>{formatDate(commission.invoice_1_date)}</Text></View>}
+          {commission.payment_1_date && <View style={styles.textRow}><Text style={styles.label}>Fecha Pago 1:</Text><Text style={styles.boldValue}>{formatDate(commission.payment_1_date)}</Text></View>}
+        </View>
+
+        {/* Información del Segundo Pago (si aplica) */}
+        {commission.number_of_payments === 2 && (
           <View style={styles.section}>
-            <View style={styles.sectionTitleContainer}>
-              <Text style={styles.sectionTitleIcon}>📈</Text>
-              <Text style={styles.sectionTitle}>Tendencia de Reservas Mensuales</Text>
-            </View>
-            {/* Aquí iría un gráfico. Como placeholder, mostramos un texto. */}
-            <View style={styles.chartPlaceholder}>
-              <Text style={styles.chartPlaceholderText}>[Espacio para Gráfico de Reservas Mensuales]</Text>
-            </View>
-            {/* Podrías listar los datos también o en lugar del gráfico si es simple */}
-            {/* <View style={styles.table}>
-              <View style={styles.tableHeader}>
-                <Text style={[styles.tableColHeader, {width: '50%'}]}>Mes</Text>
-                <Text style={[styles.tableColHeader, {width: '50%'}, styles.textRight]}>Cantidad</Text>
-              </View>
-              {monthlyReservationsTrend.map(item => (
-                <View key={item.month} style={styles.tableRow}>
-                  <Text style={[styles.tableCol, {width: '50%'}]}>{item.month}</Text>
-                  <Text style={[styles.tableCol, {width: '50%'}, styles.textRight]}>{item.value}</Text>
-                </View>
-              ))}
-            </View> */}
+            <Text style={styles.sectionTitle}>Segundo Pago</Text>
+            {commission.invoice_2 && <View style={styles.textRow}><Text style={styles.label}>N° Factura 2:</Text><Text style={styles.value}>{commission.invoice_2}</Text></View>}
+            {commission.invoice_2_date && <View style={styles.textRow}><Text style={styles.label}>Fecha Emisión Fact. 2:</Text><Text style={styles.value}>{formatDate(commission.invoice_2_date)}</Text></View>}
+            {commission.payment_2_date && <View style={styles.textRow}><Text style={styles.label}>Fecha Pago 2:</Text><Text style={styles.boldValue}>{formatDate(commission.payment_2_date)}</Text></View>}
           </View>
         )}
 
-        {/* --- Sección: Análisis de Proyectos --- */}
-        <View style={styles.section} wrap={false}> {/* wrap={false} para intentar mantener la sección en una página */}
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitleIcon}>🏗️</Text>
-            <Text style={styles.sectionTitle}>Estado de Proyectos</Text>
-          </View>
-          <View style={styles.table}>
-            <View style={styles.tableHeader}>
-              <Text style={[styles.tableColHeader, styles.colWidthLg]}>Proyecto</Text>
-              <Text style={[styles.tableColHeader, styles.colWidthSm, styles.textRight]}>Total U.</Text>
-              <Text style={[styles.tableColHeader, styles.colWidthSm, styles.textRight]}>Reser. U.</Text>
-              <Text style={[styles.tableColHeader, styles.colWidthSm, styles.textRight]}>Disp. U.</Text>
-              <Text style={[styles.tableColHeader, styles.colWidthMd, styles.textRight]}>Valor Res.</Text>
-            </View>
-            {projectStatuses.map((project) => (
-              <View key={project.id} style={styles.tableRow}>
-                <Text style={[styles.tableCol, styles.colWidthLg]}>{project.name} ({project.stage})</Text>
-                <Text style={[styles.tableCol, styles.colWidthSm, styles.textRight]}>{project.totalUnits}</Text>
-                <Text style={[styles.tableCol, styles.colWidthSm, styles.textRight]}>{project.reservedUnits}</Text>
-                <Text style={[styles.tableCol, styles.colWidthSm, styles.textRight]}>{project.availableUnits}</Text>
-                <Text style={[styles.tableCol, styles.colWidthMd, styles.textRight]}>{project.totalReservedValue || 'N/A'}</Text>
+        {/* Promociones (si se incluyen en esta liquidación) */}
+        {appliedPromotions && appliedPromotions.length > 0 && (
+          <View style={styles.section} wrap={false}> {/* wrap={false} para intentar mantener la sección en una página si es posible */}
+            <Text style={styles.sectionTitle}>Promociones Asociadas</Text>
+            {appliedPromotions.map(promo => (
+              <View key={promo.id} style={{ marginBottom: 5, paddingLeft: 5 }}>
+                <Text style={styles.value}><Text style={styles.label}>{promo.promotion_type}:</Text> {formatCurrency(promo.amount)} UF ({promo.is_against_discount ? 'Contra Dcto.' : 'No Contra Dcto.'})</Text>
+                {promo.observations && <Text style={{...styles.text, fontSize: 9, marginLeft: 10}}>Obs: {promo.observations}</Text>}
               </View>
             ))}
           </View>
-        </View>
-
-        {/* --- Sección: Análisis de Brokers --- */}
-         {brokerPerformances && brokerPerformances.length > 0 && (
-          <View style={styles.section} wrap={false}>
-            <View style={styles.sectionTitleContainer}>
-              <Text style={styles.sectionTitleIcon}>🤝</Text>
-              <Text style={styles.sectionTitle}>Rendimiento de Brokers</Text>
-            </View>
-            <View style={styles.table}>
-              <View style={styles.tableHeader}>
-                <Text style={[styles.tableColHeader, styles.colWidthXl]}>Broker</Text>
-                <Text style={[styles.tableColHeader, styles.colWidthMd, styles.textRight]}>N° Reservas</Text>
-                <Text style={[styles.tableColHeader, styles.colWidthMd, styles.textRight]}>Comisiones</Text>
-              </View>
-              {brokerPerformances.map((broker) => (
-                <View key={broker.id} style={styles.tableRow}>
-                  <Text style={[styles.tableCol, styles.colWidthXl]}>{broker.name}</Text>
-                  <Text style={[styles.tableCol, styles.colWidthMd, styles.textRight]}>{broker.reservationsCount}</Text>
-                  <Text style={[styles.tableCol, styles.colWidthMd, styles.textRight]}>{broker.commissionsValue}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
         )}
 
-        {/* --- Pie de Página --- */}
+        {/* Puedes agregar más secciones según necesites */}
+
         <Text style={styles.footer} render={({ pageNumber, totalPages }) => (
-          `Inverapp | ${reportTitle || "Informe General"} | Página ${pageNumber} de ${totalPages}`
+          `${reservation.project.name} | Reserva ${reservation.reservation_number} | Página ${pageNumber} de ${totalPages}`
         )} fixed />
       </Page>
     </Document>
   );
 };
 
-
-// --- Datos de Ejemplo para Pruebas ---
-// (Deberás reemplazar esto con datos reales)
-export const ejemploDataInforme: InformeDataProps = {
-  reportTitle: "Informe de Gestión Comercial Inverapp",
-  generationDate: "16/05/2025",
-  periodCovered: "Q1 2025",
-  companyLogoUrl: undefined, // "URL_DEL_LOGO_EMPRESA.png", // <-- PON TU LOGO AQUÍ
-  kpis: [
-    { title: "Total Reservas (Periodo)", value: "120", trend: "+15% vs Q4 2024", trendPositive: true },
-    { title: "Valor Total Comisiones", value: "UF 350,000", trend: "+10%", trendPositive: true },
-    { title: "Nuevos Clientes", value: "85", trend: "-5% vs Q4 2024", trendPositive: false },
-    { title: "Proyectos Activos", value: "12" },
-  ],
-  monthlyReservationsTrend: [
-    { month: "Ene 2025", value: 35 },
-    { month: "Feb 2025", value: 40 },
-    { month: "Mar 2025", value: 45 },
-  ],
-  projectStatuses: [
-    { id: "p1", name: "AIRES LA FLORIDA 2", stage: "En Venta", totalUnits: 100, reservedUnits: 60, availableUnits: 40, totalReservedValue: "UF 180,000" },
-    { id: "p2", name: "EDIFICIO CENTRAL PARK", stage: "Entrega Inmediata", totalUnits: 50, reservedUnits: 45, availableUnits: 5, totalReservedValue: "UF 150,000" },
-    { id: "p3", name: "NUEVO HORIZONTE", stage: "En Blanco", totalUnits: 200, reservedUnits: 30, availableUnits: 170, totalReservedValue: "UF 60,000" },
-  ],
-  brokerPerformances: [
-    { id: "b1", name: "PROBITAL (PROPITAL SpA)", reservationsCount: 25, commissionsValue: "UF 75,000" },
-    { id: "b2", name: "Broker Asociados Ltda.", reservationsCount: 20, commissionsValue: "UF 60,000" },
-    { id: "b3", name: "Inversiones Seguras SpA", reservationsCount: 18, commissionsValue: "UF 50,000" },
-  ],
-};
-
-// --- Ejemplo de cómo podrías usar este componente ---
-// import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer'; // Descomenta para usar
-
-// const AppConPDF = () => (
-//   <div>
-//     {/* Opción 1: Para visualizar en el navegador */}
-//     {/* <PDFViewer width="1000" height="600">
-//       <InformeGeneralNegocioPDF {...ejemploDataInforme} />
-//     </PDFViewer> */}
-
-//     {/* Opción 2: Para descargar directamente */}
-//     {/* <PDFDownloadLink document={<InformeGeneralNegocioPDF {...ejemploDataInforme} />} fileName="Informe_Inverapp.pdf">
-//       {({ blob, url, loading, error }) =>
-//         loading ? 'Generando PDF...' : 'Descargar PDF'
-//       }
-//     </PDFDownloadLink> */}
-//   </div>
-// );
-
-export default InformeGeneralNegocioPDF;
+export default LiquidacionPagoBrokerPDF;
