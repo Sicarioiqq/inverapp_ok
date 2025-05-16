@@ -51,6 +51,7 @@ interface LiquidacionPagoBrokerPDFProps {
   flowData: PaymentFlow | null;
   formatDate: (date: string) => string;
   formatCurrency: (amount: number) => string;
+  companyLogoUrl?: string;
 }
 
 export interface InformeDataProps {
