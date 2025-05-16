@@ -440,7 +440,7 @@ interface Task {
 
 	if (flowError) throw flowError;
 
-
+    }
 
 	const { data: stagesData, error: stagesError } = await supabase
 
