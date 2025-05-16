@@ -2237,8 +2237,11 @@ interface Task {
 	></div>
 
 	</div>
+    
 
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+	</div>
+
+<div className="bg-white rounded-lg shadow-md p-6 mb-6">
   <h2 className="text-lg font-semibold text-gray-900 mb-4">Informes y Documentos</h2>
   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
     <p className="text-sm text-gray-600">
@@ -2259,10 +2262,6 @@ interface Task {
     </PDFDownloadLink>
   </div>
 </div>
-
-
-	</div>
-
 
 
 	<div>
