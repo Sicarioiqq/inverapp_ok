@@ -1,4 +1,4 @@
-	import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 	import { useNavigate, useParams } from 'react-router-dom';
 
@@ -336,6 +336,8 @@
 	const [tempDateValue, setTempDateValue] = useState('');
 
 	const [markingAtRisk, setMarkingAtRisk] = useState(false);
+	
+	const [dateLoading, setDateLoading] = useState(false);
 
 
 
@@ -1707,27 +1709,42 @@
 	}
 
 	};
-
+	// Function to handle date input change
+	const handleDateInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+	  setTempDateValue(e.target.value);
+	};
 
 
 	// Function to handle date input change and auto-save
 
-	const handleDateInputChange = async (e: React.ChangeEvent<HTMLInputElement>, taskId: string, type: 'start' | 'complete') => {
+				const handleSaveDate = async () => {
+		  if (!editingTaskDate || !tempDateValue || !flow) return;
+		  
+				  // Validación: fecha de completado no puede ser anterior a la de inicio
+		  if (editingTaskDate.type === 'complete') {
+			const task = flow.stages
+			  .flatMap(stage => stage.tasks)
+			  .find(t => t.id === editingTaskDate.taskId);
 
-	const newDate = e.target.value;
+			if (task?.started_at && new Date(tempDateValue) < new Date(task.started_at)) {
+			  setError('La fecha de completado no puede ser anterior a la fecha de inicio');
+			  return;
+			}
+		  }
 
-	setTempDateValue(newDate);
-
-
-	// Auto-save after a short delay
-
-	if (newDate) {
-
-	await handleTaskDateChange(taskId, newDate, type);
-
-	}
-
-	};
+		  try {
+			setDateLoading(true);
+			await handleTaskDateChange(
+			  editingTaskDate.taskId, 
+			  tempDateValue, 
+			  editingTaskDate.type
+			);
+		  } catch (err) {
+			setError(err.message);
+		  } finally {
+			setDateLoading(false);
+		  }
+		};
 
 
 
@@ -2620,184 +2637,114 @@
 	<div className="mt-2 text-sm text-gray-500">
 
 	{task.started_at && (
-
-	<div className="flex flex-col space-y-2">
-
-	<div className="flex items-center">
-
-	{editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'start' ? (
-
-	<div className="flex items-center">
-
-	<input
-
-	type="datetime-local"
-
-	value={tempDateValue}
-
-	onChange={(e) => handleDateInputChange(e, task.id, 'start')}
-
-	className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-
-	/>
-
-	</div>
-
-	) : (
-
-	<div className="flex items-center">
-
-	<Calendar className="h-4 w-4 mr-1" />
-
-	<span>
-
-	Iniciada el {formatDateTime(task.started_at)}
-
-	</span>
-
-	{isAdmin && (
-
-	<button
-
-	onClick={() => {
-
-	setEditingTaskDate({ taskId: task.id, type: 'start' });
-
-	setTempDateValue(task.started_at.split('.')[0]);
-
-	}}
-
-	className="ml-2 text-blue-600 hover:text-blue-800"
-
-	title="Editar fecha de inicio"
-
-	>
-
-	<Edit className="h-4 w-4" />
-
-	</button>
-
-	)}
-
-	</div>
-
-	)}
-
-	</div>
-
-
-
-	{task.completed_at && (
-
-	<div className="flex items-center">
-
-	{editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'complete' ? (
-
-	<div className="flex items-center">
-
-	<input
-
-	type="datetime-local"
-
-	value={tempDateValue}
-
-	onChange={(e) => handleDateInputChange(e, task.id, 'complete')}
-
-	className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-
-	/>
-
-	</div>
-
-	) : (
-
-	<div className="flex items-center text-green-600">
-
-	<CheckCircle2 className="h-4 w-4 mr-1" />
-
-	<span>
-
-	Completada el {formatDateTime(task.completed_at)}
-
-	</span>
-
-	{isAdmin && (
-
-	<button
-
-	onClick={() => {
-
-	setEditingTaskDate({ taskId: task.id, type: 'complete' });
-
-	setTempDateValue(task.completed_at.split('.')[0]);
-
-	}}
-
-	className="ml-2 text-blue-600 hover:text-blue-800"
-
-	title="Editar fecha de completado"
-
-	>
-
-	<Edit className="h-4 w-4" />
-
-	</button>
-
-	)}
-
-	</div>
-
-	)}
-
-	</div>
-
-	)}
-
-
-
-	{completionTime !== null && (
-
-	<div className="flex items-center text-green-600">
-
-	<Timer className="h-4 w-4 mr-1" />
-
-	<span>
-
-	Gestionado en {completionTime} {completionTime === 1 ? 'día' : 'días'}
-
-	</span>
-
-	</div>
-
-	)}
-
-
-
-	{task.days_to_complete && (
-
-	<div className="flex items-center">
-
-	<span>Plazo: {task.days_to_complete} días</span>
-
-	{daysOverdue > 0 && (
-
-	<span className="ml-2 flex items-center text-red-600">
-
-	<AlertTriangle className="h-4 w-4 mr-1" />
-
-	{daysOverdue} días de retraso
-
-	</span>
-
-	)}
-
-	</div>
-
-	)}
-
-	</div>
-
-	)}
+  <div className="flex flex-col space-y-2">
+    <div className="flex items-center">
+      {editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'start' ? (
+        <div className="flex items-center gap-2">
+          <input
+            type="datetime-local"
+            value={tempDateValue}
+            onChange={handleDateInputChange}
+            className="text-sm border-gray-300 rounded-md"
+          />
+          <button
+            onClick={handleSaveDate}
+            disabled={dateLoading}
+            className={`px-2 py-1 rounded text-sm ${
+              dateLoading ? 'bg-blue-400 cursor-wait' : 'bg-blue-600 hover:bg-blue-700'
+            } text-white`}
+          >
+            {dateLoading ? (
+              <Loader2 className="animate-spin h-4 w-4 inline mr-1" />
+            ) : null}
+            {dateLoading ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center">
+          <Calendar className="h-4 w-4 mr-1" />
+          <span>Iniciada el {formatDateTime(task.started_at)}</span>
+          {isAdmin && (
+            <button
+              onClick={() => {
+                setEditingTaskDate({ taskId: task.id, type: 'start' });
+                setTempDateValue(task.started_at.split('.')[0]);
+              }}
+              className="ml-2 text-blue-600 hover:text-blue-800"
+            >
+              <Edit className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+
+    {task.completed_at && (
+      <div className="flex items-center">
+        {editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'complete' ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="datetime-local"
+              value={tempDateValue}
+              onChange={handleDateInputChange}
+              className="text-sm border-gray-300 rounded-md"
+            />
+            <button
+              onClick={handleSaveDate}
+              disabled={dateLoading}
+              className="px-2 py-1 bg-blue-600 text-white rounded text-sm disabled:bg-blue-400"
+            >
+              {dateLoading ? 'Guardando...' : 'Guardar'}
+            </button>
+            <button
+              onClick={() => setEditingTaskDate(null)}
+              className="px-2 py-1 bg-gray-200 rounded text-sm"
+            >
+              Cancelar
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center text-green-600">
+            <CheckCircle2 className="h-4 w-4 mr-1" />
+            <span>Completada el {formatDateTime(task.completed_at)}</span>
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  setEditingTaskDate({ taskId: task.id, type: 'complete' });
+                  setTempDateValue(task.completed_at.split('.')[0]);
+                }}
+                className="ml-2 text-blue-600 hover:text-blue-800"
+              >
+                <Edit className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    )}
+
+    {completionTime !== null && (
+      <div className="flex items-center text-green-600">
+        <Timer className="h-4 w-4 mr-1" />
+        <span>
+          Gestionado en {completionTime} {completionTime === 1 ? 'día' : 'días'}
+        </span>
+      </div>
+    )}
+
+    {task.days_to_complete && (
+      <div className="flex items-center">
+        <span>Plazo: {task.days_to_complete} días</span>
+        {daysOverdue > 0 && (
+          <span className="ml-2 flex items-center text-red-600">
+            <AlertTriangle className="h-4 w-4 mr-1" />
+            {daysOverdue} días de retraso
+          </span>
+        )}
+      </div>
+    )}
+  </div>
+)}
 
 	</div>
 
@@ -3094,7 +3041,3 @@
 	);
 
 	};
-
-
-
-	export default PaymentFlow;
