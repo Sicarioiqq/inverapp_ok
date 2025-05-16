@@ -142,7 +142,25 @@ const styles = StyleSheet.create({
   },
 });
 
-
+// --- Secciones ---
+  section: {
+    marginBottom: 20,
+    paddingBottom: 10,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: colors.primary,
+    paddingBottom: 6,
+    marginBottom: 12,
+  },
+  
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
 
 const LiquidacionPagoBrokerPDF: React.FC<LiquidacionPagoBrokerPDFProps> = ({
   flowData,
