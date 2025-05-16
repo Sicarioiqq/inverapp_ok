@@ -2371,7 +2371,7 @@ interface Task {
     </p>
     <PDFDownloadLink
   document={
-    <InformeGeneralNegocioPDF
+    <LiquidacionPagoBrokerPDF
       flowData={flow}
       formatDate={formatDate}
       formatCurrency={formatCurrency}
