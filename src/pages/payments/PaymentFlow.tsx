@@ -1010,17 +1010,4 @@ const PaymentFlow: React.FC = () => {
 	</div>
 
 	<div className="bg-white rounded-lg shadow-md p-6 mb-6">
-	<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-	<div>
-	<h2 className="text-lg font-semibold text-gray-900 mb-4">
-	Información General
-	</h2>
-	<dl className="space-y-2">
-	<div>
-	<dt className="text-sm font-medium text-gray-500">Cliente</dt>
-	<dd className="text-sm text-gray-900">
-	{flow.broker_commission.reservation.client.first_name} {flow.broker_commission.reservation.client.last_name}
-	</dd>
-	</div>
-	<div>
-	
+	<div className="gri
