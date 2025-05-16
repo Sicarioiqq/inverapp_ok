@@ -410,53 +410,69 @@ interface Task {
 
 	// Get basic flow information
 
-	const fetchFlow = async () => {
-    try {
-      // setLoading(true); // setLoading y setError se manejan en el useEffect que llama a esto
-      // setError(null);   // para el Promise.all
-      
-      const { data: flowData, error: flowError } = await supabase
-        .from('commission_flows')
-        .select(`
-          id, status, started_at, completed_at, is_second_payment,
-          flow:payment_flows(id),
-          current_stage:payment_flow_stages(id, name),
-          broker_commission:broker_commissions(
-            id, commission_amount, number_of_payments, first_payment_percentage, at_risk, at_risk_reason,
-            reservation:reservations(
-              id, reservation_number, apartment_number, 
-              total_payment, subsidy_payment, minimum_price,
-              is_rescinded, rescinded_at, rescinded_reason, 
-              client:clients(id, first_name, last_name, rut),
-              project:projects(name, stage),
-              broker:brokers(id, name, business_name)
-            )
-          )
-        `)
-        .eq('id', id) 
-        .single();
+	const { data: flowData, error: flowError } = await supabase
+
+	.from('commission_flows')
+
+	.select(`
+
+	id,
+
+	status,
+
+	started_at,
+
+	completed_at,
+
+	is_second_payment,
+
+	flow:payment_flows(id),
+
+	current_stage:payment_flow_stages(id, name),
+
+	broker_commission:broker_commissions(
+
+	id,
+
+	commission_amount,
+
+	number_of_payments,
+
+	first_payment_percentage,
+
+	at_risk,
+
+	at_risk_reason,
+
+	reservation:reservations(
+
+	id,
+
+	reservation_number,
+
+	apartment_number,
+
+	client:clients(id, first_name, last_name),
+
+	project:projects(name, stage),
+
+	broker:brokers(id, name)
+
+	)
+
+	)
+
+	`)
+
+	.eq('id', id)
+
+	.single();
 
 
 
 	if (flowError) throw flowError;
 
-    }
 
-    // --- INICIO MODIFICACIÓN IMPORTANTE ---
-      if (!flowData) {
-        // Si .single() no encontró el flujo, flowData será null
-        setFlow(null); // Asegura que flow se limpie
-        throw new Error(`Flujo de comisión con ID ${id} no encontrado.`);
-      }
-      if (!flowData.broker_commission) {
-        setFlow(null);
-        throw new Error(`El flujo de comisión ${flowData.id} no tiene una comisión de broker asociada.`);
-      }
-      if (!flowData.broker_commission.reservation) {
-        setFlow(null);
-        throw new Error(`La comisión del broker para el flujo ${flowData.id} no tiene una reserva asociada.`);
-      }
-      // --- FIN MODIFICACIÓN IMPORTANTE ---
 
 	const { data: stagesData, error: stagesError } = await supabase
 
