@@ -1,72 +1,46 @@
-	import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { supabase, formatDateChile, formatDateTimeChile, formatCurrency } from '../../lib/supabase';
+import { usePopup } from '../../contexts/PopupContext';
+import Layout from '../../components/Layout';
+import CommissionTaskCommentPopup from '../../components/CommissionTaskCommentPopup';
+import CommissionTaskCommentList from '../../components/CommissionTaskCommentList';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import LiquidacionPagoBrokerPDF from '../../components/pdf/LiquidacionPagoBrokerPDF';
+import {
+  ArrowLeft, Clock, CheckCircle2, AlertCircle, UserCircle, UserPlus,
+  MessageSquare, Play, Loader2, Calendar, AlertTriangle, Timer, Edit,
+  ChevronDown, ChevronRight, Edit2, Users, ListChecks, FileText,
+  ClipboardList, DollarSign, Plus, Info
+} from 'lucide-react';
+import { formatDistanceToNow, format, differenceInDays, addDays } from 'date-fns';
+import { es } from 'date-fns/locale';
 
-	import { useNavigate, useParams } from 'react-router-dom';
+// --- TIPOS ADICIONALES PARA LIQUIDACIÓN ---
+export const PROMOTION_TYPES_ARRAY = [
+  'Arriendo garantizado', 'Cashback', 'Giftcard', 'Bono Ejecutivo', 'Crédito al Pie', 'Dividendo Garantizado'
+] as const;
+export type PromotionType = typeof PROMOTION_TYPES_ARRAY[number];
+export interface AppliedPromotion {
+  id: string; reservation_id: string; promotion_type: PromotionType;
+  is_against_discount: boolean; observations?: string | null; amount: number;
+  beneficiary: string; rut: string; bank: string; account_type: string;
+  account_number: string; email: string; purchase_order?: string | null;
+  document_number?: string | null; document_date?: string | null;
+  payment_date?: string | null; created_at?: string;
+}
+export interface FinancialSummaryForPDF {
+  totalPayment: number;
+  recoveryPayment: number;
+  minimumPrice: number;
+  difference: number;
+  totalCommissionUF: number;
+  firstPaymentUF: number;
+  secondPaymentUF?: number;
+  totalPromotionsAgainstDiscount: number;
+}
 
-	import { supabase, formatDateChile, formatDateTimeChile } from '../../lib/supabase';
-
-	import { usePopup } from '../../contexts/PopupContext';
-
-	import Layout from '../../components/Layout';
-
-	import {
-
-	ArrowLeft,
-
-	Clock,
-
-	CheckCircle2,
-
-	AlertCircle,
-
-	UserCircle,
-
-	UserPlus,
-
-	MessageSquare,
-
-	Play,
-
-	Loader2,
-
-	Calendar,
-
-	AlertTriangle,
-
-	Timer,
-
-	Edit,
-
-	ChevronDown,
-
-	ChevronRight,
-
-	Edit2,
-
-	Users,
-
-	ListChecks,
-
-	FileText,
-
-	ClipboardList,
-
-	DollarSign,
-
-	Plus
-
-	} from 'lucide-react';
-
-	import { formatDistanceToNow, format, differenceInDays, addDays } from 'date-fns';
-
-	import { es } from 'date-fns/locale';
-
-	import CommissionTaskCommentPopup from '../../components/CommissionTaskCommentPopup';
-
-	import CommissionTaskCommentList from '../../components/CommissionTaskCommentList';
-
-
-
-	interface Task {
+interface Task {
 
 	id: string;
 
@@ -2262,7 +2236,10 @@
 
 	></div>
 
+    
+
 	</div>
+    
 
 	</div>
 
@@ -2386,6 +2363,30 @@
 
 	</div>
 
+<div className="bg-white rounded-lg shadow-md p-6 mb-6">
+  <h2 className="text-lg font-semibold text-gray-900 mb-4">Informes y Documentos</h2>
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+    <p className="text-sm text-gray-600">
+      Descarga el PDF con el detalle del pago de comisión y promociones aplicadas.
+    </p>
+    <PDFDownloadLink
+  document={
+    <LiquidacionPagoBrokerPDF
+      flowData={flow}
+      formatDate={formatDate}
+      formatCurrency={formatCurrency}
+    />
+  }
+  fileName={`liquidacion_pago_broker_${flow.broker_commission.reservation.reservation_number}.pdf`}
+  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+>
+  {({ loading }) =>
+    loading ? 'Generando PDF...' : 'Descargar Liquidación PDF'
+  }
+</PDFDownloadLink>
+
+  </div>
+</div>
 
 
 	<div className="space-y-6">
