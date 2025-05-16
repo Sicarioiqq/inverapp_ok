@@ -4746,7 +4746,7 @@ id={`stage-${stage.id}`}
 
 key={stage.id}
 
-className="bg-white rounded-lg shadow-md overflow-hidden">
+className="bg-white rounded-lg shadow-md overflow-hidden">;
 
 
 
