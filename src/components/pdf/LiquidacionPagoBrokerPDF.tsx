@@ -53,6 +53,20 @@ interface LiquidacionPagoBrokerPDFProps {
   formatCurrency: (amount: number) => string;
 }
 
+export interface InformeDataProps {
+  reportTitle: string;
+  generationDate: string;
+  periodCovered?: string;
+  companyLogoUrl?: string; // URL a tu logo
+  kpis: KPI[];
+  monthlyReservationsTrend?: MonthlyTrend[];
+  monthlyCommissionsTrend?: MonthlyTrend[];
+  projectStatuses: ProjectStatus[];
+  brokerPerformances: BrokerPerformance[];
+  recentActivities?: RecentActivityItem[];
+  // Añade más datos que necesites
+}
+
 const styles = StyleSheet.create({
   page: {
     flexDirection: 'column',
