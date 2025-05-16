@@ -8,7 +8,7 @@ import StageCard from '../../components/StageCard';
 import TaskAssignmentPopup from '../../components/TaskAssignmentPopup';
 import TaskCommentPopup from '../../components/TaskCommentPopup';
 import RescindReservationPopup from '../../components/RescindReservationPopup';
-import ClientMultipleReservationsAlert from '../../components/ClientMultipleReservationsAlert';
+//import ClientMultipleReservationsAlert from '../../components/ClientMultipleReservationsAlert';
 import { ArrowLeft, Clock, CheckCircle2, AlertCircle, Ban } from 'lucide-react';
 
 interface Stage {
