@@ -1,3107 +1,6195 @@
 import React, { useState, useEffect } from 'react';
+
 import { useNavigate, useParams } from 'react-router-dom';
+
 import { supabase, formatDateChile, formatDateTimeChile, formatCurrency } from '../../lib/supabase';
+
 import { usePopup } from '../../contexts/PopupContext';
+
 import Layout from '../../components/Layout';
+
 import CommissionTaskCommentPopup from '../../components/CommissionTaskCommentPopup';
+
 import CommissionTaskCommentList from '../../components/CommissionTaskCommentList';
-import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
-//import LiquidacionPagoBrokerPDF from '../../components/pdf/LiquidacionPagoBrokerPDF';
-import InformeGeneralNegocioPDF from '../../components/pdf/LiquidacionPagoBrokerPDF';
+
+import { PDFDownloadLink } from '@react-pdf/renderer';
+
+import LiquidacionPagoBrokerPDF from '../../components/pdf/LiquidacionPagoBrokerPDF';
+
 import {
-  ArrowLeft, Clock, CheckCircle2, AlertCircle, UserCircle, UserPlus,
-  MessageSquare, Play, Loader2, Calendar, AlertTriangle, Timer, Edit,
-  ChevronDown, ChevronRight, Edit2, Users, ListChecks, FileText,
-  ClipboardList, DollarSign, Plus, Info
+
+  ArrowLeft, Clock, CheckCircle2, AlertCircle, UserCircle, UserPlus,
+
+  MessageSquare, Play, Loader2, Calendar, AlertTriangle, Timer, Edit,
+
+  ChevronDown, ChevronRight, Edit2, Users, ListChecks, FileText,
+
+  ClipboardList, DollarSign, Plus, Info
+
 } from 'lucide-react';
+
 import { formatDistanceToNow, format, differenceInDays, addDays } from 'date-fns';
+
 import { es } from 'date-fns/locale';
 
+
+
 // --- TIPOS ADICIONALES PARA LIQUIDACIÓN ---
+
 export const PROMOTION_TYPES_ARRAY = [
-  'Arriendo garantizado', 'Cashback', 'Giftcard', 'Bono Ejecutivo', 'Crédito al Pie', 'Dividendo Garantizado'
+
+  'Arriendo garantizado', 'Cashback', 'Giftcard', 'Bono Ejecutivo', 'Crédito al Pie', 'Dividendo Garantizado'
+
 ] as const;
+
 export type PromotionType = typeof PROMOTION_TYPES_ARRAY[number];
+
 export interface AppliedPromotion {
-  id: string; reservation_id: string; promotion_type: PromotionType;
-  is_against_discount: boolean; observations?: string | null; amount: number;
-  beneficiary: string; rut: string; bank: string; account_type: string;
-  account_number: string; email: string; purchase_order?: string | null;
-  document_number?: string | null; document_date?: string | null;
-  payment_date?: string | null; created_at?: string;
+
+  id: string; reservation_id: string; promotion_type: PromotionType;
+
+  is_against_discount: boolean; observations?: string | null; amount: number;
+
+  beneficiary: string; rut: string; bank: string; account_type: string;
+
+  account_number: string; email: string; purchase_order?: string | null;
+
+  document_number?: string | null; document_date?: string | null;
+
+  payment_date?: string | null; created_at?: string;
+
 }
+
 export interface FinancialSummaryForPDF {
-  totalPayment: number;
-  recoveryPayment: number;
-  minimumPrice: number;
-  difference: number;
-  totalCommissionUF: number;
-  firstPaymentUF: number;
-  secondPaymentUF?: number;
-  totalPromotionsAgainstDiscount: number;
+
+  totalPayment: number;
+
+  recoveryPayment: number;
+
+  minimumPrice: number;
+
+  difference: number;
+
+  totalCommissionUF: number;
+
+  firstPaymentUF: number;
+
+  secondPaymentUF?: number;
+
+  totalPromotionsAgainstDiscount: number;
+
 }
+
+
 
 interface Task {
 
-	id: string;
 
-	name: string;
 
-	status: string;
+id: string;
 
-	started_at?: string;
 
-	completed_at?: string;
 
-	assigned_at?: string;
+name: string;
 
-	expected_date?: string;
 
-	days_to_complete?: number;
 
-	assignee?: {
+status: string;
 
-	id: string;
 
-	first_name: string;
 
-	last_name: string;
+started_at?: string;
 
-	avatar_url?: string;
 
-	};
 
-	default_assignee?: {
+completed_at?: string;
 
-	id: string;
 
-	first_name: string;
 
-	last_name: string;
+assigned_at?: string;
 
-	avatar_url?: string;
 
-	};
 
-	comments_count: number;
+expected_date?: string;
 
-	}
 
 
+days_to_complete?: number;
 
-	interface Stage {
 
-	id: string;
 
-	name: string;
+assignee?: {
 
-	tasks: Task[];
 
-	isCompleted: boolean;
 
-	isExpanded: boolean;
+id: string;
 
-	}
 
 
+first_name: string;
 
-	interface PaymentFlow {
 
-	id: string;
 
-	status: string;
+last_name: string;
 
-	started_at: string | null;
 
-	completed_at: string | null;
 
-	is_second_payment: boolean;
+avatar_url?: string;
 
-	flow: {
 
-	id: string;
 
-	};
+};
 
-	broker_commission: {
 
-	id: string;
 
-	commission_amount: number;
+default_assignee?: {
 
-	number_of_payments: number;
 
-	first_payment_percentage: number;
 
-	at_risk: boolean;
+id: string;
 
-	at_risk_reason: string | null;
 
-	reservation: {
 
-	id: string;
+first_name: string;
 
-	reservation_number: string;
 
-	client: {
 
-	id: string;
+last_name: string;
 
-	first_name: string;
 
-	last_name: string;
 
-	};
+avatar_url?: string;
 
-	project: {
 
-	name: string;
 
-	stage: string;
+};
 
-	};
 
-	apartment_number: string;
 
-	broker: {
+comments_count: number;
 
-	id: string;
 
-	name: string;
 
-	};
+}
 
-	};
 
-	};
 
-	current_stage: {
 
-	id: string;
 
-	name: string;
 
-	} | null;
 
-	stages: Stage[];
+interface Stage {
 
-	}
 
 
+id: string;
 
-	interface User {
 
-	id: string;
 
-	first_name: string;
+name: string;
 
-	last_name: string;
 
-	position: string;
 
-	avatar_url?: string;
+tasks: Task[];
 
-	}
 
 
+isCompleted: boolean;
 
-	// Function to implement retry logic with exponential backoff
 
-	const retryOperation = async (
 
-	operation: () => Promise<any>,
+isExpanded: boolean;
 
-	maxRetries: number = 3,
 
-	initialDelay: number = 1000
 
-	): Promise<any> => {
+}
 
-	let retries = 0;
 
-	let delay = initialDelay;
 
 
-	while (true) {
 
-	try {
 
-	return await operation();
 
-	} catch (error: any) {
+interface PaymentFlow {
 
-	// Check if this is the specific error we want to retry
 
-	const isRetryableError =
 
-	error?.message?.includes('cannot ALTER TABLE') ||
+id: string;
 
-	error?.code === '55006';
 
 
-	// If we've reached max retries or it's not a retryable error, throw
+status: string;
 
-	if (retries >= maxRetries || !isRetryableError) {
 
-	throw error;
 
-	}
+started_at: string | null;
 
 
-	// Increment retry count and wait before trying again
 
-	retries++;
+completed_at: string | null;
 
-	console.log(`Retry attempt ${retries}/${maxRetries} after ${delay}ms delay...`);
 
 
-	// Wait for the delay period
+is_second_payment: boolean;
 
-	await new Promise(resolve => setTimeout(resolve, delay));
 
 
-	// Exponential backoff - double the delay for next retry
+flow: {
 
-	delay *= 2;
 
-	}
 
-	}
+id: string;
 
-	};
 
 
+};
 
-	const PaymentFlow: React.FC = () => {
 
-	const { id } = useParams();
 
-	const navigate = useNavigate();
+broker_commission: {
 
-	const { showPopup } = usePopup();
 
-	const [flow, setFlow] = useState<PaymentFlow | null>(null);
 
-	const [loading, setLoading] = useState(true);
+id: string;
 
-	const [error, setError] = useState<string | null>(null);
 
-	const [users, setUsers] = useState<User[]>([]);
 
-	const [isAdmin, setIsAdmin] = useState(false);
+commission_amount: number;
 
-	const [startingFlow, setStartingFlow] = useState(false);
 
-	const [editingStartDate, setEditingStartDate] = useState(false);
 
-	const [editingTaskDate, setEditingTaskDate] = useState<{
+number_of_payments: number;
 
-	taskId: string;
 
-	type: 'start' | 'complete';
 
-	} | null>(null);
+first_payment_percentage: number;
 
-	const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
-	const [commentRefreshTrigger, setCommentRefreshTrigger] = useState(0);
 
-	const [creatingSecondFlow, setCreatingSecondFlow] = useState(false);
+at_risk: boolean;
 
-	const [tempDateValue, setTempDateValue] = useState('');
 
-	const [markingAtRisk, setMarkingAtRisk] = useState(false);
 
+at_risk_reason: string | null;
 
 
-	useEffect(() => {
 
-	if (id) {
+reservation: {
 
-	Promise.all([
 
-	fetchFlow(),
 
-	fetchUsers(),
+id: string;
 
-	checkAdminStatus()
 
-	]);
 
-	} else {
+reservation_number: string;
 
-	navigate('/pagos');
 
-	}
 
-	  
+client: {
 
-	}, [id]);
 
-	const checkAdminStatus = async () => {
 
-	try {
+id: string;
 
-	const { data: { user } } = await supabase.auth.getUser();
 
-	if (!user) return;
 
+first_name: string;
 
 
-	const { data: profile } = await supabase
 
-	.from('profiles')
+last_name: string;
 
-	.select('user_type')
 
-	.eq('id', user.id)
 
-	.single();
+};
 
 
 
-	setIsAdmin(profile?.user_type === 'Administrador');
+project: {
 
-	} catch (err) {
 
-	console.error('Error checking admin status:', err);
 
-	}
+name: string;
 
-	};
 
 
+stage: string;
 
-	const fetchUsers = async () => {
 
-	try {
 
-	const { data, error } = await supabase
+};
 
-	.from('profiles')
 
-	.select('id, first_name, last_name, position, avatar_url')
 
-	.order('first_name');
+apartment_number: string;
 
 
 
-	if (error) throw error;
+broker: {
 
-	setUsers(data || []);
 
-	} catch (err: any) {
 
-	console.error('Error fetching users:', err);
+id: string;
 
-	}
 
-	};
 
+name: string;
 
 
-	const fetchFlow = async () => {
 
-	try {
+};
 
-	setLoading(true);
 
-	setError(null);
 
+};
 
-	// Get basic flow information
 
-	const { data: flowData, error: flowError } = await supabase
 
-	.from('commission_flows')
+};
 
-	.select(`
 
-	id,
 
-	status,
+current_stage: {
 
-	started_at,
 
-	completed_at,
 
-	is_second_payment,
+id: string;
 
-	flow:payment_flows(id),
 
-	current_stage:payment_flow_stages(id, name),
 
-	broker_commission:broker_commissions(
+name: string;
 
-	id,
 
-	commission_amount,
 
-	number_of_payments,
+} | null;
 
-	first_payment_percentage,
 
-	at_risk,
 
-	at_risk_reason,
+stages: Stage[];
 
-	reservation:reservations(
 
-	id,
 
-	reservation_number,
+}
 
-	apartment_number,
 
-	client:clients(id, first_name, last_name),
 
-	project:projects(name, stage),
 
-	broker:brokers(id, name)
 
-	)
 
-	)
 
-	`)
+interface User {
 
-	.eq('id', id)
 
-	.single();
 
+id: string;
 
 
-	if (flowError) throw flowError;
 
+first_name: string;
 
 
-	const { data: stagesData, error: stagesError } = await supabase
 
-	.from('payment_flow_stages')
+last_name: string;
 
-	.select(`
 
-	id,
 
-	name,
+position: string;
 
-	tasks:payment_flow_tasks(
 
-	id,
 
-	name,
+avatar_url?: string;
 
-	days_to_complete,
 
-	default_assignee:profiles(
 
-	id,
+}
 
-	first_name,
 
-	last_name,
 
-	avatar_url
 
-	)
 
-	)
 
-	`)
 
-	.eq('flow_id', flowData.flow.id)
+// Function to implement retry logic with exponential backoff
 
-	.order('order', { ascending: true });
 
 
+const retryOperation = async (
 
-	if (stagesError) throw stagesError;
 
 
+operation: () => Promise<any>,
 
-	const { data: flowTasks, error: tasksError } = await supabase
 
-	.from('commission_flow_tasks')
 
-	.select(`
+maxRetries: number = 3,
 
-	id,
 
-	task_id,
 
-	status,
+initialDelay: number = 1000
 
-	started_at,
 
-	completed_at,
 
-	assigned_at,
+): Promise<any> => {
 
-	assignee:profiles(
 
-	id,
 
-	first_name,
+let retries = 0;
 
-	last_name,
 
-	avatar_url
 
-	)
+let delay = initialDelay;
 
-	`)
 
-	.eq('commission_flow_id', id);
 
 
 
-	if (tasksError) throw tasksError;
+while (true) {
 
 
 
-	// Get comments count for each task
+try {
 
-	const { data: commentsData, error: commentsError } = await supabase
 
-	.from('commission_task_comments')
 
-	.select('commission_flow_task_id');
+return await operation();
 
 
 
-	if (commentsError) throw commentsError;
+} catch (error: any) {
 
 
 
-	// Group comments by task ID
+// Check if this is the specific error we want to retry
 
-	const commentCounts: Record<string, number> = {};
 
-	commentsData?.forEach(comment => {
 
-	if (comment.commission_flow_task_id) {
+const isRetryableError =
 
-	commentCounts[comment.commission_flow_task_id] = (commentCounts[comment.commission_flow_task_id] || 0) + 1;
 
-	}
 
-	});
+error?.message?.includes('cannot ALTER TABLE') ||
 
 
 
-	const stages = stagesData?.map(stage => {
+error?.code === '55006';
 
-	const stageTasks = stage.tasks.map(task => {
 
-	const flowTask = flowTasks?.find(ft => ft.task_id === task.id);
 
 
-	// Find comments count for this task
 
-	const taskCommentCount = flowTask ? (commentCounts[flowTask.id] || 0) : 0;
+// If we've reached max retries or it's not a retryable error, throw
 
 
-	return {
 
-	id: task.id,
+if (retries >= maxRetries || !isRetryableError) {
 
-	name: task.name,
 
-	status: flowTask?.status || 'blocked',
 
-	started_at: flowTask?.started_at,
+throw error;
 
-	completed_at: flowTask?.completed_at,
 
-	assigned_at: flowTask?.assigned_at,
 
-	days_to_complete: task.days_to_complete,
+}
 
-	assignee: flowTask?.assignee,
 
-	default_assignee: task.default_assignee,
 
-	comments_count: taskCommentCount
 
-	};
 
-	});
+// Increment retry count and wait before trying again
 
 
 
-	return {
+retries++;
 
-	id: stage.id,
 
-	name: stage.name,
 
-	tasks: stageTasks,
+console.log(`Retry attempt ${retries}/${maxRetries} after ${delay}ms delay...`);
 
-	isCompleted: stageTasks.every(task => task.status === 'completed'),
 
-	isExpanded: true // Default to expanded
 
-	};
 
-	}) || [];
 
+// Wait for the delay period
 
 
-	setFlow({
 
-	...flowData,
+await new Promise(resolve => setTimeout(resolve, delay));
 
-	stages
 
-	});
 
-	} catch (err: any) {
 
-	setError(err.message);
 
-	} finally {
+// Exponential backoff - double the delay for next retry
 
-	setLoading(false);
 
-	}
 
-	};
+delay *= 2;
 
 
 
-	const handleStartFlow = async () => {
+}
 
-	if (!flow) return;
 
 
+}
 
-	try {
 
-	setStartingFlow(true);
 
-	setError(null);
+};
 
 
 
-	const { error: updateError } = await supabase
 
-	.from('commission_flows')
 
-	.update({
 
-	status: 'in_progress',
 
-	started_at: new Date().toISOString()
+const PaymentFlow: React.FC = () => {
 
-	})
 
-	.eq('id', flow.id);
 
+const { id } = useParams();
 
 
-	if (updateError) throw updateError;
 
+const navigate = useNavigate();
 
 
-	await fetchFlow();
 
-	} catch (err: any) {
+const { showPopup } = usePopup();
 
-	setError(err.message);
 
-	} finally {
 
-	setStartingFlow(false);
+const [flow, setFlow] = useState<PaymentFlow | null>(null);
 
-	}
 
-	};
 
+const [loading, setLoading] = useState(true);
 
 
-	const handleStartDateChange = async (date: string) => {
 
-	if (!flow) return;
+const [error, setError] = useState<string | null>(null);
 
 
 
-	try {
+const [users, setUsers] = useState<User[]>([]);
 
-	setLoading(true);
 
-	const { error } = await supabase
 
-	.from('commission_flows')
+const [isAdmin, setIsAdmin] = useState(false);
 
-	.update({ started_at: date })
 
-	.eq('id', flow.id);
 
+const [startingFlow, setStartingFlow] = useState(false);
 
 
-	if (error) throw error;
 
+const [editingStartDate, setEditingStartDate] = useState(false);
 
 
-	await fetchFlow();
 
-	setEditingStartDate(false);
+const [editingTaskDate, setEditingTaskDate] = useState<{
 
-	} catch (err: any) {
 
-	setError(err.message);
 
-	} finally {
+taskId: string;
 
-	setLoading(false);
 
-	}
 
-	};
+type: 'start' | 'complete';
 
 
 
-	const handleTaskDateChange = async (taskId: string, date: string, type: 'start' | 'complete') => {
+} | null>(null);
 
-	if (!flow) return;
 
 
+const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
-	try {
 
-	setLoading(true);
 
-	// Get the task ID first
+const [commentRefreshTrigger, setCommentRefreshTrigger] = useState(0);
 
-	const { data: flowTask, error: taskError } = await supabase
 
-	.from('commission_flow_tasks')
 
-	.select('id')
+const [creatingSecondFlow, setCreatingSecondFlow] = useState(false);
 
-	.eq('commission_flow_id', flow.id)
 
-	.eq('task_id', taskId)
 
-	.maybeSingle();
+const [tempDateValue, setTempDateValue] = useState('');
 
 
 
-	if (taskError) throw taskError;
+const [markingAtRisk, setMarkingAtRisk] = useState(false);
 
 
 
-	if (flowTask) {
 
-	// Use the retry operation for the update
 
-	await retryOperation(async () => {
 
-	const { error: updateError } = await supabase
 
-	.from('commission_flow_tasks')
+useEffect(() => {
 
-	.update({
 
-	[type === 'start' ? 'started_at' : 'completed_at']: date
 
-	})
+if (id) {
 
-	.eq('id', flowTask.id);
 
 
+Promise.all([
 
-	if (updateError) throw updateError;
 
-	});
 
-	}
+fetchFlow(),
 
 
 
-	await fetchFlow();
+fetchUsers(),
 
-	setEditingTaskDate(null);
 
 
-	// Trigger a refresh of comments
+checkAdminStatus()
 
-	setCommentRefreshTrigger(prev => prev + 1);
 
-	} catch (err: any) {
 
-	setError(err.message);
+]);
 
-	} finally {
 
-	setLoading(false);
 
-	}
+} else {
 
-	};
 
 
+navigate('/pagos');
 
-	const handleAssign = async (taskId: string, currentAssignee: User | null, defaultAssignee: User | null) => {
 
-	if (!flow || flow.status === 'pending') return;
 
+}
 
 
-	try {
 
-	if (!currentAssignee && defaultAssignee) {
+  
 
-	await assignUser(taskId, defaultAssignee);
 
-	return;
 
-	}
+}, [id]);
 
 
 
-	const selectedUser = await new Promise<User | null>((resolve) => {
+const checkAdminStatus = async () => {
 
-	showPopup(
 
-	<div className="space-y-4">
 
-	<div className="max-h-96 overflow-y-auto">
+try {
 
-	{users.map((user) => (
 
-	<button
 
-	key={user.id}
+const { data: { user } } = await supabase.auth.getUser();
 
-	onClick={() => resolve(user)}
 
-	className={`w-full flex items-center p-3 rounded-lg hover:bg-gray-50 ${
 
-	currentAssignee?.id === user.id ? 'bg-blue-50' : ''
+if (!user) return;
 
-	}`}
 
-	>
 
-	<div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
 
-	{user.avatar_url ? (
 
-	<img
 
-	src={user.avatar_url}
 
-	alt={`${user.first_name} ${user.last_name}`}
+const { data: profile } = await supabase
 
-	className="h-full w-full object-cover"
 
-	/>
 
-	) : (
+.from('profiles')
 
-	<UserCircle className="h-6 w-6 text-gray-500" />
 
-	)}
 
-	</div>
+.select('user_type')
 
-	<div className="ml-3">
 
-	<div className="text-sm font-medium text-gray-900">
 
-	{user.first_name} {user.last_name}
+.eq('id', user.id)
 
-	</div>
 
-	<div className="text-sm text-gray-500">
 
-	{user.position}
+.single();
 
-	</div>
 
-	</div>
 
-	</button>
 
-	))}
 
-	</div>
 
-	<div className="flex justify-end space-x-3 pt-4 border-t">
 
-	<button
+setIsAdmin(profile?.user_type === 'Administrador');
 
-	type="button"
 
-	onClick={() => resolve(null)}
 
-	className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+} catch (err) {
 
-	>
 
-	Cancelar
 
-	</button>
+console.error('Error checking admin status:', err);
 
-	{currentAssignee && (
 
-	<button
 
-	type="button"
+}
 
-	onClick={() => resolve({ id: '', first_name: '', last_name: '', position: '' })}
 
-	className="px-4 py-2 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-md shadow-sm hover:bg-red-50"
 
-	>
+};
 
-	Quitar Asignación
 
-	</button>
 
-	)}
 
-	</div>
 
-	</div>,
 
-	{
 
-	title: 'Asignar Responsable',
+const fetchUsers = async () => {
 
-	size: 'md'
 
-	}
 
-	);
+try {
 
-	});
 
 
+const { data, error } = await supabase
 
-	if (!selectedUser) return;
 
 
+.from('profiles')
 
-	await assignUser(taskId, selectedUser);
 
 
-	// Trigger a refresh of comments
+.select('id, first_name, last_name, position, avatar_url')
 
-	setCommentRefreshTrigger(prev => prev + 1);
 
-	} catch (err: any) {
 
-	setError(err.message);
+.order('first_name');
 
-	}
 
-	};
 
 
 
-	const assignUser = async (taskId: string, user: User) => {
 
-	if (!flow) return;
 
+if (error) throw error;
 
 
-	try {
 
-	// Use retry operation for getting the task
+setUsers(data || []);
 
-	const { data: flowTask, error: taskError } = await retryOperation(async () => {
 
-	return await supabase
 
-	.from('commission_flow_tasks')
+} catch (err: any) {
 
-	.select('id')
 
-	.eq('commission_flow_id', flow.id)
 
-	.eq('task_id', taskId)
+console.error('Error fetching users:', err);
 
-	.maybeSingle();
 
-	});
 
+}
 
 
-	if (taskError) throw taskError;
 
+};
 
 
-	if (flowTask) {
 
-	// Use retry operation for updating the task
 
-	await retryOperation(async () => {
 
-	const { error: updateError } = await supabase
 
-	.from('commission_flow_tasks')
 
-	.update({
+const fetchFlow = async () => {
 
-	assignee_id: user.id || null,
 
-	assigned_at: user.id ? new Date().toISOString() : null
 
-	})
+try {
 
-	.eq('id', flowTask.id);
 
 
+setLoading(true);
 
-	if (updateError) throw updateError;
 
-	});
 
-	} else {
+setError(null);
 
-	// Use retry operation for creating the task
 
-	await retryOperation(async () => {
 
-	const { error: createError } = await supabase
 
-	.from('commission_flow_tasks')
 
-	.insert({
+// Get basic flow information
 
-	commission_flow_id: flow.id,
 
-	task_id: taskId,
 
-	status: 'pending',
+const { data: flowData, error: flowError } = await supabase
 
-	assignee_id: user.id || null,
 
-	assigned_at: user.id ? new Date().toISOString() : null
 
-	});
+.from('commission_flows')
 
 
 
-	if (createError) throw createError;
+.select(`
 
-	});
 
-	}
 
+id,
 
 
-	fetchFlow();
 
-	} catch (err: any) {
+status,
 
-	setError(err.message);
 
-	}
 
-	};
+started_at,
 
-	  // Aquí, justo **después** de assignUser, pega esto UNA VEZ:
-	  useEffect(() => {
-		if (flow?.status === 'in_progress') {
-		  flow.stages.forEach(stage =>
-			stage.tasks.forEach(task => {
-			  if (!task.assignee && task.default_assignee) {
-				assignUser(task.id, task.default_assignee);
-			  }
-			})
-		  );
-		}
-	  }, [flow?.status]);
 
-	  useEffect(() => {
-	  if (!flow) return;
 
-	  // Determina qué etapa está “pendiente”:
-	  // Podrías usar flow.current_stage.id, o buscar la primera stage.isCompleted === false.
-	  const pendingStageId =
-		flow.current_stage?.id ||
-		flow.stages.find(s => !s.isCompleted)?.id;
+completed_at,
 
-	  if (pendingStageId) {
-		const el = document.getElementById(`stage-${pendingStageId}`);
-		if (el) {
-		  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-		}
-	  }
-	}, [flow]);
 
 
+is_second_payment,
 
-	const handleStatusChange = async (taskId: string, newStatus: string) => {
 
-	if (!flow || flow.status === 'pending') return;
 
+flow:payment_flows(id),
 
 
-	try {
 
-	// Use retry operation for getting the task
+current_stage:payment_flow_stages(id, name),
 
-	const { data: flowTask, error: taskError } = await retryOperation(async () => {
 
-	return await supabase
 
-	.from('commission_flow_tasks')
+broker_commission:broker_commissions(
 
-	.select('id')
 
-	.eq('commission_flow_id', flow.id)
 
-	.eq('task_id', taskId)
+id,
 
-	.maybeSingle();
 
-	});
 
+commission_amount,
 
 
-	if (taskError) throw taskError;
 
+number_of_payments,
 
 
-	if (flowTask) {
 
-	// Use retry operation for updating the task
+first_payment_percentage,
 
-	await retryOperation(async () => {
 
-	const { error: updateError } = await supabase
 
-	.from('commission_flow_tasks')
+at_risk,
 
-	.update({ status: newStatus })
 
-	.eq('id', flowTask.id);
 
+at_risk_reason,
 
 
-	if (updateError) throw updateError;
 
-	});
+reservation:reservations(
 
-	} else {
 
-	// Use retry operation for creating the task
 
-	await retryOperation(async () => {
+id,
 
-	const { error: createError } = await supabase
 
-	.from('commission_flow_tasks')
 
-	.insert({
+reservation_number,
 
-	commission_flow_id: flow.id,
 
-	task_id: taskId,
 
-	status: newStatus
+apartment_number,
 
-	});
 
 
+client:clients(id, first_name, last_name),
 
-	if (createError) throw createError;
 
-	});
 
-	}
+project:projects(name, stage),
 
 
 
-	fetchFlow();
+broker:brokers(id, name)
 
 
-	// Trigger a refresh of comments
 
-	setCommentRefreshTrigger(prev => prev + 1);
+)
 
-	} catch (err: any) {
 
-	setError(err.message);
 
-	}
+)
 
-	};
 
 
+`)
 
-	const handleAddComment = async (taskId: string) => {
 
-	if (!flow || flow.status === 'pending') return;
 
+.eq('id', id)
 
 
-	showPopup(
 
-	<CommissionTaskCommentPopup
+.single();
 
-	taskId={taskId}
 
-	commissionFlowId={flow.id}
 
-	onSave={() => {
 
-	fetchFlow();
 
-	// Trigger a refresh of comments
 
-	setCommentRefreshTrigger(prev => prev + 1);
 
-	}}
+if (flowError) throw flowError;
 
-	onClose={() => showPopup(null)}
 
-	/>,
 
-	{
 
-	title: 'Agregar Comentario',
 
-	size: 'md'
 
-	}
 
-	);
+const { data: stagesData, error: stagesError } = await supabase
 
-	};
 
 
+.from('payment_flow_stages')
 
-	const toggleTaskComments = (taskId: string) => {
 
-	setExpandedTaskId(expandedTaskId === taskId ? null : taskId);
 
-	// Refresh comments when expanding a task
+.select(`
 
-	if (expandedTaskId !== taskId) {
 
-	setCommentRefreshTrigger(prev => prev + 1);
 
-	}
+id,
 
-	};
 
 
+name,
 
-	const toggleStage = (stageIndex: number) => {
 
-	if (!flow) return;
 
+tasks:payment_flow_tasks(
 
-	const updatedStages = [...flow.stages];
 
-	updatedStages[stageIndex].isExpanded = !updatedStages[stageIndex].isExpanded;
 
+id,
 
-	setFlow({
 
-	...flow,
 
-	stages: updatedStages
+name,
 
-	});
 
-	};
 
+days_to_complete,
 
 
-	const getStatusIcon = (status: string) => {
 
-	switch (status) {
+default_assignee:profiles(
 
-	case 'completed':
 
-	return <CheckCircle2 className="h-5 w-5 text-green-600" />;
 
-	case 'in_progress':
+id,
 
-	return <Clock className="h-5 w-5 text-blue-600" />;
 
-	case 'blocked':
 
-	return <AlertCircle className="h-5 w-5 text-red-600" />;
+first_name,
 
-	default:
 
-	return <Clock className="h-5 w-5 text-gray-400" />;
 
-	}
+last_name,
 
-	};
 
 
+avatar_url
 
-	const getStatusText = (status: string) => {
 
-	switch (status) {
 
-	case 'completed':
+)
 
-	return 'Completada';
 
-	case 'in_progress':
 
-	return 'En Proceso';
+)
 
-	case 'blocked':
 
-	return 'Bloqueada';
 
-	default:
+`)
 
-	return 'Pendiente';
 
-	}
 
-	};
+.eq('flow_id', flowData.flow.id)
 
 
 
-	const getStatusColor = (status: string) => {
+.order('order', { ascending: true });
 
-	switch (status) {
 
-	case 'completed':
 
-	return 'bg-green-100 text-green-800';
 
-	case 'in_progress':
 
-	return 'bg-blue-100 text-blue-800';
 
-	case 'blocked':
 
-	return 'bg-red-100 text-red-800';
+if (stagesError) throw stagesError;
 
-	default:
 
-	return 'bg-gray-100 text-gray-800';
 
-	}
 
-	};
 
 
 
-	const calculateProgress = () => {
+const { data: flowTasks, error: tasksError } = await supabase
 
-	if (!flow) return 0;
 
-	const totalTasks = flow.stages.reduce((sum, stage) => sum + stage.tasks.length, 0);
 
-	const completedTasks = flow.stages.reduce((sum, stage) =>
+.from('commission_flow_tasks')
 
-	sum + stage.tasks.filter(task => task.status === 'completed').length, 0);
 
-	return (completedTasks / totalTasks) * 100;
 
-	};
+.select(`
 
 
 
-	const getDaysElapsed = (startDate?: string, endDate?: string) => {
+id,
 
-	if (!startDate) return 0;
 
-	const start = new Date(startDate);
 
-	const end = endDate ? new Date(endDate) : new Date();
+task_id,
 
-	return differenceInDays(end, start);
 
-	};
 
+status,
 
 
-	const getExpectedDate = (task: Task) => {
 
-	if (!flow?.started_at || !task.days_to_complete) return null;
+started_at,
 
-	return addDays(new Date(flow.started_at), task.days_to_complete);
 
-	};
 
+completed_at,
 
 
-	const getDaysOverdue = (task: Task) => {
 
-	if (!task.started_at || !task.days_to_complete) return 0;
+assigned_at,
 
-	const endDate = task.completed_at ? new Date(task.completed_at) : new Date();
 
-	const daysElapsed = differenceInDays(endDate, new Date(task.started_at));
 
-	return Math.max(0, daysElapsed - task.days_to_complete!);
+assignee:profiles(
 
-	};
 
 
+id,
 
-	const formatDate = (dateString: string) => {
 
-	return formatDateChile(dateString);
 
-	};
+first_name,
 
 
 
-	const formatDateTime = (dateString: string) => {
+last_name,
 
-	return formatDateTimeChile(dateString);
 
-	};
 
+avatar_url
 
 
-	// Navigation functions
 
-	const navigateToEditClient = () => {
+)
 
-	if (flow?.broker_commission.reservation.client.id) {
 
-	navigate(`/clientes/editar/${flow.broker_commission.reservation.client.id}`);
 
-	}
+`)
 
-	};
 
 
+.eq('commission_flow_id', id);
 
-	const navigateToEditReservation = () => {
 
-	if (flow?.broker_commission.reservation.id) {
 
-	navigate(`/reservas/editar/${flow.broker_commission.reservation.id}`);
 
-	}
 
-	};
 
 
+if (tasksError) throw tasksError;
 
-	const navigateToEditCommission = () => {
 
-	if (flow?.broker_commission.reservation.id) {
 
-	navigate(`/pagos/${flow.broker_commission.reservation.id}`);
 
-	}
 
-	};
 
 
+// Get comments count for each task
 
-	const navigateToReservationFlow = async () => {
 
-	if (!flow?.broker_commission.reservation.id) return;
 
+const { data: commentsData, error: commentsError } = await supabase
 
-	try {
 
-	// Get the reservation flow ID
 
-	const { data, error } = await supabase
+.from('commission_task_comments')
 
-	.from('reservation_flows')
 
-	.select('id')
 
-	.eq('reservation_id', flow.broker_commission.reservation.id)
+.select('commission_flow_task_id');
 
-	.single();
 
 
-	if (error) throw error;
 
 
-	if (data) {
 
-	navigate(`/flujo-reservas/${data.id}`);
 
-	}
+if (commentsError) throw commentsError;
 
-	} catch (err: any) {
 
-	setError(err.message);
 
-	}
 
-	};
 
 
 
-	const navigateToDocuments = () => {
+// Group comments by task ID
 
-	// This would navigate to a documents page if it existed
 
-	// For now, we'll just show a popup
 
-	showPopup(
+const commentCounts: Record<string, number> = {};
 
-	<div className="p-4">
 
-	<p>Funcionalidad de documentos en desarrollo.</p>
 
-	</div>,
+commentsData?.forEach(comment => {
 
-	{
 
-	title: 'Documentos del Cliente',
 
-	size: 'md'
+if (comment.commission_flow_task_id) {
 
-	}
 
-	);
 
-	};
+commentCounts[comment.commission_flow_task_id] = (commentCounts[comment.commission_flow_task_id] || 0) + 1;
 
 
 
-	const navigateToTaskTracking = () => {
+}
 
-	navigate('/seguimiento');
 
-	};
 
+});
 
 
-	const handleCreateSecondPaymentFlow = async () => {
 
-	if (!flow || !flow.broker_commission.id) return;
 
 
-	try {
 
-	setCreatingSecondFlow(true);
 
+const stages = stagesData?.map(stage => {
 
-	// Check if a second payment flow already exists
 
-	const { data: existingFlow, error: checkError } = await supabase
 
-	.from('commission_flows')
+const stageTasks = stage.tasks.map(task => {
 
-	.select('id')
 
-	.eq('broker_commission_id', flow.broker_commission.id)
 
-	.eq('is_second_payment', true)
+const flowTask = flowTasks?.find(ft => ft.task_id === task.id);
 
-	.maybeSingle();
 
 
 
-	if (checkError) throw checkError;
 
+// Find comments count for this task
 
 
-	// If flow exists, navigate to it
 
-	if (existingFlow) {
+const taskCommentCount = flowTask ? (commentCounts[flowTask.id] || 0) : 0;
 
-	navigate(`/pagos/flujo/${existingFlow.id}`);
 
-	return;
 
-	}
 
 
+return {
 
-	// Get the second payment flow ID and first stage
 
-	const { data: flowData, error: flowError } = await supabase
 
-	.from('payment_flows')
+id: task.id,
 
-	.select('id, stages:payment_flow_stages(id)')
 
-	.eq('name', 'Flujo de Segundo Pago')
 
-	.single();
+name: task.name,
 
 
 
-	if (flowError) throw flowError;
+status: flowTask?.status || 'blocked',
 
 
 
-	// Create new second payment flow
+started_at: flowTask?.started_at,
 
-	const { data: newFlow, error: createError } = await supabase
 
-	.from('commission_flows')
 
-	.insert({
+completed_at: flowTask?.completed_at,
 
-	broker_commission_id: flow.broker_commission.id,
 
-	flow_id: flowData.id,
 
-	current_stage_id: flowData.stages[0].id,
+assigned_at: flowTask?.assigned_at,
 
-	status: 'pending',
 
-	started_at: null,
 
-	is_second_payment: true
+days_to_complete: task.days_to_complete,
 
-	})
 
-	.select()
 
-	.single();
+assignee: flowTask?.assignee,
 
 
 
-	if (createError) throw createError;
+default_assignee: task.default_assignee,
 
 
 
-	// Navigate to the new flow
+comments_count: taskCommentCount
 
-	navigate(`/pagos/flujo/${newFlow.id}`);
 
-	} catch (err: any) {
 
-	setError(err.message);
+};
 
-	} finally {
 
-	setCreatingSecondFlow(false);
 
-	}
+});
 
-	};
 
 
 
-	// Function to handle date input change and auto-save
 
-	const handleDateInputChange = async (e: React.ChangeEvent<HTMLInputElement>, taskId: string, type: 'start' | 'complete') => {
 
-	const newDate = e.target.value;
 
-	setTempDateValue(newDate);
+return {
 
 
-	// Auto-save after a short delay
 
-	if (newDate) {
+id: stage.id,
 
-	await handleTaskDateChange(taskId, newDate, type);
 
-	}
 
-	};
+name: stage.name,
 
 
 
-	// Function to handle marking a reservation as at risk
+tasks: stageTasks,
 
-	const handleToggleAtRisk = () => {
 
-	if (!flow) return;
 
+isCompleted: stageTasks.every(task => task.status === 'completed'),
 
 
-	showPopup(
 
-	<AtRiskPopup
+isExpanded: true // Default to expanded
 
-	commissionId={flow.broker_commission.id}
 
-	isAtRisk={flow.broker_commission.at_risk || false}
 
-	reason={flow.broker_commission.at_risk_reason || ''}
+};
 
-	onSave={fetchFlow}
 
-	onClose={() => {}}
 
-	/>,
+}) || [];
 
-	{
 
-	title: flow.broker_commission.at_risk ? 'Editar Estado En Riesgo' : 'Marcar Como En Riesgo',
 
-	size: 'md'
 
-	}
 
-	);
 
-	};
 
+setFlow({
 
 
-	if (loading) {
 
-	return (
+...flowData,
 
-	<Layout>
 
-	<div className="flex justify-center items-center h-64">
 
-	<Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+stages
 
-	</div>
 
-	</Layout>
 
-	);
+});
 
-	}
 
 
+} catch (err: any) {
 
-	if (error || !flow) {
 
-	return (
 
-	<Layout>
+setError(err.message);
 
-	<div className="bg-red-50 text-red-600 p-4 rounded-lg">
 
-	{error || 'Flujo no encontrado'}
 
-	</div>
+} finally {
 
-	</Layout>
 
-	);
 
-	}
+setLoading(false);
 
 
 
-	const canCreateSecondPaymentFlow =
+}
 
-	flow.status === 'completed' &&
 
-	flow.broker_commission.number_of_payments === 2 &&
 
-	!flow.is_second_payment;
+};
 
 
 
-	return (
 
-	<Layout>
 
-	<div className="max-w-5xl mx-auto">
 
-	<div className="flex items-center justify-between mb-6">
 
-	<button
+const handleStartFlow = async () => {
 
-	onClick={() => navigate('/pagos')}
 
-	className="flex items-center text-gray-600 hover:text-gray-900"
 
-	>
+if (!flow) return;
 
-	<ArrowLeft className="h-5 w-5 mr-2" />
 
-	Volver
 
-	</button>
 
-	<h1 className="text-2xl font-semibold text-gray-900">
 
-	{flow.is_second_payment ? 'Segundo Pago' : 'Flujo de Pago'} - Reserva {flow.broker_commission.reservation.reservation_number}
 
-	</h1>
 
+try {
 
-	{/* Navigation Icons */}
 
-	<div className="flex space-x-3">
 
-	<button
+setStartingFlow(true);
 
-	onClick={navigateToEditClient}
 
-	className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
 
-	title="Editar Cliente"
+setError(null);
 
-	>
 
-	<Users className="h-5 w-5" />
 
-	</button>
 
 
-	<button
 
-	onClick={navigateToEditReservation}
 
-	className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+const { error: updateError } = await supabase
 
-	title="Editar Reserva"
 
-	>
 
-	<Edit2 className="h-5 w-5" />
+.from('commission_flows')
 
-	</button>
 
 
-	<button
+.update({
 
-	onClick={navigateToEditCommission}
 
-	className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
 
-	title="Editar Comisión"
+status: 'in_progress',
 
-	>
 
-	<DollarSign className="h-5 w-5" />
 
-	</button>
+started_at: new Date().toISOString()
 
 
-	<button
 
-	onClick={navigateToReservationFlow}
+})
 
-	className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
 
-	title="Flujo de Reserva"
 
-	>
+.eq('id', flow.id);
 
-	<ListChecks className="h-5 w-5" />
 
-	</button>
 
 
-	<button
 
-	onClick={navigateToDocuments}
 
-	className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
 
-	title="Documentos"
+if (updateError) throw updateError;
 
-	>
 
-	<FileText className="h-5 w-5" />
 
-	</button>
 
 
-	<button
 
-	onClick={navigateToTaskTracking}
 
-	className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+await fetchFlow();
 
-	title="Seguimiento de Tareas"
 
-	>
 
-	<ClipboardList className="h-5 w-5" />
+} catch (err: any) {
 
-	</button>
 
-	</div>
 
-	</div>
+setError(err.message);
 
 
 
-	<div className="bg-white rounded-lg shadow-md p-6 mb-6">
+} finally {
 
-	<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-	<div>
 
-	<h2 className="text-lg font-semibold text-gray-900 mb-4">
+setStartingFlow(false);
 
-	Información General
 
-	</h2>
 
-	<dl className="space-y-2">
+}
 
-	<div>
 
-	<dt className="text-sm font-medium text-gray-500">Cliente</dt>
 
-	<dd className="text-sm text-gray-900">
+};
 
-	{flow.broker_commission.reservation.client.first_name} {flow.broker_commission.reservation.client.last_name}
 
-	</dd>
 
-	</div>
 
-	<div>
 
-	<dt className="text-sm font-medium text-gray-500">Proyecto</dt>
 
-	<dd className="text-sm text-gray-900">
 
-	{flow.broker_commission.reservation.project.name} {flow.broker_commission.reservation.project.stage} - {flow.broker_commission.reservation.apartment_number}
+const handleStartDateChange = async (date: string) => {
 
-	</dd>
 
-	</div>
 
-	<div>
+if (!flow) return;
 
-	<dt className="text-sm font-medium text-gray-500">Broker</dt>
 
-	<dd className="text-sm text-gray-900">
 
-	{flow.broker_commission.reservation.broker.name}
 
-	</dd>
 
-	</div>
 
-	<div>
 
-	<dt className="text-sm font-medium text-gray-500">Monto Comisión</dt>
+try {
 
-	<dd className="text-sm text-gray-900">
 
-	{flow.is_second_payment ?
 
-	`${((100 - flow.broker_commission.first_payment_percentage) / 100 * flow.broker_commission.commission_amount).toFixed(2)} UF (${100 - flow.broker_commission.first_payment_percentage}%)` :
+setLoading(true);
 
-	`${((flow.broker_commission.first_payment_percentage / 100) * flow.broker_commission.commission_amount).toFixed(2)} UF (${flow.broker_commission.first_payment_percentage}%)`
 
-	}
 
-	</dd>
+const { error } = await supabase
 
-	</div>
 
-	{flow.broker_commission.number_of_payments === 2 && (
 
-	<div>
+.from('commission_flows')
 
-	<dt className="text-sm font-medium text-gray-500">Tipo de Pago</dt>
 
-	<dd className="text-sm text-gray-900">
 
-	{flow.is_second_payment ? 'Segundo Pago' : 'Primer Pago'}
+.update({ started_at: date })
 
-	</dd>
 
-	</div>
 
-	)}
+.eq('id', flow.id);
 
-	{flow.broker_commission.at_risk && (
 
-	<div>
 
-	<dt className="text-sm font-medium text-gray-500">Estado</dt>
 
-	<dd className="text-sm flex items-center">
 
-	<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
 
-	<AlertCircle className="h-4 w-4 mr-1" />
 
-	En Riesgo
+if (error) throw error;
 
-	</span>
 
-	{flow.broker_commission.at_risk_reason && (
 
-	<span className="ml-2 text-gray-500 italic">
 
-	{flow.broker_commission.at_risk_reason}
 
-	</span>
 
-	)}
 
-	</dd>
+await fetchFlow();
 
-	</div>
 
-	)}
 
-	</dl>
+setEditingStartDate(false);
 
-	</div>
 
 
+} catch (err: any) {
 
-	<div>
 
-	<div className="flex items-center justify-between mb-4">
 
-	<h2 className="text-lg font-semibold text-gray-900">
+setError(err.message);
 
-	Estado del Proceso
 
-	</h2>
 
-	<div className="flex space-x-2">
+} finally {
 
-	{isAdmin && flow.status === 'pending' && (
 
-	<button
 
-	onClick={handleStartFlow}
+setLoading(false);
 
-	disabled={startingFlow}
 
-	className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
 
-	>
+}
 
-	{startingFlow ? (
 
-	<>
 
-	<Loader2 className="animate-spin h-4 w-4 mr-2" />
+};
 
-	Iniciando...
 
-	</>
 
-	) : (
 
-	<>
 
-	<Play className="h-4 w-4 mr-2" />
 
-	Proceder con Pago
 
-	</>
+const handleTaskDateChange = async (taskId: string, date: string, type: 'start' | 'complete') => {
 
-	)}
 
-	</button>
 
-	)}
+if (!flow) return;
 
 
-	{canCreateSecondPaymentFlow && (
 
-	<button
 
-	onClick={handleCreateSecondPaymentFlow}
 
-	disabled={creatingSecondFlow}
 
-	className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
 
-	>
+try {
 
-	{creatingSecondFlow ? (
 
-	<>
 
-	<Loader2 className="animate-spin h-4 w-4 mr-2" />
+setLoading(true);
 
-	Creando...
 
-	</>
 
-	) : (
+// Get the task ID first
 
-	<>
 
-	<Plus className="h-4 w-4 mr-2" />
 
-	Crear Segundo Pago
+const { data: flowTask, error: taskError } = await supabase
 
-	</>
 
-	)}
 
-	</button>
+.from('commission_flow_tasks')
 
-	)}
 
 
-	{flow.status === 'in_progress' && !flow.broker_commission.at_risk && (
+.select('id')
 
-	<button
 
-	onClick={handleToggleAtRisk}
 
-	disabled={markingAtRisk}
+.eq('commission_flow_id', flow.id)
 
-	className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50"
 
-	>
 
-	{markingAtRisk ? (
+.eq('task_id', taskId)
 
-	<>
 
-	<Loader2 className="animate-spin h-4 w-4 mr-2" />
 
-	Procesando...
+.maybeSingle();
 
-	</>
 
-	) : (
 
-	<>
 
-	<AlertCircle className="h-4 w-4 mr-2" />
 
-	Marcar En Riesgo
 
-	</>
 
-	)}
+if (taskError) throw taskError;
 
-	</button>
 
-	)}
 
 
-	{flow.status === 'in_progress' && flow.broker_commission.at_risk && (
 
-	<button
 
-	onClick={handleToggleAtRisk}
 
-	disabled={markingAtRisk}
+if (flowTask) {
 
-	className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
 
-	>
 
-	{markingAtRisk ? (
+// Use the retry operation for the update
 
-	<>
 
-	<Loader2 className="animate-spin h-4 w-4 mr-2" />
 
-	Procesando...
+await retryOperation(async () => {
 
-	</>
 
-	) : (
 
-	<>
+const { error: updateError } = await supabase
 
-	<Edit className="h-4 w-4 mr-2" />
 
-	Editar Estado Riesgo
 
-	</>
+.from('commission_flow_tasks')
 
-	)}
 
-	</button>
 
-	)}
+.update({
 
-	</div>
 
-	</div>
 
-	<div className="space-y-4">
+[type === 'start' ? 'started_at' : 'completed_at']: date
 
-	<div>
 
-	<div className="flex justify-between text-sm font-medium text-gray-500 mb-1">
 
-	<span>Progreso</span>
+})
 
-	<span>{Math.round(calculateProgress())}%</span>
 
-	</div>
 
-	<div className="w-full bg-gray-200 rounded-full h-2.5">
+.eq('id', flowTask.id);
 
-	<div
 
-	className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
 
-	style={{ width: `${calculateProgress()}%` }}
 
-	></div>
 
-    
 
-	</div>
-    
 
-	</div>
+if (updateError) throw updateError;
 
 
 
-	<div>
+});
 
-	<dt className="text-sm font-medium text-gray-500">Iniciado</dt>
 
-	<dd className="text-sm text-gray-900">
 
-	{flow.started_at ? (
+}
 
-	<div className="flex items-center">
 
-	{editingStartDate ? (
 
-	<input
 
-	type="datetime-local"
 
-	defaultValue={flow.started_at.split('.')[0]}
 
-	onChange={(e) => handleStartDateChange(e.target.value)}
 
-	className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+await fetchFlow();
 
-	/>
 
-	) : (
 
-	<>
+setEditingTaskDate(null);
 
-	<span>{formatDateTime(flow.started_at)}</span>
 
-	{isAdmin && (
 
-	<button
 
-	onClick={() => setEditingStartDate(true)}
 
-	className="ml-2 text-blue-600 hover:text-blue-800"
+// Trigger a refresh of comments
 
-	title="Editar fecha"
 
-	>
 
-	<Edit className="h-4 w-4" />
+setCommentRefreshTrigger(prev => prev + 1);
 
-	</button>
 
-	)}
 
-	</>
+} catch (err: any) {
 
-	)}
 
-	</div>
 
-	) : (
+setError(err.message);
 
-	<span className="text-gray-500">No iniciado</span>
 
-	)}
 
-	</dd>
+} finally {
 
-	</div>
 
 
+setLoading(false);
 
-	{flow.completed_at && (
 
-	<div>
 
-	<dt className="text-sm font-medium text-gray-500">Completado</dt>
+}
 
-	<dd className="text-sm text-gray-900">
 
-	{formatDateTime(flow.completed_at)}
 
-	</dd>
+};
 
-	</div>
 
-	)}
 
 
 
-	<div>
 
-	<dt className="text-sm font-medium text-gray-500">Días Transcurridos</dt>
 
-	<dd className="text-sm text-gray-900">
+const handleAssign = async (taskId: string, currentAssignee: User | null, defaultAssignee: User | null) => {
 
-	{getDaysElapsed(flow.started_at || undefined, flow.completed_at)} días
 
-	</dd>
 
-	</div>
+if (!flow || flow.status === 'pending') return;
 
 
 
-	<div>
 
-	<dt className="text-sm font-medium text-gray-500">Etapa Actual</dt>
 
-	<dd className="text-sm text-gray-900">
 
-	{flow.current_stage?.name || 'No iniciado'}
 
-	</dd>
+try {
 
-	</div>
 
-	</div>
 
-	</div>
+if (!currentAssignee && defaultAssignee) {
 
-	</div>
 
-	</div>
 
-<div className="bg-white rounded-lg shadow-md p-6 mb-6">
-  <h2 className="text-lg font-semibold text-gray-900 mb-4">Informes y Documentos</h2>
-  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-    <p className="text-sm text-gray-600">
-      Descarga el PDF con el detalle del pago de comisión y promociones aplicadas.
-    </p>
-    <PDFDownloadLink
-  document={
-    <InformeGeneralNegocioPDF
-      reportTitle={ejemploDataInforme.reportTitle}
-      generationDate={ejemploDataInforme.generationDate}
-      periodCovered={ejemploDataInforme.periodCovered}
-      companyLogoUrl={ejemploDataInforme.companyLogoUrl}
-      kpis={ejemploDataInforme.kpis}
-      monthlyReservationsTrend={ejemploDataInforme.monthlyReservationsTrend}
-      projectStatuses={ejemploDataInforme.projectStatuses}
-      brokerPerformances={ejemploDataInforme.brokerPerformances}
-    />
-  }
-  fileName="informe_general_inverapp.pdf"
-  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+await assignUser(taskId, defaultAssignee);
+
+
+
+return;
+
+
+
+}
+
+
+
+
+
+
+
+const selectedUser = await new Promise<User | null>((resolve) => {
+
+
+
+showPopup(
+
+
+
+<div className="space-y-4">
+
+
+
+<div className="max-h-96 overflow-y-auto">
+
+
+
+{users.map((user) => (
+
+
+
+<button
+
+
+
+key={user.id}
+
+
+
+onClick={() => resolve(user)}
+
+
+
+className={`w-full flex items-center p-3 rounded-lg hover:bg-gray-50 ${
+
+
+
+currentAssignee?.id === user.id ? 'bg-blue-50' : ''
+
+
+
+}`}
+
+
+
 >
-  {({ loading }) =>
-    loading ? 'Generando PDF...' : 'Descargar Informe General'
-  }
-</PDFDownloadLink>
 
-  </div>
+
+
+<div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+
+
+
+{user.avatar_url ? (
+
+
+
+<img
+
+
+
+src={user.avatar_url}
+
+
+
+alt={`${user.first_name} ${user.last_name}`}
+
+
+
+className="h-full w-full object-cover"
+
+
+
+/>
+
+
+
+) : (
+
+
+
+<UserCircle className="h-6 w-6 text-gray-500" />
+
+
+
+)}
+
+
+
 </div>
 
 
-	<div className="space-y-6">
 
-	{flow.stages.map((stage, stageIndex) => (
-	  <div
-		id={`stage-${stage.id}`}
-		key={stage.id}
-		className="bg-white rounded-lg shadow-md overflow-hidden">
+<div className="ml-3">
 
-	<div
 
-	className="bg-gray-50 px-6 py-3 border-b flex items-center justify-between cursor-pointer"
 
-	onClick={() => toggleStage(stageIndex)}
+<div className="text-sm font-medium text-gray-900">
 
-	>
 
-	<div className="flex items-center">
 
-	{stage.isExpanded ?
+{user.first_name} {user.last_name}
 
-	<ChevronDown className="h-5 w-5 mr-2" /> :
 
-	<ChevronRight className="h-5 w-5 mr-2" />
 
-	}
+</div>
 
-	<h3 className="text-lg font-medium text-gray-900">{stage.name}</h3>
 
-	</div>
 
-	{stage.isCompleted && (
+<div className="text-sm text-gray-500">
 
-	<span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
 
-	Completada
 
-	</span>
+{user.position}
 
-	)}
 
-	</div>
 
+</div>
 
-	{stage.isExpanded && (
 
-	<div className="divide-y divide-gray-200">
 
-	{stage.tasks.map((task) => {
+</div>
 
-	const completionTime = task.completed_at && task.started_at ?
 
-	getDaysElapsed(task.started_at, task.completed_at) : null;
 
-	const daysOverdue = getDaysOverdue(task);
+</button>
 
-	const expectedDate = getExpectedDate(task);
 
-	const hasComments = task.comments_count > 0;
 
+))}
 
-	return (
 
-	<div key={task.id} className="p-6 hover:bg-gray-50">
 
-	<div className="flex items-center justify-between">
+</div>
 
-	<div className="flex-1">
 
-	<div className="flex items-center justify-between mb-2">
 
-	<h4 className="text-base font-medium text-gray-900">
+<div className="flex justify-end space-x-3 pt-4 border-t">
 
-	{task.name}
 
-	</h4>
 
-	<select
+<button
 
-	value={task.status}
 
-	onChange={(e) => handleStatusChange(task.id, e.target.value)}
 
-	disabled={flow.status === 'pending'}
+type="button"
 
-	className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
 
-	getStatusColor(task.status)
 
-	} border-0 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed`}
+onClick={() => resolve(null)}
 
-	>
 
-	<option value="pending">Pendiente</option>
 
-	<option value="in_progress">En Proceso</option>
+className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
 
-	<option value="completed">Completada</option>
 
-	<option value="blocked">Bloqueada</option>
 
-	</select>
+>
 
-	</div>
 
 
+Cancelar
 
-	<div className="flex items-center space-x-4 text-sm text-gray-500">
 
-	{task.assignee ? (
 
-	<div className="flex items-center">
+</button>
 
-	{task.assignee.avatar_url ? (
 
-	<img
 
-	src={task.assignee.avatar_url}
+{currentAssignee && (
 
-	alt={`${task.assignee.first_name} ${task.assignee.last_name}`}
 
-	className="h-8 w-8 rounded-full object-cover"
 
-	/>
+<button
 
-	) : (
 
-	<UserCircle className="h-8 w-8 text-gray-400" />
 
-	)}
+type="button"
 
-	<span className="ml-2 text-sm text-gray-600">
 
-	{task.assignee.first_name} {task.assignee.last_name}
 
-	</span>
+onClick={() => resolve({ id: '', first_name: '', last_name: '', position: '' })}
 
-	</div>
 
-	) : task.default_assignee ? (
 
-	<button
+className="px-4 py-2 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-md shadow-sm hover:bg-red-50"
 
-	onClick={() => handleAssign(task.id, null, task.default_assignee)}
 
-	className="flex items-center text-blue-600 hover:text-blue-800"
 
-	disabled={flow.status === 'pending'}
+>
 
-	>
 
-	<UserPlus className="h-5 w-5 mr-1" />
 
-	<span>Asignar a {task.default_assignee.first_name}</span>
+Quitar Asignación
 
-	</button>
 
-	) : (
 
-	<button
+</button>
 
-	onClick={() => handleAssign(task.id, null, null)}
 
-	className="flex items-center text-blue-600 hover:text-blue-800"
 
-	disabled={flow.status === 'pending'}
+)}
 
-	>
 
-	<UserPlus className="h-5 w-5 mr-1" />
 
-	<span>Asignar</span>
+</div>
 
-	</button>
 
-	)}
 
+</div>,
 
 
-	<button
 
-	onClick={() => handleAddComment(task.id)}
+{
 
-	className="flex items-center text-gray-500 hover:text-gray-700 relative"
 
-	disabled={flow.status === 'pending'}
 
-	>
+title: 'Asignar Responsable',
 
-	<MessageSquare className="h-5 w-5 mr-1" />
 
-	<span>Comentar</span>
 
-	{task.comments_count > 0 && (
+size: 'md'
 
-	<span className="absolute -top-1 -right-1 h-4 w-4 text-xs flex items-center justify-center bg-blue-600 text-white rounded-full">
 
-	{task.comments_count}
 
-	</span>
+}
 
-	)}
 
-	</button>
 
+);
 
-	<button
 
-	onClick={() => toggleTaskComments(task.id)}
 
-	className="flex items-center text-gray-500 hover:text-gray-700"
+});
 
-	disabled={flow.status === 'pending' || task.comments_count === 0}
 
-	>
 
-	<span>Ver comentarios</span>
 
-	<ChevronDown className={`h-4 w-4 ml-1 transition-transform ${
 
-	expandedTaskId === task.id ? 'rotate-180' : ''
 
-	}`} />
 
-	</button>
+if (!selectedUser) return;
 
-	</div>
 
 
 
-	<div className="mt-2 text-sm text-gray-500">
 
-	{task.started_at && (
 
-	<div className="flex flex-col space-y-2">
 
-	<div className="flex items-center">
+await assignUser(taskId, selectedUser);
 
-	{editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'start' ? (
 
-	<div className="flex items-center">
 
-	<input
 
-	type="datetime-local"
 
-	value={tempDateValue}
+// Trigger a refresh of comments
 
-	onChange={(e) => handleDateInputChange(e, task.id, 'start')}
 
-	className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
 
-	/>
+setCommentRefreshTrigger(prev => prev + 1);
 
-	</div>
 
-	) : (
 
-	<div className="flex items-center">
+} catch (err: any) {
 
-	<Calendar className="h-4 w-4 mr-1" />
 
-	<span>
 
-	Iniciada el {formatDateTime(task.started_at)}
+setError(err.message);
 
-	</span>
 
-	{isAdmin && (
 
-	<button
+}
 
-	onClick={() => {
 
-	setEditingTaskDate({ taskId: task.id, type: 'start' });
 
-	setTempDateValue(task.started_at.split('.')[0]);
+};
 
-	}}
 
-	className="ml-2 text-blue-600 hover:text-blue-800"
 
-	title="Editar fecha de inicio"
 
-	>
 
-	<Edit className="h-4 w-4" />
 
-	</button>
 
-	)}
+const assignUser = async (taskId: string, user: User) => {
 
-	</div>
 
-	)}
 
-	</div>
+if (!flow) return;
 
 
 
-	{task.completed_at && (
 
-	<div className="flex items-center">
 
-	{editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'complete' ? (
 
-	<div className="flex items-center">
 
-	<input
+try {
 
-	type="datetime-local"
 
-	value={tempDateValue}
 
-	onChange={(e) => handleDateInputChange(e, task.id, 'complete')}
+// Use retry operation for getting the task
 
-	className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
 
-	/>
 
-	</div>
+const { data: flowTask, error: taskError } = await retryOperation(async () => {
 
-	) : (
 
-	<div className="flex items-center text-green-600">
 
-	<CheckCircle2 className="h-4 w-4 mr-1" />
+return await supabase
 
-	<span>
 
-	Completada el {formatDateTime(task.completed_at)}
 
-	</span>
+.from('commission_flow_tasks')
 
-	{isAdmin && (
 
-	<button
 
-	onClick={() => {
+.select('id')
 
-	setEditingTaskDate({ taskId: task.id, type: 'complete' });
 
-	setTempDateValue(task.completed_at.split('.')[0]);
 
-	}}
+.eq('commission_flow_id', flow.id)
 
-	className="ml-2 text-blue-600 hover:text-blue-800"
 
-	title="Editar fecha de completado"
 
-	>
+.eq('task_id', taskId)
 
-	<Edit className="h-4 w-4" />
 
-	</button>
 
-	)}
+.maybeSingle();
 
-	</div>
 
-	)}
 
-	</div>
+});
 
-	)}
 
 
 
-	{completionTime !== null && (
 
-	<div className="flex items-center text-green-600">
 
-	<Timer className="h-4 w-4 mr-1" />
 
-	<span>
+if (taskError) throw taskError;
 
-	Gestionado en {completionTime} {completionTime === 1 ? 'día' : 'días'}
 
-	</span>
 
-	</div>
 
-	)}
 
 
 
-	{task.days_to_complete && (
+if (flowTask) {
 
-	<div className="flex items-center">
 
-	<span>Plazo: {task.days_to_complete} días</span>
 
-	{daysOverdue > 0 && (
+// Use retry operation for updating the task
 
-	<span className="ml-2 flex items-center text-red-600">
 
-	<AlertTriangle className="h-4 w-4 mr-1" />
 
-	{daysOverdue} días de retraso
+await retryOperation(async () => {
 
-	</span>
 
-	)}
 
-	</div>
+const { error: updateError } = await supabase
 
-	)}
 
-	</div>
 
-	)}
+.from('commission_flow_tasks')
 
-	</div>
 
-	</div>
 
-	</div>
+.update({
 
 
-	{/* Task Comments Section */}
 
-	{expandedTaskId === task.id && task.comments_count > 0 && (
+assignee_id: user.id || null,
 
-	<div className="mt-4 pt-4 border-t border-gray-200">
 
-	<CommissionTaskCommentList
 
-	taskId={task.id}
+assigned_at: user.id ? new Date().toISOString() : null
 
-	commissionFlowId={flow.id}
 
-	refreshTrigger={commentRefreshTrigger}
 
-	/>
+})
 
-	</div>
 
-	)}
 
-	</div>
+.eq('id', flowTask.id);
 
-	);
 
-	})}
 
-	</div>
 
-	)}
 
-	</div>
 
-	))}
 
-	</div>
+if (updateError) throw updateError;
 
-	</div>
 
-	</Layout>
 
-	);
+});
 
-	};
 
 
+} else {
 
-	// Componente para el popup de marcar/editar en riesgo
 
-	interface AtRiskPopupProps {
 
-	commissionId: string;
+// Use retry operation for creating the task
 
-	isAtRisk: boolean;
 
-	reason: string;
 
-	onSave: () => void;
+await retryOperation(async () => {
 
-	onClose: () => void;
 
-	}
 
+const { error: createError } = await supabase
 
 
-	const AtRiskPopup: React.FC<AtRiskPopupProps> = ({
 
-	commissionId,
+.from('commission_flow_tasks')
 
-	isAtRisk,
 
-	reason,
 
-	onSave,
+.insert({
 
-	onClose
 
-	}) => {
 
-	const { hidePopup } = usePopup();
+commission_flow_id: flow.id,
 
-	const [loading, setLoading] = useState(false);
 
-	const [error, setError] = useState<string | null>(null);
 
-	const [atRisk, setAtRisk] = useState(isAtRisk);
+task_id: taskId,
 
-	const [atRiskReason, setAtRiskReason] = useState(reason);
 
 
+status: 'pending',
 
-	const handleSubmit = async (e: React.FormEvent) => {
 
-	e.preventDefault();
 
+assignee_id: user.id || null,
 
-	if (loading) return;
 
 
+assigned_at: user.id ? new Date().toISOString() : null
 
-	try {
 
-	setLoading(true);
 
-	setError(null);
+});
 
 
 
-	// Actualizar el estado de riesgo
 
-	const { error: updateError } = await supabase
 
-	.from('broker_commissions')
 
-	.update({
 
-	at_risk: atRisk,
+if (createError) throw createError;
 
-	at_risk_reason: atRisk ? atRiskReason : null
 
-	})
 
-	.eq('id', commissionId);
+});
 
 
 
-	if (updateError) throw updateError;
+}
 
 
 
-	hidePopup();
 
-	onSave();
 
-	} catch (err: any) {
 
-	setError(err.message);
 
-	} finally {
+fetchFlow();
 
-	setLoading(false);
 
-	}
 
-	};
+} catch (err: any) {
 
 
 
-	return (
+setError(err.message);
 
-	<form onSubmit={handleSubmit} className="space-y-6">
 
-	{error && (
 
-	<div className="bg-red-50 text-red-600 p-4 rounded-lg">
+}
 
-	{error}
 
-	</div>
 
-	)}
+};
 
 
 
-	<div className="space-y-4">
+  // Aquí, justo **después** de assignUser, pega esto UNA VEZ:
 
-	<div className="flex items-center">
+  useEffect(() => {
 
-	<input
+if (flow?.status === 'in_progress') {
 
-	type="checkbox"
+  flow.stages.forEach(stage =>
 
-	id="at_risk"
+stage.tasks.forEach(task => {
 
-	checked={atRisk}
+  if (!task.assignee && task.default_assignee) {
 
-	onChange={(e) => setAtRisk(e.target.checked)}
+assignUser(task.id, task.default_assignee);
 
-	className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+  }
 
-	/>
+})
 
-	<label htmlFor="at_risk" className="ml-2 block text-sm text-gray-700">
+  );
 
-	Marcar como En Riesgo
+}
 
-	</label>
+  }, [flow?.status]);
 
-	</div>
 
 
+  useEffect(() => {
 
-	{atRisk && (
+  if (!flow) return;
 
-	<div>
 
-	<label htmlFor="at_risk_reason" className="block text-sm font-medium text-gray-700">
 
-	Motivo del Riesgo *
+  // Determina qué etapa está “pendiente”:
 
-	</label>
+  // Podrías usar flow.current_stage.id, o buscar la primera stage.isCompleted === false.
 
-	<textarea
+  const pendingStageId =
 
-	id="at_risk_reason"
+flow.current_stage?.id ||
 
-	name="at_risk_reason"
+flow.stages.find(s => !s.isCompleted)?.id;
 
-	rows={4}
 
-	required={atRisk}
 
-	value={atRiskReason}
+  if (pendingStageId) {
 
-	onChange={(e) => setAtRiskReason(e.target.value)}
+const el = document.getElementById(`stage-${pendingStageId}`);
 
-	className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+if (el) {
 
-	placeholder="Describa el motivo por el que esta operación está en riesgo..."
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-	/>
+}
 
-	</div>
+  }
 
-	)}
+}, [flow]);
 
-	</div>
 
 
 
-	<div className="flex justify-end space-x-3 pt-4 border-t">
 
-	<button
 
-	type="button"
 
-	onClick={() => {
+const handleStatusChange = async (taskId: string, newStatus: string) => {
 
-	hidePopup();
 
-	onClose();
 
-	}}
+if (!flow || flow.status === 'pending') return;
 
-	disabled={loading}
 
-	className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
 
-	>
 
-	Cancelar
 
-	</button>
 
-	<button
 
-	type="submit"
+try {
 
-	disabled={loading}
 
-	className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
 
-	>
+// Use retry operation for getting the task
 
-	{loading ? (
 
-	<>
 
-	<Loader2 className="animate-spin h-5 w-5 mr-2" />
+const { data: flowTask, error: taskError } = await retryOperation(async () => {
 
-	Guardando...
 
-	</>
 
-	) : (
+return await supabase
 
-	'Guardar'
 
-	)}
 
-	</button>
+.from('commission_flow_tasks')
 
-	</div>
 
-	</form>
 
-	);
+.select('id')
 
-	};
 
 
+.eq('commission_flow_id', flow.id)
 
-	export default PaymentFlow;
+
+
+.eq('task_id', taskId)
+
+
+
+.maybeSingle();
+
+
+
+});
+
+
+
+
+
+
+
+if (taskError) throw taskError;
+
+
+
+
+
+
+
+if (flowTask) {
+
+
+
+// Use retry operation for updating the task
+
+
+
+await retryOperation(async () => {
+
+
+
+const { error: updateError } = await supabase
+
+
+
+.from('commission_flow_tasks')
+
+
+
+.update({ status: newStatus })
+
+
+
+.eq('id', flowTask.id);
+
+
+
+
+
+
+
+if (updateError) throw updateError;
+
+
+
+});
+
+
+
+} else {
+
+
+
+// Use retry operation for creating the task
+
+
+
+await retryOperation(async () => {
+
+
+
+const { error: createError } = await supabase
+
+
+
+.from('commission_flow_tasks')
+
+
+
+.insert({
+
+
+
+commission_flow_id: flow.id,
+
+
+
+task_id: taskId,
+
+
+
+status: newStatus
+
+
+
+});
+
+
+
+
+
+
+
+if (createError) throw createError;
+
+
+
+});
+
+
+
+}
+
+
+
+
+
+
+
+fetchFlow();
+
+
+
+
+
+// Trigger a refresh of comments
+
+
+
+setCommentRefreshTrigger(prev => prev + 1);
+
+
+
+} catch (err: any) {
+
+
+
+setError(err.message);
+
+
+
+}
+
+
+
+};
+
+
+
+
+
+
+
+const handleAddComment = async (taskId: string) => {
+
+
+
+if (!flow || flow.status === 'pending') return;
+
+
+
+
+
+
+
+showPopup(
+
+
+
+<CommissionTaskCommentPopup
+
+
+
+taskId={taskId}
+
+
+
+commissionFlowId={flow.id}
+
+
+
+onSave={() => {
+
+
+
+fetchFlow();
+
+
+
+// Trigger a refresh of comments
+
+
+
+setCommentRefreshTrigger(prev => prev + 1);
+
+
+
+}}
+
+
+
+onClose={() => showPopup(null)}
+
+
+
+/>,
+
+
+
+{
+
+
+
+title: 'Agregar Comentario',
+
+
+
+size: 'md'
+
+
+
+}
+
+
+
+);
+
+
+
+};
+
+
+
+
+
+
+
+const toggleTaskComments = (taskId: string) => {
+
+
+
+setExpandedTaskId(expandedTaskId === taskId ? null : taskId);
+
+
+
+// Refresh comments when expanding a task
+
+
+
+if (expandedTaskId !== taskId) {
+
+
+
+setCommentRefreshTrigger(prev => prev + 1);
+
+
+
+}
+
+
+
+};
+
+
+
+
+
+
+
+const toggleStage = (stageIndex: number) => {
+
+
+
+if (!flow) return;
+
+
+
+
+
+const updatedStages = [...flow.stages];
+
+
+
+updatedStages[stageIndex].isExpanded = !updatedStages[stageIndex].isExpanded;
+
+
+
+
+
+setFlow({
+
+
+
+...flow,
+
+
+
+stages: updatedStages
+
+
+
+});
+
+
+
+};
+
+
+
+
+
+
+
+const getStatusIcon = (status: string) => {
+
+
+
+switch (status) {
+
+
+
+case 'completed':
+
+
+
+return <CheckCircle2 className="h-5 w-5 text-green-600" />;
+
+
+
+case 'in_progress':
+
+
+
+return <Clock className="h-5 w-5 text-blue-600" />;
+
+
+
+case 'blocked':
+
+
+
+return <AlertCircle className="h-5 w-5 text-red-600" />;
+
+
+
+default:
+
+
+
+return <Clock className="h-5 w-5 text-gray-400" />;
+
+
+
+}
+
+
+
+};
+
+
+
+
+
+
+
+const getStatusText = (status: string) => {
+
+
+
+switch (status) {
+
+
+
+case 'completed':
+
+
+
+return 'Completada';
+
+
+
+case 'in_progress':
+
+
+
+return 'En Proceso';
+
+
+
+case 'blocked':
+
+
+
+return 'Bloqueada';
+
+
+
+default:
+
+
+
+return 'Pendiente';
+
+
+
+}
+
+
+
+};
+
+
+
+
+
+
+
+const getStatusColor = (status: string) => {
+
+
+
+switch (status) {
+
+
+
+case 'completed':
+
+
+
+return 'bg-green-100 text-green-800';
+
+
+
+case 'in_progress':
+
+
+
+return 'bg-blue-100 text-blue-800';
+
+
+
+case 'blocked':
+
+
+
+return 'bg-red-100 text-red-800';
+
+
+
+default:
+
+
+
+return 'bg-gray-100 text-gray-800';
+
+
+
+}
+
+
+
+};
+
+
+
+
+
+
+
+const calculateProgress = () => {
+
+
+
+if (!flow) return 0;
+
+
+
+const totalTasks = flow.stages.reduce((sum, stage) => sum + stage.tasks.length, 0);
+
+
+
+const completedTasks = flow.stages.reduce((sum, stage) =>
+
+
+
+sum + stage.tasks.filter(task => task.status === 'completed').length, 0);
+
+
+
+return (completedTasks / totalTasks) * 100;
+
+
+
+};
+
+
+
+
+
+
+
+const getDaysElapsed = (startDate?: string, endDate?: string) => {
+
+
+
+if (!startDate) return 0;
+
+
+
+const start = new Date(startDate);
+
+
+
+const end = endDate ? new Date(endDate) : new Date();
+
+
+
+return differenceInDays(end, start);
+
+
+
+};
+
+
+
+
+
+
+
+const getExpectedDate = (task: Task) => {
+
+
+
+if (!flow?.started_at || !task.days_to_complete) return null;
+
+
+
+return addDays(new Date(flow.started_at), task.days_to_complete);
+
+
+
+};
+
+
+
+
+
+
+
+const getDaysOverdue = (task: Task) => {
+
+
+
+if (!task.started_at || !task.days_to_complete) return 0;
+
+
+
+const endDate = task.completed_at ? new Date(task.completed_at) : new Date();
+
+
+
+const daysElapsed = differenceInDays(endDate, new Date(task.started_at));
+
+
+
+return Math.max(0, daysElapsed - task.days_to_complete!);
+
+
+
+};
+
+
+
+
+
+
+
+const formatDate = (dateString: string) => {
+
+
+
+return formatDateChile(dateString);
+
+
+
+};
+
+
+
+
+
+
+
+const formatDateTime = (dateString: string) => {
+
+
+
+return formatDateTimeChile(dateString);
+
+
+
+};
+
+
+
+
+
+
+
+// Navigation functions
+
+
+
+const navigateToEditClient = () => {
+
+
+
+if (flow?.broker_commission.reservation.client.id) {
+
+
+
+navigate(`/clientes/editar/${flow.broker_commission.reservation.client.id}`);
+
+
+
+}
+
+
+
+};
+
+
+
+
+
+
+
+const navigateToEditReservation = () => {
+
+
+
+if (flow?.broker_commission.reservation.id) {
+
+
+
+navigate(`/reservas/editar/${flow.broker_commission.reservation.id}`);
+
+
+
+}
+
+
+
+};
+
+
+
+
+
+
+
+const navigateToEditCommission = () => {
+
+
+
+if (flow?.broker_commission.reservation.id) {
+
+
+
+navigate(`/pagos/${flow.broker_commission.reservation.id}`);
+
+
+
+}
+
+
+
+};
+
+
+
+
+
+
+
+const navigateToReservationFlow = async () => {
+
+
+
+if (!flow?.broker_commission.reservation.id) return;
+
+
+
+
+
+try {
+
+
+
+// Get the reservation flow ID
+
+
+
+const { data, error } = await supabase
+
+
+
+.from('reservation_flows')
+
+
+
+.select('id')
+
+
+
+.eq('reservation_id', flow.broker_commission.reservation.id)
+
+
+
+.single();
+
+
+
+
+
+if (error) throw error;
+
+
+
+
+
+if (data) {
+
+
+
+navigate(`/flujo-reservas/${data.id}`);
+
+
+
+}
+
+
+
+} catch (err: any) {
+
+
+
+setError(err.message);
+
+
+
+}
+
+
+
+};
+
+
+
+
+
+
+
+const navigateToDocuments = () => {
+
+
+
+// This would navigate to a documents page if it existed
+
+
+
+// For now, we'll just show a popup
+
+
+
+showPopup(
+
+
+
+<div className="p-4">
+
+
+
+<p>Funcionalidad de documentos en desarrollo.</p>
+
+
+
+</div>,
+
+
+
+{
+
+
+
+title: 'Documentos del Cliente',
+
+
+
+size: 'md'
+
+
+
+}
+
+
+
+);
+
+
+
+};
+
+
+
+
+
+
+
+const navigateToTaskTracking = () => {
+
+
+
+navigate('/seguimiento');
+
+
+
+};
+
+
+
+
+
+
+
+const handleCreateSecondPaymentFlow = async () => {
+
+
+
+if (!flow || !flow.broker_commission.id) return;
+
+
+
+
+
+try {
+
+
+
+setCreatingSecondFlow(true);
+
+
+
+
+
+// Check if a second payment flow already exists
+
+
+
+const { data: existingFlow, error: checkError } = await supabase
+
+
+
+.from('commission_flows')
+
+
+
+.select('id')
+
+
+
+.eq('broker_commission_id', flow.broker_commission.id)
+
+
+
+.eq('is_second_payment', true)
+
+
+
+.maybeSingle();
+
+
+
+
+
+
+
+if (checkError) throw checkError;
+
+
+
+
+
+
+
+// If flow exists, navigate to it
+
+
+
+if (existingFlow) {
+
+
+
+navigate(`/pagos/flujo/${existingFlow.id}`);
+
+
+
+return;
+
+
+
+}
+
+
+
+
+
+
+
+// Get the second payment flow ID and first stage
+
+
+
+const { data: flowData, error: flowError } = await supabase
+
+
+
+.from('payment_flows')
+
+
+
+.select('id, stages:payment_flow_stages(id)')
+
+
+
+.eq('name', 'Flujo de Segundo Pago')
+
+
+
+.single();
+
+
+
+
+
+
+
+if (flowError) throw flowError;
+
+
+
+
+
+
+
+// Create new second payment flow
+
+
+
+const { data: newFlow, error: createError } = await supabase
+
+
+
+.from('commission_flows')
+
+
+
+.insert({
+
+
+
+broker_commission_id: flow.broker_commission.id,
+
+
+
+flow_id: flowData.id,
+
+
+
+current_stage_id: flowData.stages[0].id,
+
+
+
+status: 'pending',
+
+
+
+started_at: null,
+
+
+
+is_second_payment: true
+
+
+
+})
+
+
+
+.select()
+
+
+
+.single();
+
+
+
+
+
+
+
+if (createError) throw createError;
+
+
+
+
+
+
+
+// Navigate to the new flow
+
+
+
+navigate(`/pagos/flujo/${newFlow.id}`);
+
+
+
+} catch (err: any) {
+
+
+
+setError(err.message);
+
+
+
+} finally {
+
+
+
+setCreatingSecondFlow(false);
+
+
+
+}
+
+
+
+};
+
+
+
+
+
+
+
+// Function to handle date input change and auto-save
+
+
+
+const handleDateInputChange = async (e: React.ChangeEvent<HTMLInputElement>, taskId: string, type: 'start' | 'complete') => {
+
+
+
+const newDate = e.target.value;
+
+
+
+setTempDateValue(newDate);
+
+
+
+
+
+// Auto-save after a short delay
+
+
+
+if (newDate) {
+
+
+
+await handleTaskDateChange(taskId, newDate, type);
+
+
+
+}
+
+
+
+};
+
+
+
+
+
+
+
+// Function to handle marking a reservation as at risk
+
+
+
+const handleToggleAtRisk = () => {
+
+
+
+if (!flow) return;
+
+
+
+
+
+
+
+showPopup(
+
+
+
+<AtRiskPopup
+
+
+
+commissionId={flow.broker_commission.id}
+
+
+
+isAtRisk={flow.broker_commission.at_risk || false}
+
+
+
+reason={flow.broker_commission.at_risk_reason || ''}
+
+
+
+onSave={fetchFlow}
+
+
+
+onClose={() => {}}
+
+
+
+/>,
+
+
+
+{
+
+
+
+title: flow.broker_commission.at_risk ? 'Editar Estado En Riesgo' : 'Marcar Como En Riesgo',
+
+
+
+size: 'md'
+
+
+
+}
+
+
+
+);
+
+
+
+};
+
+
+
+
+
+
+
+if (loading) {
+
+
+
+return (
+
+
+
+<Layout>
+
+
+
+<div className="flex justify-center items-center h-64">
+
+
+
+<Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+
+
+
+</div>
+
+
+
+</Layout>
+
+
+
+);
+
+
+
+}
+
+
+
+
+
+
+
+if (error || !flow) {
+
+
+
+return (
+
+
+
+<Layout>
+
+
+
+<div className="bg-red-50 text-red-600 p-4 rounded-lg">
+
+
+
+{error || 'Flujo no encontrado'}
+
+
+
+</div>
+
+
+
+</Layout>
+
+
+
+);
+
+
+
+}
+
+
+
+
+
+
+
+const canCreateSecondPaymentFlow =
+
+
+
+flow.status === 'completed' &&
+
+
+
+flow.broker_commission.number_of_payments === 2 &&
+
+
+
+!flow.is_second_payment;
+
+
+
+
+
+
+
+return (
+
+
+
+<Layout>
+
+
+
+<div className="max-w-5xl mx-auto">
+
+
+
+<div className="flex items-center justify-between mb-6">
+
+
+
+<button
+
+
+
+onClick={() => navigate('/pagos')}
+
+
+
+className="flex items-center text-gray-600 hover:text-gray-900"
+
+
+
+>
+
+
+
+<ArrowLeft className="h-5 w-5 mr-2" />
+
+
+
+Volver
+
+
+
+</button>
+
+
+
+<h1 className="text-2xl font-semibold text-gray-900">
+
+
+
+{flow.is_second_payment ? 'Segundo Pago' : 'Flujo de Pago'} - Reserva {flow.broker_commission.reservation.reservation_number}
+
+
+
+</h1>
+
+
+
+
+
+{/* Navigation Icons */}
+
+
+
+<div className="flex space-x-3">
+
+
+
+<button
+
+
+
+onClick={navigateToEditClient}
+
+
+
+className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+
+
+
+title="Editar Cliente"
+
+
+
+>
+
+
+
+<Users className="h-5 w-5" />
+
+
+
+</button>
+
+
+
+
+
+<button
+
+
+
+onClick={navigateToEditReservation}
+
+
+
+className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+
+
+
+title="Editar Reserva"
+
+
+
+>
+
+
+
+<Edit2 className="h-5 w-5" />
+
+
+
+</button>
+
+
+
+
+
+<button
+
+
+
+onClick={navigateToEditCommission}
+
+
+
+className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+
+
+
+title="Editar Comisión"
+
+
+
+>
+
+
+
+<DollarSign className="h-5 w-5" />
+
+
+
+</button>
+
+
+
+
+
+<button
+
+
+
+onClick={navigateToReservationFlow}
+
+
+
+className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+
+
+
+title="Flujo de Reserva"
+
+
+
+>
+
+
+
+<ListChecks className="h-5 w-5" />
+
+
+
+</button>
+
+
+
+
+
+<button
+
+
+
+onClick={navigateToDocuments}
+
+
+
+className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+
+
+
+title="Documentos"
+
+
+
+>
+
+
+
+<FileText className="h-5 w-5" />
+
+
+
+</button>
+
+
+
+
+
+<button
+
+
+
+onClick={navigateToTaskTracking}
+
+
+
+className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+
+
+
+title="Seguimiento de Tareas"
+
+
+
+>
+
+
+
+<ClipboardList className="h-5 w-5" />
+
+
+
+</button>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+<div className="bg-white rounded-lg shadow-md p-6 mb-6">
+
+
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+
+
+<div>
+
+
+
+<h2 className="text-lg font-semibold text-gray-900 mb-4">
+
+
+
+Información General
+
+
+
+</h2>
+
+
+
+<dl className="space-y-2">
+
+
+
+<div>
+
+
+
+<dt className="text-sm font-medium text-gray-500">Cliente</dt>
+
+
+
+<dd className="text-sm text-gray-900">
+
+
+
+{flow.broker_commission.reservation.client.first_name} {flow.broker_commission.reservation.client.last_name}
+
+
+
+</dd>
+
+
+
+</div>
+
+
+
+<div>
+
+
+
+<dt className="text-sm font-medium text-gray-500">Proyecto</dt>
+
+
+
+<dd className="text-sm text-gray-900">
+
+
+
+{flow.broker_commission.reservation.project.name} {flow.broker_commission.reservation.project.stage} - {flow.broker_commission.reservation.apartment_number}
+
+
+
+</dd>
+
+
+
+</div>
+
+
+
+<div>
+
+
+
+<dt className="text-sm font-medium text-gray-500">Broker</dt>
+
+
+
+<dd className="text-sm text-gray-900">
+
+
+
+{flow.broker_commission.reservation.broker.name}
+
+
+
+</dd>
+
+
+
+</div>
+
+
+
+<div>
+
+
+
+<dt className="text-sm font-medium text-gray-500">Monto Comisión</dt>
+
+
+
+<dd className="text-sm text-gray-900">
+
+
+
+{flow.is_second_payment ?
+
+
+
+`${((100 - flow.broker_commission.first_payment_percentage) / 100 * flow.broker_commission.commission_amount).toFixed(2)} UF (${100 - flow.broker_commission.first_payment_percentage}%)` :
+
+
+
+`${((flow.broker_commission.first_payment_percentage / 100) * flow.broker_commission.commission_amount).toFixed(2)} UF (${flow.broker_commission.first_payment_percentage}%)`
+
+
+
+}
+
+
+
+</dd>
+
+
+
+</div>
+
+
+
+{flow.broker_commission.number_of_payments === 2 && (
+
+
+
+<div>
+
+
+
+<dt className="text-sm font-medium text-gray-500">Tipo de Pago</dt>
+
+
+
+<dd className="text-sm text-gray-900">
+
+
+
+{flow.is_second_payment ? 'Segundo Pago' : 'Primer Pago'}
+
+
+
+</dd>
+
+
+
+</div>
+
+
+
+)}
+
+
+
+{flow.broker_commission.at_risk && (
+
+
+
+<div>
+
+
+
+<dt className="text-sm font-medium text-gray-500">Estado</dt>
+
+
+
+<dd className="text-sm flex items-center">
+
+
+
+<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+
+
+
+<AlertCircle className="h-4 w-4 mr-1" />
+
+
+
+En Riesgo
+
+
+
+</span>
+
+
+
+{flow.broker_commission.at_risk_reason && (
+
+
+
+<span className="ml-2 text-gray-500 italic">
+
+
+
+{flow.broker_commission.at_risk_reason}
+
+
+
+</span>
+
+
+
+)}
+
+
+
+</dd>
+
+
+
+</div>
+
+
+
+)}
+
+
+
+</dl>
+
+
+
+</div>
+
+
+
+
+
+
+
+<div>
+
+
+
+<div className="flex items-center justify-between mb-4">
+
+
+
+<h2 className="text-lg font-semibold text-gray-900">
+
+
+
+Estado del Proceso
+
+
+
+</h2>
+
+
+
+<div className="flex space-x-2">
+
+
+
+{isAdmin && flow.status === 'pending' && (
+
+
+
+<button
+
+
+
+onClick={handleStartFlow}
+
+
+
+disabled={startingFlow}
+
+
+
+className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+
+
+
+>
+
+
+
+{startingFlow ? (
+
+
+
+<>
+
+
+
+<Loader2 className="animate-spin h-4 w-4 mr-2" />
+
+
+
+Iniciando...
+
+
+
+</>
+
+
+
+) : (
+
+
+
+<>
+
+
+
+<Play className="h-4 w-4 mr-2" />
+
+
+
+Proceder con Pago
+
+
+
+</>
+
+
+
+)}
+
+
+
+</button>
+
+
+
+)}
+
+
+
+
+
+{canCreateSecondPaymentFlow && (
+
+
+
+<button
+
+
+
+onClick={handleCreateSecondPaymentFlow}
+
+
+
+disabled={creatingSecondFlow}
+
+
+
+className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+
+
+
+>
+
+
+
+{creatingSecondFlow ? (
+
+
+
+<>
+
+
+
+<Loader2 className="animate-spin h-4 w-4 mr-2" />
+
+
+
+Creando...
+
+
+
+</>
+
+
+
+) : (
+
+
+
+<>
+
+
+
+<Plus className="h-4 w-4 mr-2" />
+
+
+
+Crear Segundo Pago
+
+
+
+</>
+
+
+
+)}
+
+
+
+</button>
+
+
+
+)}
+
+
+
+
+
+{flow.status === 'in_progress' && !flow.broker_commission.at_risk && (
+
+
+
+<button
+
+
+
+onClick={handleToggleAtRisk}
+
+
+
+disabled={markingAtRisk}
+
+
+
+className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50"
+
+
+
+>
+
+
+
+{markingAtRisk ? (
+
+
+
+<>
+
+
+
+<Loader2 className="animate-spin h-4 w-4 mr-2" />
+
+
+
+Procesando...
+
+
+
+</>
+
+
+
+) : (
+
+
+
+<>
+
+
+
+<AlertCircle className="h-4 w-4 mr-2" />
+
+
+
+Marcar En Riesgo
+
+
+
+</>
+
+
+
+)}
+
+
+
+</button>
+
+
+
+)}
+
+
+
+
+
+{flow.status === 'in_progress' && flow.broker_commission.at_risk && (
+
+
+
+<button
+
+
+
+onClick={handleToggleAtRisk}
+
+
+
+disabled={markingAtRisk}
+
+
+
+className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+
+
+
+>
+
+
+
+{markingAtRisk ? (
+
+
+
+<>
+
+
+
+<Loader2 className="animate-spin h-4 w-4 mr-2" />
+
+
+
+Procesando...
+
+
+
+</>
+
+
+
+) : (
+
+
+
+<>
+
+
+
+<Edit className="h-4 w-4 mr-2" />
+
+
+
+Editar Estado Riesgo
+
+
+
+</>
+
+
+
+)}
+
+
+
+</button>
+
+
+
+)}
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div className="space-y-4">
+
+
+
+<div>
+
+
+
+<div className="flex justify-between text-sm font-medium text-gray-500 mb-1">
+
+
+
+<span>Progreso</span>
+
+
+
+<span>{Math.round(calculateProgress())}%</span>
+
+
+
+</div>
+
+
+
+<div className="w-full bg-gray-200 rounded-full h-2.5">
+
+
+
+<div
+
+
+
+className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
+
+
+
+style={{ width: `${calculateProgress()}%` }}
+
+
+
+></div>
+
+
+
+    
+
+
+
+</div>
+
+    
+
+
+
+</div>
+
+
+
+
+
+
+
+<div>
+
+
+
+<dt className="text-sm font-medium text-gray-500">Iniciado</dt>
+
+
+
+<dd className="text-sm text-gray-900">
+
+
+
+{flow.started_at ? (
+
+
+
+<div className="flex items-center">
+
+
+
+{editingStartDate ? (
+
+
+
+<input
+
+
+
+type="datetime-local"
+
+
+
+defaultValue={flow.started_at.split('.')[0]}
+
+
+
+onChange={(e) => handleStartDateChange(e.target.value)}
+
+
+
+className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+
+
+
+/>
+
+
+
+) : (
+
+
+
+<>
+
+
+
+<span>{formatDateTime(flow.started_at)}</span>
+
+
+
+{isAdmin && (
+
+
+
+<button
+
+
+
+onClick={() => setEditingStartDate(true)}
+
+
+
+className="ml-2 text-blue-600 hover:text-blue-800"
+
+
+
+title="Editar fecha"
+
+
+
+>
+
+
+
+<Edit className="h-4 w-4" />
+
+
+
+</button>
+
+
+
+)}
+
+
+
+</>
+
+
+
+)}
+
+
+
+</div>
+
+
+
+) : (
+
+
+
+<span className="text-gray-500">No iniciado</span>
+
+
+
+)}
+
+
+
+</dd>
+
+
+
+</div>
+
+
+
+
+
+
+
+{flow.completed_at && (
+
+
+
+<div>
+
+
+
+<dt className="text-sm font-medium text-gray-500">Completado</dt>
+
+
+
+<dd className="text-sm text-gray-900">
+
+
+
+{formatDateTime(flow.completed_at)}
+
+
+
+</dd>
+
+
+
+</div>
+
+
+
+)}
+
+
+
+
+
+
+
+<div>
+
+
+
+<dt className="text-sm font-medium text-gray-500">Días Transcurridos</dt>
+
+
+
+<dd className="text-sm text-gray-900">
+
+
+
+{getDaysElapsed(flow.started_at || undefined, flow.completed_at)} días
+
+
+
+</dd>
+
+
+
+</div>
+
+
+
+
+
+
+
+<div>
+
+
+
+<dt className="text-sm font-medium text-gray-500">Etapa Actual</dt>
+
+
+
+<dd className="text-sm text-gray-900">
+
+
+
+{flow.current_stage?.name || 'No iniciado'}
+
+
+
+</dd>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div className="bg-white rounded-lg shadow-md p-6 mb-6">
+
+  <h2 className="text-lg font-semibold text-gray-900 mb-4">Informes y Documentos</h2>
+
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+
+    <p className="text-sm text-gray-600">
+
+      Descarga el PDF con el detalle del pago de comisión y promociones aplicadas.
+
+    </p>
+
+    <PDFDownloadLink
+
+      document={
+
+        <LiquidacionPagoBrokerPDF
+
+          flow={flow}
+
+        />
+
+      }
+
+      fileName={`liquidacion_pago_broker_${flow.broker_commission.reservation.reservation_number}.pdf`}
+
+      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+
+    >
+
+      {({ loading }) =>
+
+        loading ? 'Generando PDF...' : 'Descargar Liquidación PDF'
+
+      }
+
+    </PDFDownloadLink>
+
+  </div>
+
+</div>
+
+
+
+
+
+<div className="space-y-6">
+
+
+
+{flow.stages.map((stage, stageIndex) => (
+
+  <div
+
+id={`stage-${stage.id}`}
+
+key={stage.id}
+
+className="bg-white rounded-lg shadow-md overflow-hidden">
+
+
+
+<div
+
+
+
+className="bg-gray-50 px-6 py-3 border-b flex items-center justify-between cursor-pointer"
+
+
+
+onClick={() => toggleStage(stageIndex)}
+
+
+
+>
+
+
+
+<div className="flex items-center">
+
+
+
+{stage.isExpanded ?
+
+
+
+<ChevronDown className="h-5 w-5 mr-2" /> :
+
+
+
+<ChevronRight className="h-5 w-5 mr-2" />
+
+
+
+}
+
+
+
+<h3 className="text-lg font-medium text-gray-900">{stage.name}</h3>
+
+
+
+</div>
+
+
+
+{stage.isCompleted && (
+
+
+
+<span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+
+
+
+Completada
+
+
+
+</span>
+
+
+
+)}
+
+
+
+</div>
+
+
+
+
+
+{stage.isExpanded && (
+
+
+
+<div className="divide-y divide-gray-200">
+
+
+
+{stage.tasks.map((task) => {
+
+
+
+const completionTime = task.completed_at && task.started_at ?
+
+
+
+getDaysElapsed(task.started_at, task.completed_at) : null;
+
+
+
+const daysOverdue = getDaysOverdue(task);
+
+
+
+const expectedDate = getExpectedDate(task);
+
+
+
+const hasComments = task.comments_count > 0;
+
+
+
+
+
+return (
+
+
+
+<div key={task.id} className="p-6 hover:bg-gray-50">
+
+
+
+<div className="flex items-center justify-between">
+
+
+
+<div className="flex-1">
+
+
+
+<div className="flex items-center justify-between mb-2">
+
+
+
+<h4 className="text-base font-medium text-gray-900">
+
+
+
+{task.name}
+
+
+
+</h4>
+
+
+
+<select
+
+
+
+value={task.status}
+
+
+
+onChange={(e) => handleStatusChange(task.id, e.target.value)}
+
+
+
+disabled={flow.status === 'pending'}
+
+
+
+className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+
+
+
+getStatusColor(task.status)
+
+
+
+} border-0 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed`}
+
+
+
+>
+
+
+
+<option value="pending">Pendiente</option>
+
+
+
+<option value="in_progress">En Proceso</option>
+
+
+
+<option value="completed">Completada</option>
+
+
+
+<option value="blocked">Bloqueada</option>
+
+
+
+</select>
+
+
+
+</div>
+
+
+
+
+
+
+
+<div className="flex items-center space-x-4 text-sm text-gray-500">
+
+
+
+{task.assignee ? (
+
+
+
+<div className="flex items-center">
+
+
+
+{task.assignee.avatar_url ? (
+
+
+
+<img
+
+
+
+src={task.assignee.avatar_url}
+
+
+
+alt={`${task.assignee.first_name} ${task.assignee.last_name}`}
+
+
+
+className="h-8 w-8 rounded-full object-cover"
+
+
+
+/>
+
+
+
+) : (
+
+
+
+<UserCircle className="h-8 w-8 text-gray-400" />
+
+
+
+)}
+
+
+
+<span className="ml-2 text-sm text-gray-600">
+
+
+
+{task.assignee.first_name} {task.assignee.last_name}
+
+
+
+</span>
+
+
+
+</div>
+
+
+
+) : task.default_assignee ? (
+
+
+
+<button
+
+
+
+onClick={() => handleAssign(task.id, null, task.default_assignee)}
+
+
+
+className="flex items-center text-blue-600 hover:text-blue-800"
+
+
+
+disabled={flow.status === 'pending'}
+
+
+
+>
+
+
+
+<UserPlus className="h-5 w-5 mr-1" />
+
+
+
+<span>Asignar a {task.default_assignee.first_name}</span>
+
+
+
+</button>
+
+
+
+) : (
+
+
+
+<button
+
+
+
+onClick={() => handleAssign(task.id, null, null)}
+
+
+
+className="flex items-center text-blue-600 hover:text-blue-800"
+
+
+
+disabled={flow.status === 'pending'}
+
+
+
+>
+
+
+
+<UserPlus className="h-5 w-5 mr-1" />
+
+
+
+<span>Asignar</span>
+
+
+
+</button>
+
+
+
+)}
+
+
+
+
+
+
+
+<button
+
+
+
+onClick={() => handleAddComment(task.id)}
+
+
+
+className="flex items-center text-gray-500 hover:text-gray-700 relative"
+
+
+
+disabled={flow.status === 'pending'}
+
+
+
+>
+
+
+
+<MessageSquare className="h-5 w-5 mr-1" />
+
+
+
+<span>Comentar</span>
+
+
+
+{task.comments_count > 0 && (
+
+
+
+<span className="absolute -top-1 -right-1 h-4 w-4 text-xs flex items-center justify-center bg-blue-600 text-white rounded-full">
+
+
+
+{task.comments_count}
+
+
+
+</span>
+
+
+
+)}
+
+
+
+</button>
+
+
+
+
+
+<button
+
+
+
+onClick={() => toggleTaskComments(task.id)}
+
+
+
+className="flex items-center text-gray-500 hover:text-gray-700"
+
+
+
+disabled={flow.status === 'pending' || task.comments_count === 0}
+
+
+
+>
+
+
+
+<span>Ver comentarios</span>
+
+
+
+<ChevronDown className={`h-4 w-4 ml-1 transition-transform ${
+
+
+
+expandedTaskId === task.id ? 'rotate-180' : ''
+
+
+
+}`} />
+
+
+
+</button>
+
+
+
+</div>
+
+
+
+
+
+
+
+<div className="mt-2 text-sm text-gray-500">
+
+
+
+{task.started_at && (
+
+
+
+<div className="flex flex-col space-y-2">
+
+
+
+<div className="flex items-center">
+
+
+
+{editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'start' ? (
+
+
+
+<div className="flex items-center">
+
+
+
+<input
+
+
+
+type="datetime-local"
+
+
+
+value={tempDateValue}
+
+
+
+onChange={(e) => handleDateInputChange(e, task.id, 'start')}
+
+
+
+className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+
+
+
+/>
+
+
+
+</div>
+
+
+
+) : (
+
+
+
+<div className="flex items-center">
+
+
+
+<Calendar className="h-4 w-4 mr-1" />
+
+
+
+<span>
+
+
+
+Iniciada el {formatDateTime(task.started_at)}
+
+
+
+</span>
+
+
+
+{isAdmin && (
+
+
+
+<button
+
+
+
+onClick={() => {
+
+
+
+setEditingTaskDate({ taskId: task.id, type: 'start' });
+
+
+
+setTempDateValue(task.started_at.split('.')[0]);
+
+
+
+}}
+
+
+
+className="ml-2 text-blue-600 hover:text-blue-800"
+
+
+
+title="Editar fecha de inicio"
+
+
+
+>
+
+
+
+<Edit className="h-4 w-4" />
+
+
+
+</button>
+
+
+
+)}
+
+
+
+</div>
+
+
+
+)}
+
+
+
+</div>
+
+
+
+
+
+
+
+{task.completed_at && (
+
+
+
+<div className="flex items-center">
+
+
+
+{editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'complete' ? (
+
+
+
+<div className="flex items-center">
+
+
+
+<input
+
+
+
+type="datetime-local"
+
+
+
+value={tempDateValue}
+
+
+
+onChange={(e) => handleDateInputChange(e, task.id, 'complete')}
+
+
+
+className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+
+
+
+/>
+
+
+
+</div>
+
+
+
+) : (
+
+
+
+<div className="flex items-center text-green-600">
+
+
+
+<CheckCircle2 className="h-4 w-4 mr-1" />
+
+
+
+<span>
+
+
+
+Completada el {formatDateTime(task.completed_at)}
+
+
+
+</span>
+
+
+
+{isAdmin && (
+
+
+
+<button
+
+
+
+onClick={() => {
+
+
+
+setEditingTaskDate({ taskId: task.id, type: 'complete' });
+
+
+
+setTempDateValue(task.completed_at.split('.')[0]);
+
+
+
+}}
+
+
+
+className="ml-2 text-blue-600 hover:text-blue-800"
+
+
+
+title="Editar fecha de completado"
+
+
+
+>
+
+
+
+<Edit className="h-4 w-4" />
+
+
+
+</button>
+
+
+
+)}
+
+
+
+</div>
+
+
+
+)}
+
+
+
+</div>
+
+
+
+)}
+
+
+
+
+
+
+
+{completionTime !== null && (
+
+
+
+<div className="flex items-center text-green-600">
+
+
+
+<Timer className="h-4 w-4 mr-1" />
+
+
+
+<span>
+
+
+
+Gestionado en {completionTime} {completionTime === 1 ? 'día' : 'días'}
+
+
+
+</span>
+
+
+
+</div>
+
+
+
+)}
+
+
+
+
+
+
+
+{task.days_to_complete && (
+
+
+
+<div className="flex items-center">
+
+
+
+<span>Plazo: {task.days_to_complete} días</span>
+
+
+
+{daysOverdue > 0 && (
+
+
+
+<span className="ml-2 flex items-center text-red-600">
+
+
+
+<AlertTriangle className="h-4 w-4 mr-1" />
+
+
+
+{daysOverdue} días de retraso
+
+
+
+</span>
+
+
+
+)}
+
+
+
+</div>
+
+
+
+)}
+
+
+
+</div>
+
+
+
+)}
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+{/* Task Comments Section */}
+
+
+
+{expandedTaskId === task.id && task.comments_count > 0 && (
+
+
+
+<div className="mt-4 pt-4 border-t border-gray-200">
+
+
+
+<CommissionTaskCommentList
+
+
+
+taskId={task.id}
+
+
+
+commissionFlowId={flow.id}
+
+
+
+refreshTrigger={commentRefreshTrigger}
+
+
+
+/>
+
+
+
+</div>
+
+
+
+)}
+
+
+
+</div>
+
+
+
+);
+
+
+
+})}
+
+
+
+</div>
+
+
+
+)}
+
+
+
+</div>
+
+
+
+))}
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</Layout>
+
+
+
+);
+
+
+
+};
+
+
+
+
+
+
+
+// Componente para el popup de marcar/editar en riesgo
+
+
+
+interface AtRiskPopupProps {
+
+
+
+commissionId: string;
+
+
+
+isAtRisk: boolean;
+
+
+
+reason: string;
+
+
+
+onSave: () => void;
+
+
+
+onClose: () => void;
+
+
+
+}
+
+
+
+
+
+
+
+const AtRiskPopup: React.FC<AtRiskPopupProps> = ({
+
+
+
+commissionId,
+
+
+
+isAtRisk,
+
+
+
+reason,
+
+
+
+onSave,
+
+
+
+onClose
+
+
+
+}) => {
+
+
+
+const { hidePopup } = usePopup();
+
+
+
+const [loading, setLoading] = useState(false);
+
+
+
+const [error, setError] = useState<string | null>(null);
+
+
+
+const [atRisk, setAtRisk] = useState(isAtRisk);
+
+
+
+const [atRiskReason, setAtRiskReason] = useState(reason);
+
+
+
+
+
+
+
+const handleSubmit = async (e: React.FormEvent) => {
+
+
+
+e.preventDefault();
+
+
+
+
+
+if (loading) return;
+
+
+
+
+
+
+
+try {
+
+
+
+setLoading(true);
+
+
+
+setError(null);
+
+
+
+
+
+
+
+// Actualizar el estado de riesgo
+
+
+
+const { error: updateError } = await supabase
+
+
+
+.from('broker_commissions')
+
+
+
+.update({
+
+
+
+at_risk: atRisk,
+
+
+
+at_risk_reason: atRisk ? atRiskReason : null
+
+
+
+})
+
+
+
+.eq('id', commissionId);
+
+
+
+
+
+
+
+if (updateError) throw updateError;
+
+
+
+
+
+
+
+hidePopup();
+
+
+
+onSave();
+
+
+
+} catch (err: any) {
+
+
+
+setError(err.message);
+
+
+
+} finally {
+
+
+
+setLoading(false);
+
+
+
+}
+
+
+
+};
+
+
+
+
+
+
+
+return (
+
+
+
+<form onSubmit={handleSubmit} className="space-y-6">
+
+
+
+{error && (
+
+
+
+<div className="bg-red-50 text-red-600 p-4 rounded-lg">
+
+
+
+{error}
+
+
+
+</div>
+
+
+
+)}
+
+
+
+
+
+
+
+<div className="space-y-4">
+
+
+
+<div className="flex items-center">
+
+
+
+<input
+
+
+
+type="checkbox"
+
+
+
+id="at_risk"
+
+
+
+checked={atRisk}
+
+
+
+onChange={(e) => setAtRisk(e.target.checked)}
+
+
+
+className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+
+
+
+/>
+
+
+
+<label htmlFor="at_risk" className="ml-2 block text-sm text-gray-700">
+
+
+
+Marcar como En Riesgo
+
+
+
+</label>
+
+
+
+</div>
+
+
+
+
+
+
+
+{atRisk && (
+
+
+
+<div>
+
+
+
+<label htmlFor="at_risk_reason" className="block text-sm font-medium text-gray-700">
+
+
+
+Motivo del Riesgo *
+
+
+
+</label>
+
+
+
+<textarea
+
+
+
+id="at_risk_reason"
+
+
+
+name="at_risk_reason"
+
+
+
+rows={4}
+
+
+
+required={atRisk}
+
+
+
+value={atRiskReason}
+
+
+
+onChange={(e) => setAtRiskReason(e.target.value)}
+
+
+
+className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+
+
+
+placeholder="Describa el motivo por el que esta operación está en riesgo..."
+
+
+
+/>
+
+
+
+</div>
+
+
+
+)}
+
+
+
+</div>
+
+
+
+
+
+
+
+<div className="flex justify-end space-x-3 pt-4 border-t">
+
+
+
+<button
+
+
+
+type="button"
+
+
+
+onClick={() => {
+
+
+
+hidePopup();
+
+
+
+onClose();
+
+
+
+}}
+
+
+
+disabled={loading}
+
+
+
+className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+
+
+
+>
+
+
+
+Cancelar
+
+
+
+</button>
+
+
+
+<button
+
+
+
+type="submit"
+
+
+
+disabled={loading}
+
+
+
+className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+
+
+
+>
+
+
+
+{loading ? (
+
+
+
+<>
+
+
+
+<Loader2 className="animate-spin h-5 w-5 mr-2" />
+
+
+
+Guardando...
+
+
+
+</>
+
+
+
+) : (
+
+
+
+'Guardar'
+
+
+
+)}
+
+
+
+</button>
+
+
+
+</div>
+
+
+
+</form>
+
+
+
+);
+
+
+
+};
+
+
+
+
+
+
+
+export default PaymentFlow;
