@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
 
   // --- Tablas ---
   table: {
-    // display: "table", // @react-pdf/renderer usa flexbox, esto es conceptual
+     display: "table", // @react-pdf/renderer usa flexbox, esto es conceptual
     width: '100%',
     borderStyle: 'solid',
     borderWidth: 1,
