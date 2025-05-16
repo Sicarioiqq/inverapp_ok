@@ -433,7 +433,7 @@ interface Task {
             )
           )
         `)
-        .eq('id', id) // 'id' es el commission_flow_id de useParams
+        .eq('id', id) 
         .single();
 
 
