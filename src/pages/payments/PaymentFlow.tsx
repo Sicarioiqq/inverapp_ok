@@ -1023,33 +1023,4 @@ const PaymentFlow: React.FC = () => {
 	</dd>
 	</div>
 	<div>
-	<dt className="text-sm font-medium text-gray-500">Proyecto</dt>
-	<dd className="text-sm text-gray-900">
-	{flow.broker_commission.reservation.project.name} {flow.broker_commission.reservation.project.stage} - {flow.broker_commission.reservation.apartment_number}
-	</dd>
-	</div>
-	<div>
-	<dt className="text-sm font-medium text-gray-500">Broker</dt>
-	<dd className="text-sm text-gray-900">
-	{flow.broker_commission.reservation.broker.name}
-	</dd>
-	</div>
-	<div>
-	<dt className="text-sm font-medium text-gray-500">Monto Comisión</dt>
-	<dd className="text-sm text-gray-900">
-	{flow.is_second_payment ?
-	`${((100 - flow.broker_commission.first_payment_percentage) / 100 * flow.broker_commission.commission_amount).toFixed(2)} UF (${100 - flow.broker_commission.first_payment_percentage}%)` :
-	`${((flow.broker_commission.first_payment_percentage / 100) * flow.broker_commission.commission_amount).toFixed(2)} UF (${flow.broker_commission.first_payment_percentage}%)`
-	}
-	</dd>
-	</div>
-	{flow.broker_commission.number_of_payments === 2 && (
-	<div>
-	<dt className="text-sm font-medium text-gray-500">Tipo de Pago</dt>
-	<dd className="text-sm text-gray-900">
-	{flow.is_second_payment ? 'Segundo Pago' : 'Primer Pago'}
-	</dd>
-	</div>
-	)}
-	{flow.broker_commission.at_risk && (
-	<div>
+	
