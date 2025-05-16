@@ -992,22 +992,4 @@ const PaymentFlow: React.FC = () => {
 	</button>
 
 	<button
-	onClick={navigateToDocuments}
-	className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-	title="Documentos"
-	>
-	<FileText className="h-5 w-5" />
-	</button>
-
-	<button
-	onClick={navigateToTaskTracking}
-	className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-	title="Seguimiento de Tareas"
-	>
-	<ClipboardList className="h-5 w-5" />
-	</button>
-	</div>
-	</div>
-
-	<div className="bg-white rounded-lg shadow-md p-6 mb-6">
-	<div className="gri
+	onClick={
