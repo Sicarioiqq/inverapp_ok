@@ -10,6 +10,13 @@ import {
 } from '@react-pdf/renderer';
 import { PaymentFlow } from '../../pages/payments/PaymentFlow';
 
+interface KPI {
+  title: string;
+  value: string;
+  trend?: string; // Ej: "+5% vs mes anterior"
+  trendPositive?: boolean;
+}
+
 interface LiquidacionPagoBrokerPDFProps {
   flowData: PaymentFlow | null;
   formatDate: (date: string) => string;
