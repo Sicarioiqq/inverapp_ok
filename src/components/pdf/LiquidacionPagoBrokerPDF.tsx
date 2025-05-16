@@ -445,7 +445,7 @@ const LiquidacionPagoBrokerPDF: React.FC<LiquidacionPagoBrokerPDFProps> = ({
   flowData,
   formatDate,
   formatCurrency,
-  companyLogoUrl?: string;
+  
 }) => {
   if (!flowData) {
     return (
