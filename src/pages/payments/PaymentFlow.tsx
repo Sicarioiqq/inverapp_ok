@@ -5,8 +5,9 @@ import { usePopup } from '../../contexts/PopupContext';
 import Layout from '../../components/Layout';
 import CommissionTaskCommentPopup from '../../components/CommissionTaskCommentPopup';
 import CommissionTaskCommentList from '../../components/CommissionTaskCommentList';
-import { PDFDownloadLink } from '@react-pdf/renderer';
-import LiquidacionPagoBrokerPDF from '../../components/pdf/LiquidacionPagoBrokerPDF';
+import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
+//import LiquidacionPagoBrokerPDF from '../../components/pdf/LiquidacionPagoBrokerPDF';
+import InformeGeneralNegocioPDF from '../../components/pdf/LiquidacionPagoBrokerPDF';
 import {
   ArrowLeft, Clock, CheckCircle2, AlertCircle, UserCircle, UserPlus,
   MessageSquare, Play, Loader2, Calendar, AlertTriangle, Timer, Edit,
@@ -2371,17 +2372,22 @@ interface Task {
     </p>
     <PDFDownloadLink
   document={
-    <LiquidacionPagoBrokerPDF
-      flowData={flow}
-      formatDate={formatDate}
-      formatCurrency={formatCurrency}
+    <InformeGeneralNegocioPDF
+      reportTitle={ejemploDataInforme.reportTitle}
+      generationDate={ejemploDataInforme.generationDate}
+      periodCovered={ejemploDataInforme.periodCovered}
+      companyLogoUrl={ejemploDataInforme.companyLogoUrl}
+      kpis={ejemploDataInforme.kpis}
+      monthlyReservationsTrend={ejemploDataInforme.monthlyReservationsTrend}
+      projectStatuses={ejemploDataInforme.projectStatuses}
+      brokerPerformances={ejemploDataInforme.brokerPerformances}
     />
   }
-  fileName={`liquidacion_pago_broker_${flow.broker_commission.reservation.reservation_number}.pdf`}
+  fileName="informe_general_inverapp.pdf"
   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
 >
   {({ loading }) =>
-    loading ? 'Generando PDF...' : 'Descargar Liquidación PDF'
+    loading ? 'Generando PDF...' : 'Descargar Informe General'
   }
 </PDFDownloadLink>
 
