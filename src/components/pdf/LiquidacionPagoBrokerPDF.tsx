@@ -67,6 +67,25 @@ export interface InformeDataProps {
  
 }
 
+// --- FIN: Definiciones de Tipos de Datos ---
+
+// --- Configuración de Fuentes (IMPORTANTE: Reemplaza con tus rutas de fuentes) ---
+// Descarga archivos .ttf (ej. de Google Fonts) y ponlos en tu carpeta public o sírvelos desde una URL.
+// Font.register({
+//   family: 'Lato',
+//   fonts: [
+//     { src: 'URL_A_LATO_REGULAR.ttf' }, // Reemplaza esta URL/ruta
+//     { src: 'URL_A_LATO_BOLD.ttf', fontWeight: 'bold' }, // Reemplaza esta URL/ruta
+//   ],
+// });
+// Font.register({
+//   family: 'Montserrat',
+//   fonts: [
+//     { src: 'URL_A_MONTSERRAT_REGULAR.ttf' }, // Reemplaza esta URL/ruta
+//     { src: 'URL_A_MONTSERRAT_BOLD.ttf', fontWeight: 'bold' }, // Reemplaza esta URL/ruta
+//   ]
+// });
+
 // --- Estilos para el PDF ---
 const colors = {
   primary: '#2A679F', // Un azul corporativo (ejemplo)
