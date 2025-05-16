@@ -67,60 +67,59 @@ export interface InformeDataProps {
  
 }
 
+// --- Estilos para el PDF ---
+const colors = {
+  primary: '#2A679F', // Un azul corporativo (ejemplo)
+  secondary: '#4CAF50', // Verde para acentos positivos (ejemplo)
+  accent: '#FF9800', // Naranja para otros acentos (ejemplo)
+  textPrimary: '#212121', // Casi negro para texto principal
+  textSecondary: '#757575', // Gris para texto secundario
+  border: '#E0E0E0', // Gris claro para bordes y separadores
+  backgroundLight: '#F5F5F5', // Un fondo muy claro para algunas secciones (opcional)
+  white: '#FFFFFF',
+  red: '#D32F2F', // Para tendencias negativas
+};
+
 const styles = StyleSheet.create({
+  // --- Generales ---
   page: {
     flexDirection: 'column',
-    backgroundColor: '#FFFFFF',
-    padding: 30,
+    backgroundColor: colors.white,
+    paddingTop: 35,
+    paddingBottom: 55, // Espacio para el pie de página
+    paddingHorizontal: 35,
+    fontFamily: 'Helvetica', // CAMBIA a 'Lato' o 'Montserrat' después de registrar la fuente
   },
-  header: {
+  logo: {
+    width: 120,
+    height: 40,
     marginBottom: 20,
-    borderBottom: 1,
-    borderBottomColor: '#CCCCCC',
-    paddingBottom: 10,
+    alignSelf: 'flex-end', // o 'flex-start' o 'center'
   },
-  title: {
-    fontSize: 18,
+  headerText: {
+    fontSize: 24,
     fontWeight: 'bold',
+    color: colors.primary,
+    textAlign: 'center',
     marginBottom: 10,
-    color: '#333333',
   },
-  subtitle: {
+  subHeaderText: {
     fontSize: 12,
-    color: '#666666',
-    marginBottom: 5,
-  },
-  section: {
-    marginBottom: 15,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333333',
-  },
-  row: {
-    flexDirection: 'row',
-    marginBottom: 5,
-  },
-  label: {
-    flex: 1,
-    fontSize: 10,
-    color: '#666666',
-  },
-  value: {
-    flex: 1,
-    fontSize: 10,
-    color: '#333333',
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 25,
   },
   footer: {
     position: 'absolute',
-    bottom: 30,
-    left: 30,
-    right: 30,
     fontSize: 8,
-    color: '#999999',
+    bottom: 30,
+    left: 35,
+    right: 35,
     textAlign: 'center',
+    color: colors.textSecondary,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 5,
   },
 });
 
