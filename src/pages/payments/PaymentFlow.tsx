@@ -2369,21 +2369,11 @@ interface Task {
     <p className="text-sm text-gray-600">
       Descarga el PDF con el detalle del pago de comisión y promociones aplicadas.
     </p>
-    <PDFDownloadLink
-  document={
-    <LiquidacionPagoBrokerPDF
-      flowData={flow}
-      formatDate={formatDate}
-      formatCurrency={formatCurrency}
-    />
-  }
-  fileName={`liquidacion_pago_broker_${flow.broker_commission.reservation.reservation_number}.pdf`}
-  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
->
-  {({ loading }) =>
-    loading ? 'Generando PDF...' : 'Descargar Liquidación PDF'
-  }
-</PDFDownloadLink>
+    <PDFDownloadLink document={<LiquidacionPPagoBrokerPDF {...ejemploDataInforme} />} fileName="Informe_Inverapp.pdf">
+       {({ blob, url, loading, error }) =>
+         loading ? 'Generando PDF...' : 'Descargar PDF'
+       }
+     </PDFDownloadLink>
 
   </div>
 </div>
