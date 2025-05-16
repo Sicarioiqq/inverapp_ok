@@ -410,63 +410,31 @@ interface Task {
 
 	// Get basic flow information
 
-	const { data: flowData, error: flowError } = await supabase
-
-	.from('commission_flows')
-
-	.select(`
-
-	id,
-
-	status,
-
-	started_at,
-
-	completed_at,
-
-	is_second_payment,
-
-	flow:payment_flows(id),
-
-	current_stage:payment_flow_stages(id, name),
-
-	broker_commission:broker_commissions(
-
-	id,
-
-	commission_amount,
-
-	number_of_payments,
-
-	first_payment_percentage,
-
-	at_risk,
-
-	at_risk_reason,
-
-	reservation:reservations(
-
-	id,
-
-	reservation_number,
-
-	apartment_number,
-
-	client:clients(id, first_name, last_name),
-
-	project:projects(name, stage),
-
-	broker:brokers(id, name)
-
-	)
-
-	)
-
-	`)
-
-	.eq('id', id)
-
-	.single();
+	const fetchFlow = async () => {
+    try {
+      // setLoading(true); // setLoading y setError se manejan en el useEffect que llama a esto
+      // setError(null);   // para el Promise.all
+      
+      const { data: flowData, error: flowError } = await supabase
+        .from('commission_flows')
+        .select(`
+          id, status, started_at, completed_at, is_second_payment,
+          flow:payment_flows(id),
+          current_stage:payment_flow_stages(id, name),
+          broker_commission:broker_commissions(
+            id, commission_amount, number_of_payments, first_payment_percentage, at_risk, at_risk_reason,
+            reservation:reservations(
+              id, reservation_number, apartment_number, 
+              total_payment, subsidy_payment, minimum_price, /* CAMPOS PARA RESUMEN */
+              is_rescinded, rescinded_at, rescinded_reason, /* CAMPOS DE RESCISIÓN */
+              client:clients(id, first_name, last_name, rut),
+              project:projects(name, stage),
+              broker:brokers(id, name, business_name)
+            )
+          )
+        `)
+        .eq('id', id) // 'id' es el commission_flow_id de useParams
+        .single();
 
 
 
