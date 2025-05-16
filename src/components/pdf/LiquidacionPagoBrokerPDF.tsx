@@ -72,11 +72,12 @@ export interface InformeDataProps {
 // --- Configuración de Fuentes (IMPORTANTE: Reemplaza con tus rutas de fuentes) ---
 // Descarga archivos .ttf (ej. de Google Fonts) y ponlos en tu carpeta public o sírvelos desde una URL.
 Font.register({
-  family: 'Lato',
-  fonts: [
-    { src: '/fonts/Lato-Regular.ttf' }, // Ruta relativa al public/
-  ],
-});
+   family: 'Lato',
+   fonts: [
+     { src: '/fonts/Lato-Regular.ttf' }, // Reemplaza esta URL/ruta
+     { src: '/fonts/Lato-Bold.ttf', fontWeight: 'bold' }, // Reemplaza esta URL/ruta
+   ],
+ });
 // Font.register({
 //   family: 'Montserrat',
 //   fonts: [
