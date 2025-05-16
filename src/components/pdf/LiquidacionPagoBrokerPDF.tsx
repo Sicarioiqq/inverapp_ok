@@ -142,6 +142,137 @@ const styles = StyleSheet.create({
   },
 });
 
+// --- Secciones ---
+  section: {
+    marginBottom: 20,
+    paddingBottom: 10,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: colors.primary,
+    paddingBottom: 6,
+    marginBottom: 12,
+  },
+  sectionTitleIcon: { // Placeholder para si usas imágenes de iconos
+    fontSize: 18,
+    marginRight: 8,
+    color: colors.primary,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+
+  // --- Tarjetas KPI ---
+  kpiContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  kpiCard: {
+    backgroundColor: colors.white, // Podría ser colors.backgroundLight para contraste
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 5,
+    padding: 12,
+    width: '48%', // Aproximadamente 2 por fila, ajusta con gap
+    marginBottom: 10,
+    minHeight: 70,
+  },
+  kpiTitle: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  kpiValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  kpiTrend: {
+    fontSize: 9,
+  },
+
+  // --- Tablas ---
+  table: {
+    // display: "table", // @react-pdf/renderer usa flexbox, esto es conceptual
+    width: '100%',
+    borderStyle: 'solid',
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 10,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: colors.backgroundLight, // Un gris muy claro
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    '&:last-child': {
+      borderBottomWidth: 0,
+    },
+  },
+  tableColHeader: {
+    padding: 6,
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: colors.primary,
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+    '&:last-child': {
+      borderRightWidth: 0,
+    },
+  },
+  tableCol: {
+    padding: 6,
+    fontSize: 9,
+    color: colors.textPrimary,
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+    '&:last-child': {
+      borderRightWidth: 0,
+    },
+  },
+  // Anchos de columna (ejemplos, necesitarás ajustarlos)
+  colWidthSm: { width: '15%' },
+  colWidthMd: { width: '25%' },
+  colWidthLg: { width: '35%' },
+  colWidthXl: { width: '50%' },
+  textRight: { textAlign: 'right' },
+
+  // --- Gráficos (Placeholder) ---
+  chartPlaceholder: {
+    width: '100%',
+    height: 150,
+    backgroundColor: colors.backgroundLight,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  chartPlaceholderText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+  },
+   // --- Helpers ---
+  boldText: {
+    fontWeight: 'bold',
+  },
+  textPositive: { color: colors.secondary },
+  textNegative: { color: colors.red },
+
+});
+
 const LiquidacionPagoBrokerPDF: React.FC<LiquidacionPagoBrokerPDFProps> = ({
   flowData,
   formatDate,
