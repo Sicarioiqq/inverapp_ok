@@ -147,24 +147,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 10,
   },
-  sectionTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: colors.primary,
-    paddingBottom: 6,
-    marginBottom: 12,
-  },
-  sectionTitleIcon: { // Placeholder para si usas imágenes de iconos
-    fontSize: 18,
-    marginRight: 8,
-    color: colors.primary,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
+  
 
 const LiquidacionPagoBrokerPDF: React.FC<LiquidacionPagoBrokerPDFProps> = ({
   flowData,
