@@ -102,6 +102,36 @@ const colors = {
 
 const styles = StyleSheet.create({
   // --- Generales ---
+  title: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  color: colors.textPrimary,
+  marginBottom: 4,
+},
+
+subtitle: {
+  fontSize: 12,
+  color: colors.textSecondary,
+  marginBottom: 10,
+},
+
+row: {
+  flexDirection: 'row',
+  marginBottom: 4,
+},
+
+label: {
+  width: 150,
+  fontSize: 10,
+  fontWeight: 'bold',
+  color: colors.textPrimary,
+},
+
+value: {
+  fontSize: 10,
+  color: colors.textPrimary,
+},
+
   page: {
     flexDirection: 'column',
     backgroundColor: colors.white,
