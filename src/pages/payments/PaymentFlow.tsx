@@ -2375,6 +2375,7 @@ interface Task {
       flowData={flow}
       formatDate={formatDate}
       formatCurrency={formatCurrency}
+      companyLogoUrl="/inverapp-logo.png"
     />
   }
   fileName={`liquidacion_pago_broker_${flow.broker_commission.reservation.reservation_number}.pdf`}
