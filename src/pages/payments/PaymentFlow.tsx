@@ -2374,7 +2374,7 @@ interface Task {
     <LiquidacionPagoBrokerPDF
       flowData={flow}
       formatDate={formatDate}
-      formatCurrency={formatCurrency};
+      formatCurrency={formatCurrency}
     />
   }
   fileName={`liquidacion_pago_broker_${flow.broker_commission.reservation.reservation_number}.pdf`}
