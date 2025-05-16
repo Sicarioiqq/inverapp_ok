@@ -14,7 +14,7 @@ import CommissionTaskCommentList from '../../components/CommissionTaskCommentLis
 
 import { PDFDownloadLink } from '@react-pdf/renderer';
 
-import LiquidacionPagoBrokerPDF from '../../components/pdf/LiquidacionPagoBrokerPDF';
+//import LiquidacionPagoBrokerPDF from '../../components/pdf/LiquidacionPagoBrokerPDF';
 
 import {
 
