@@ -126,3 +126,5 @@ const AtRiskPopup: React.FC<AtRiskPopupProps> = ({
 };
 
 export default PaymentFlow;
+
+export { PaymentFlow }
