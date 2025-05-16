@@ -83,8 +83,8 @@ export interface InformeDataProps {
    fonts: [
      { src: '/fonts/Montserrat-Regular.ttf' }, // Reemplaza esta URL/ruta
      { src: '/fonts/Montserrat-Bold.ttf', fontWeight: 'bold' }, // Reemplaza esta URL/ruta
-//   ]
-// });
+   ]
+ });
 
 // --- Estilos para el PDF ---
 const colors = {
