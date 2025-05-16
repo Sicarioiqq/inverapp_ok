@@ -5,6 +5,8 @@ import {
   View,
   Document,
   StyleSheet,
+  Font,
+  Image,
 } from '@react-pdf/renderer';
 import { PaymentFlow } from '../../pages/payments/PaymentFlow';
 
