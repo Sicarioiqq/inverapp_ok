@@ -5,8 +5,7 @@ import { usePopup } from '../../contexts/PopupContext';
 import Layout from '../../components/Layout';
 import CommissionTaskCommentPopup from '../../components/CommissionTaskCommentPopup';
 import CommissionTaskCommentList from '../../components/CommissionTaskCommentList';
-import { PDFDownloadLink } from '@react-pdf/renderer';
-import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
+import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import LiquidacionPagoBrokerPDF from '../../components/pdf/LiquidacionPagoBrokerPDF';
 import {
   ArrowLeft, Clock, CheckCircle2, AlertCircle, UserCircle, UserPlus,
