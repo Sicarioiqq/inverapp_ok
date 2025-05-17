@@ -21,13 +21,6 @@ import {
 import { PDFDownloadLink_Reservation } from '../../components/PDFGenerator';
 import RescindReservationPopup from '../../components/RescindReservationPopup';
 
-import { PDFDownloadLink } from '@react-pdf/renderer';
-import type { LiquidacionGestionData } from '../../components/pdf/LiquidacionNegocioGestionPDF';
-import LiquidacionGestionDocument from '../../components/pdf/LiquidacionNegocioGestionPDF';
-
-import { getLiquidacionGestionData } from '../../lib/getLiquidacionGestionData';
-
-
 // Importar tipos de promociones
 import { AppliedPromotion } from '../reservations/ReservationForm';
 
@@ -101,10 +94,6 @@ const ReservationDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [promotions, setPromotions] = useState<AppliedPromotion[]>([]);
-  
-    // ——— Estado para datos del Informe de Gestión ———
-  const [gestionData, setGestionData] = useState<LiquidacionGestionData | null>(null);
-
 
   useEffect(() => {
     if (id) {
@@ -161,19 +150,6 @@ const ReservationDetail: React.FC = () => {
       // No establecer error general para no bloquear la vista principal
     }
   };
-
-
-    // ——— Función para obtener datos de Gestión desde Supabase ———
-  const handleGenerateGestion = async () => {
-    if (!id) return;
-    try {
-      const data = await getLiquidacionGestionData(id);
-      setGestionData(data);
-    } catch (err) {
-      console.error('Error al generar datos de Gestión:', err);
-    }
-  };
-
 
   const handleRescind = () => {
     if (!reservation) return;
@@ -272,56 +248,33 @@ const ReservationDetail: React.FC = () => {
               </span>
             )}
           </h1>
-
-          
-         <div className="flex space-x-3">
-  <button
-    onClick={() => navigate(`/reservas/editar/${reservation.id}`)}
-    className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-  >
-    <Edit2 className="h-5 w-5 mr-2" />
-    Editar
-  </button>
-
-  {pdfData && (
-    <PDFDownloadLink_Reservation
-      data={pdfData}
-      fileName={`Reserva_${reservation.reservation_number}.pdf`}
-    >
-      <FileText className="h-5 w-5 mr-2" />
-      Descargar PDF
-    </PDFDownloadLink_Reservation>
-  )}
-
-  {/* ——— Botón para generar Informe Gestión ——— */}
-  <button
-    onClick={handleGenerateGestion}
-    className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-  >
-    <Download className="h-5 w-5 mr-2" />
-    Generar Informe Gestión
-  </button>
-
-  {gestionData && (
-    <PDFDownloadLink
-      document={<LiquidacionGestionDocument {...gestionData} />}
-      fileName={`liquidacion_gestion_${gestionData.numeroReserva}.pdf`}
-      className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm"
-    >
-      {({ loading }) => (loading ? 'Generando…' : 'Descargar Informe Gestión')}
-    </PDFDownloadLink>
-  )}
-
-  {!reservation.is_rescinded && (
-    <button
-      onClick={handleRescind}
-      className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
-    >
-      <Ban className="h-5 w-5 mr-2" />
-      Rescindir
-    </button>
-  )}
-</div>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => navigate(`/reservas/editar/${reservation.id}`)}
+              className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <Edit2 className="h-5 w-5 mr-2" />
+              Editar
+            </button>
+            {pdfData && (
+              <PDFDownloadLink_Reservation 
+                data={pdfData}
+                fileName={`Reserva_${reservation.reservation_number}.pdf`}
+              >
+                <FileText className="h-5 w-5 mr-2" />
+                Descargar PDF
+              </PDFDownloadLink_Reservation>
+            )}
+            {!reservation.is_rescinded && (
+              <button
+                onClick={handleRescind}
+                className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+              >
+                <Ban className="h-5 w-5 mr-2" />
+                Rescindir
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Información de Resciliación si aplica */}
