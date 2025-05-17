@@ -15,14 +15,37 @@ export interface LiquidacionGestionData {
   companyLogoUrl?: string;
   numeroReserva: string;
   cliente: { nombreCompleto: string; rut: string; email?: string; telefono?: string };
-  unidad: { proyectoNombre: string; proyectoEtapa?: string; deptoNumero: string; estacionamientoNumero?: string; bodegaNumero?: string };
+  unidad: {
+    proyectoNombre: string;
+    proyectoEtapa?: string;
+    deptoNumero: string;
+    estacionamientoNumero?: string;
+    bodegaNumero?: string;
+  };
   fechas: { reserva?: string; promesa?: string; escritura?: string };
-  preciosLista: { depto: number; estacionamiento?: number; bodega?: number; totalLista: number };
+  preciosLista: {
+    depto: number;
+    estacionamiento?: number;
+    bodega?: number;
+    totalLista: number;
+  };
   descuentos?: { columnaPct?: number; adicionalPct?: number; otrosPct?: number };
   promociones?: Array<{ nombre: string; descripcion?: string; valorEstimado?: number }>;
-  resumenFinanciero: { precioMinimoVenta: number; totalEscrituracion: number; totalRecuperacion?: number; subsidio?: number; diferencia?: number };
+  resumenFinanciero: {
+    precioMinimoVenta: number;
+    totalEscrituracion: number;
+    totalRecuperacion?: number;
+    subsidio?: number;
+    diferencia?: number;
+  };
   broker?: { nombre: string; razonSocial?: string; rut?: string };
-  comisionBroker?: { montoBruto: number; incluyeIVA: boolean; montoNeto?: number; porcentajePrimerPago?: number; numeroPagos?: number };
+  comisionBroker?: {
+    montoBruto: number;
+    incluyeIVA: boolean;
+    montoNeto?: number;
+    porcentajePrimerPago?: number;
+    numeroPagos?: number;
+  };
   vendedor?: { nombreCompleto: string };
 }
 
@@ -119,6 +142,12 @@ const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => 
               <Text style={styles.tableColValue}>{unidad.estacionamientoNumero}</Text>
             </View>
           )}
+          {unidad.bodegaNumero && (
+            <View style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>Bodega</Text>
+              <Text style={styles.tableColValue}>{unidad.bodegaNumero}</Text>
+            </View>
+          )}
         </View>
 
         {/* Fechas */}
@@ -205,7 +234,7 @@ const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => 
         )}
 
         {/* Resumen Financiero */}
-        <Text style={styles.sectionHeader}>Resumen Financiero</n        ></Text>
+        <Text style={styles.sectionHeader}>Resumen Financiero</Text>
         <View style={styles.table}>
           <View style={styles.tableRow}>
             <Text style={styles.tableColLabel}>Precio Min. Vta.</Text>
@@ -229,10 +258,9 @@ const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => 
           )}
         </View>
 
-        {/* Broker y Comisión */}
+        {/* Broker */}
         {broker && (
-          <>
-            <Text style={styles.sectionHeader}>Broker</Text>
+          <>n            <Text style={styles.sectionHeader}>Broker</Text>
             <View style={styles.table}>
               <View style={styles.tableRow}>
                 <Text style={styles.tableColLabel}>Nombre</Text>
@@ -247,9 +275,10 @@ const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => 
             </View>
           </>
         )}
+
+        {/* Comisión Broker */}
         {comisionBroker && (
-          <>
-            <Text style={styles.sectionHeader}>Comisión Broker</Text>
+          <>n            <Text style={styles.sectionHeader}>Comisión Broker</Text>
             <View style={styles.table}>
               <View style={styles.tableRow}>
                 <Text style={styles.tableColLabel}>Monto Bruto</Text>
@@ -263,10 +292,9 @@ const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => 
           </>
         )}
 
-        {/* Vendedor */}
+        {/* Vendedor Interno */}
         {vendedor && (
-          <>        
-            <Text style={styles.sectionHeader}>Vendedor Interno</Text>
+          <>n            <Text style={styles.sectionHeader}>Vendedor Interno</Text>
             <View style={styles.table}>
               <View style={styles.tableRow}>
                 <Text style={styles.tableColLabel}>Nombre</Text>
