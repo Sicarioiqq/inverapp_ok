@@ -457,4 +457,4 @@ export const ejemploDataInforme: InformeDataProps = {
 //   </div>
 // );
 
-export default InformeGeneralNegocioPDF;
+export default LiquidacionGestionDocument;
