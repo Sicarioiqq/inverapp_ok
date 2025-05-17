@@ -100,7 +100,7 @@ const ReservationDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [promotions, setPromotions] = useState<AppliedPromotion[]>([]);
   
-    // ——— Estado para datos del Informe de Gestión ———
+  // ——— Estado para datos del Informe de Gestión ———
   const [gestionData, setGestionData] = useState<LiquidacionGestionData | null>(null);
 
 
@@ -115,24 +115,24 @@ const ReservationDetail: React.FC = () => {
     try {
       setLoading(true);
       const { data, error: fetchError } = await supabase
-  .from('reservations')
-  .select(`
-    *,
-    client:clients(*),
-    project:projects(*),
-    seller:profiles(*),
-    broker:brokers(*),
-    rescinded_by_user:profiles(first_name, last_name),
-    broker_commission:broker_commissions(
-      id,
-      commission_amount,
-      at_risk,
-      at_risk_reason,
-      penalty_amount
-    )
-  `)
-  .eq('id', id!)
-  .single();
+        .from('reservations')
+        .select(`
+          *, 
+          client:clients(*),
+          project:projects(*),
+          seller:profiles(*),
+          broker:brokers(*),
+          rescinded_by_user:profiles(first_name, last_name),
+          broker_commission:broker_commissions(
+            id,
+            commission_amount,
+            at_risk,
+            at_risk_reason,
+            penalty_amount
+          )
+        `)
+        .eq('id', id!)
+        .single();
 
       if (fetchError) throw fetchError;
       setReservation(data);
@@ -161,7 +161,7 @@ const ReservationDetail: React.FC = () => {
   };
 
 
-    // ——— Función para obtener datos de Gestión desde Supabase ———
+  // ——— Función para obtener datos de Gestión desde Supabase ———
   const handleGenerateGestion = async () => {
     if (!id) return;
     try {
@@ -226,8 +226,8 @@ const ReservationDetail: React.FC = () => {
       totalPayment: reservation.total_payment,
       brokerName: reservation.broker?.name,
       sellerName: reservation.seller
-  ? `${reservation.seller.first_name} ${reservation.seller.last_name}`
-  : undefined,
+        ? `${reservation.seller.first_name} ${reservation.seller.last_name}`
+        : undefined,
     };
   };
 
@@ -274,54 +274,54 @@ const ReservationDetail: React.FC = () => {
           </h1>
 
           
-         <div className="flex space-x-3">
-  <button
-    onClick={() => navigate(/reservas/editar/${reservation.id})}
-    className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-  >
-    <Edit2 className="h-5 w-5 mr-2" />
-    Editar
-  </button>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => navigate(`/reservas/editar/${reservation.id}`)}
+              className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <Edit2 className="h-5 w-5 mr-2" />
+              Editar
+            </button>
 
-  {pdfData && (
-    <PDFDownloadLink_Reservation
-      data={pdfData}
-      fileName={Reserva_${reservation.reservation_number}.pdf}
-    >
-      <FileText className="h-5 w-5 mr-2" />
-      Descargar PDF
-    </PDFDownloadLink_Reservation>
-  )}
+            {pdfData && (
+              <PDFDownloadLink_Reservation
+                data={pdfData}
+                fileName={`Reserva_${reservation.reservation_number}.pdf`}
+              >
+                <FileText className="h-5 w-5 mr-2" />
+                Descargar PDF
+              </PDFDownloadLink_Reservation>
+            )}
 
-  {/* ——— Botón para generar Informe Gestión ——— */}
-  <button
-    onClick={handleGenerateGestion}
-    className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-  >
-    <Download className="h-5 w-5 mr-2" />
-    Generar Informe Gestión
-  </button>
+            {/* ——— Botón para generar Informe Gestión ——— */}
+            <button
+              onClick={handleGenerateGestion}
+              className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <Download className="h-5 w-5 mr-2" />
+              Generar Informe Gestión
+            </button>
 
-  {gestionData && (
-    <PDFDownloadLink
-      document={<LiquidacionGestionDocument {...gestionData} />}
-      fileName={liquidacion_gestion_${gestionData.numeroReserva}.pdf}
-      className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm"
-    >
-      {({ loading }) => (loading ? 'Generando…' : 'Descargar Informe Gestión')}
-    </PDFDownloadLink>
-  )}
+            {gestionData && (
+              <PDFDownloadLink
+                document={<LiquidacionGestionDocument {...gestionData} />}
+                fileName={`liquidacion_gestion_${gestionData.numeroReserva}.pdf`}
+                className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm"
+              >
+                {({ loading }) => (loading ? 'Generando…' : 'Descargar Informe Gestión')}
+              </PDFDownloadLink>
+            )}
 
-  {!reservation.is_rescinded && (
-    <button
-      onClick={handleRescind}
-      className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
-    >
-      <Ban className="h-5 w-5 mr-2" />
-      Rescindir
-    </button>
-  )}
-</div>
+            {!reservation.is_rescinded && (
+              <button
+                onClick={handleRescind}
+                className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+              >
+                <Ban className="h-5 w-5 mr-2" />
+                Rescindir
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Información de Resciliación si aplica */}
@@ -411,8 +411,8 @@ const ReservationDetail: React.FC = () => {
                 <p className="text-sm font-medium text-gray-500">Unidades</p>
                 <p className="text-base text-gray-900">
                   Depto. {reservation.apartment_number}
-                  {reservation.parking_number &&  | Est. ${reservation.parking_number}}
-                  {reservation.storage_number &&  | Bod. ${reservation.storage_number}}
+                  {reservation.parking_number && ` | Est. ${reservation.parking_number}`}
+                  {reservation.storage_number && ` | Bod. ${reservation.storage_number}`}
                 </p>
               </div>
               <div>
@@ -560,11 +560,11 @@ const ReservationDetail: React.FC = () => {
                       <p className="font-medium text-purple-700">{promotion.promotion_type}</p>
                       <p className="text-lg font-bold text-purple-600">{formatCurrency(promotion.amount)} UF</p>
                     </div>
-                    <span className={px-2.5 py-0.5 text-xs font-medium rounded-full ${
+                    <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full ${
                       promotion.is_against_discount 
                         ? 'bg-orange-100 text-orange-800' 
                         : 'bg-green-100 text-green-800'
-                    }}>
+                    }`}>
                       {promotion.is_against_discount ? 'Contra Descuento' : 'No Contra Dcto.'}
                     </span>
                   </div>
@@ -619,7 +619,7 @@ const ReservationDetail: React.FC = () => {
               </div>
               <div>
                 <button
-                  onClick={() => navigate(/pagos/${reservation.id})}
+                  onClick={() => navigate(`/pagos/${reservation.id}`)}
                   className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                 >
                   <Edit2 className="h-5 w-5 mr-2" />
