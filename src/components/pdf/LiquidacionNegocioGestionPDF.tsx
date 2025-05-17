@@ -9,272 +9,196 @@ import {
   Image,
 } from '@react-pdf/renderer';
 
-// --------------------------------------
-// Datos que espera recibir el componente
-// --------------------------------------
 export interface LiquidacionGestionData {
   reportTitle: string;
   generationDate: string;
   companyLogoUrl?: string;
-
   numeroReserva: string;
-
-  cliente: {
-    nombreCompleto: string;
-    rut: string;
-    email?: string;
-    telefono?: string;
-  };
-
-  unidad: {
-    proyectoNombre: string;
-    proyectoEtapa?: string;
-    deptoNumero: string;
-    estacionamientoNumero?: string;
-    bodegaNumero?: string;
-  };
-
-  fechas: {
-    reserva?: string;
-    promesa?: string;
-    escritura?: string;
-  };
-
-  preciosLista: {
-    depto: number;
-    estacionamiento?: number;
-    bodega?: number;
-    totalLista: number;
-  };
-
-  descuentos: {
-    columnaPct?: number;
-    adicionalPct?: number;
-    otrosPct?: number;
-  };
-
-  promociones?: Array<{
-    nombre: string;
-    descripcion?: string;
-    valorEstimado?: number;
-  }>;
-
-  resumenFinanciero: {
-    precioMinimoVenta: number;
-    totalEscrituracion: number;
-    totalRecuperacion?: number;
-    subsidio?: number;
-    diferencia?: number;
-  };
-
-  broker?: {
-    nombre: string;
-    razonSocial?: string;
-    rut?: string;
-  };
-
-  comisionBroker?: {
-    montoBruto: number;
-    incluyeIVA: boolean;
-    montoNeto?: number;
-    porcentajeComisionCalculado?: number;
-    numeroPagos?: 1 | 2;
-    porcentajePrimerPago?: number;
-  };
-
-  vendedor?: {
-    nombreCompleto: string;
-  };
+  cliente: { nombreCompleto: string; rut: string; email?: string; telefono?: string };
+  unidad: { proyectoNombre: string; proyectoEtapa?: string; deptoNumero: string; estacionamientoNumero?: string; bodegaNumero?: string };
+  fechas: { reserva?: string; promesa?: string; escritura?: string };
+  preciosLista: { depto: number; estacionamiento?: number; bodega?: number; totalLista: number };
+  descuentos?: { columnaPct?: number; adicionalPct?: number; otrosPct?: number };
+  promociones?: Array<{ nombre: string; descripcion?: string; valorEstimado?: number }>;
+  resumenFinanciero: { precioMinimoVenta: number; totalEscrituracion: number; totalRecuperacion?: number; subsidio?: number; diferencia?: number };
+  broker?: { nombre: string; razonSocial?: string; rut?: string };
+  comisionBroker?: { montoBruto: number; incluyeIVA: boolean; montoNeto?: number; porcentajePrimerPago?: number; numeroPagos?: number };
+  vendedor?: { nombreCompleto: string };
 }
 
-// ----------- estilos -------------
 const colors = {
-  primary: '#2A679F',
-  border: '#E0E0E0',
-  textPrimary: '#212121',
-  textSecondary: '#757575',
-  backgroundLight: '#F5F5F5',
+  border: '#CCCCCC',
+  text: '#333333',
+  backgroundLight: '#F0F0F0',
   white: '#FFFFFF',
 };
+
 const styles = StyleSheet.create({
-  page: {
-    padding: 35,
-    fontFamily: 'Helvetica',
-    backgroundColor: colors.white,
-  },
-  logo: { width: 120, height: 40, alignSelf: 'flex-end', marginBottom: 20 },
-  headerText: { fontSize: 24, fontWeight: 'bold', color: colors.primary, textAlign: 'center' },
-  subHeaderText: { fontSize: 10, color: colors.textSecondary, textAlign: 'center', marginBottom: 20 },
-  section: { marginBottom: 15 },
-  sectionTitleContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  sectionTitleIcon: { fontSize: 14, marginRight: 6, color: colors.primary },
-  sectionTitle: { fontSize: 14, fontWeight: 'bold', color: colors.primary },
-  footer: {
-    position: 'absolute', bottom: 20, left: 35, right: 35,
-    fontSize: 8, textAlign: 'center', color: colors.textSecondary,
-    borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 4,
-  },
-  textRight: { textAlign: 'right' },
-  bold: { fontWeight: 'bold' },
+  page: { fontSize: 8, fontFamily: 'Helvetica', padding: 20, backgroundColor: colors.white },
+  header: { fontSize: 14, textAlign: 'center', marginBottom: 10, color: colors.text, fontWeight: 'bold' },
+  subHeader: { fontSize: 8, textAlign: 'center', marginBottom: 12, color: colors.text },
+  logo: { width: 80, height: 30, alignSelf: 'flex-end', marginBottom: 10 },
+  table: { display: 'table', width: 'auto', marginBottom: 8, borderWidth: 1, borderColor: colors.border },
+  tableRow: { flexDirection: 'row' },
+  tableColLabel: { width: '50%', backgroundColor: colors.backgroundLight, borderRightWidth: 1, borderColor: colors.border, padding: 4 },
+  tableColValue: { width: '50%', padding: 4 },
+  footer: { position: 'absolute', fontSize: 6, bottom: 10, left: 20, right: 20, textAlign: 'center', color: colors.text, borderTopWidth: 1, borderColor: colors.border, paddingTop: 4 },
 });
 
-// ------------------------------
-// Componente principal del PDF
-// ------------------------------
-const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = ({
-  reportTitle,
-  generationDate,
-  companyLogoUrl,
-  numeroReserva,
-  cliente,
-  unidad,
-  fechas,
-  preciosLista,
-  descuentos,
-  promociones,
-  resumenFinanciero,
-  broker,
-  comisionBroker,
-  vendedor,
-}) => (
-  <Document title={reportTitle}>
-    <Page size="A4" style={styles.page}>
-      {companyLogoUrl && <Image src={companyLogoUrl} style={styles.logo} />}
-      <Text style={styles.headerText}>{reportTitle}</Text>
-      <Text style={styles.subHeaderText}>
-        Reserva: {numeroReserva} | Fecha: {generationDate}
-      </Text>
+const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => {
+  const {
+    reportTitle,
+    generationDate,
+    companyLogoUrl,
+    numeroReserva,
+    cliente,
+    unidad,
+    fechas,
+    preciosLista,
+    descuentos,
+    promociones,
+    resumenFinanciero,
+    broker,
+    comisionBroker,
+    vendedor,
+  } = props;
 
-      {/* Datos del Cliente */}
-      <View style={styles.section}>
-        <View style={styles.sectionTitleContainer}>
-          <Text style={styles.sectionTitleIcon}>👤</Text>
-          <Text style={styles.sectionTitle}>Cliente</Text>
-        </View>
-        <Text>Nombre: {cliente.nombreCompleto}</Text>
-        <Text>RUT: {cliente.rut}</Text>
-        {cliente.email && <Text>Email: {cliente.email}</Text>}
-        {cliente.telefono && <Text>Teléfono: {cliente.telefono}</Text>}
-      </View>
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        {companyLogoUrl && <Image src={companyLogoUrl} style={styles.logo} />}
+        <Text style={styles.header}>{reportTitle}</Text>
+        <Text style={styles.subHeader}>Reserva: {numeroReserva} | Fecha: {generationDate}</Text>
 
-      {/* Unidad */}
-      <View style={styles.section}>
-        <View style={styles.sectionTitleContainer}>
-          <Text style={styles.sectionTitleIcon}>🏘️</Text>
-          <Text style={styles.sectionTitle}>Unidad</Text>
-        </View>
-        <Text>Proyecto: {unidad.proyectoNombre}</Text>
-        {unidad.proyectoEtapa && <Text>Etapa: {unidad.proyectoEtapa}</Text>}
-        <Text>Depto: {unidad.deptoNumero}</Text>
-        {unidad.estacionamientoNumero && <Text>Estac.: {unidad.estacionamientoNumero}</Text>}
-        {unidad.bodegaNumero && <Text>Bodega: {unidad.bodegaNumero}</Text>}
-      </View>
-
-      {/* Fechas */}
-      <View style={styles.section}>
-        <View style={styles.sectionTitleContainer}>
-          <Text style={styles.sectionTitleIcon}>📆</Text>
-          <Text style={styles.sectionTitle}>Fechas</Text>
-        </View>
-        {fechas.reserva && <Text>Reserva: {fechas.reserva}</Text>}
-        {fechas.promesa && <Text>Promesa: {fechas.promesa}</Text>}
-        {fechas.escritura && <Text>Escritura: {fechas.escritura}</Text>}
-      </View>
-
-      {/* Precios de Lista */}
-      <View style={styles.section}>
-        <View style={styles.sectionTitleContainer}>
-          <Text style={styles.sectionTitleIcon}>💲</Text>
-          <Text style={styles.sectionTitle}>Precios de Lista</Text>
-        </View>
-        <Text>Depto: {preciosLista.depto.toLocaleString()}</Text>
-        {preciosLista.estacionamiento !== undefined && (
-          <Text>Estac.: {preciosLista.estacionamiento.toLocaleString()}</Text>
-        )}
-        {preciosLista.bodega !== undefined && (
-          <Text>Bodega: {preciosLista.bodega.toLocaleString()}</Text>
-        )}
-        <Text style={styles.bold}>Total Lista: {preciosLista.totalLista.toLocaleString()}</Text>
-      </View>
-
-      {/* Descuentos y Promociones */}
-      <View style={styles.section}>
-        <View style={styles.sectionTitleContainer}>
-          <Text style={styles.sectionTitleIcon}>🏷️</Text>
-          <Text style={styles.sectionTitle}>Descuentos y Promociones</Text>
-        </View>
-        {descuentos.columnaPct !== undefined && (
-          <Text>Descuento Columna: {descuentos.columnaPct}%</Text>
-        )}
-        {descuentos.adicionalPct !== undefined && (
-          <Text>Descuento Adicional: {descuentos.adicionalPct}%</Text>
-        )}
-        {promociones?.map((p, i) => (
-          <Text key={i}>Promo: {p.nombre} {p.valorEstimado ? `(${p.valorEstimado})` : ''}</Text>
-        ))}
-      </View>
-
-      {/* Resumen Financiero */}
-      <View style={styles.section}>
-        <View style={styles.sectionTitleContainer}>
-          <Text style={styles.sectionTitleIcon}>📑</Text>
-          <Text style={styles.sectionTitle}>Resumen Financiero</Text>
-        </View>
-        <Text>Precio Mínimo Venta: {resumenFinanciero.precioMinimoVenta.toLocaleString()}</Text>
-        <Text>Total Escrituración: {resumenFinanciero.totalEscrituracion.toLocaleString()}</Text>
-        {resumenFinanciero.subsidio !== undefined && (
-          <Text>Subsidio: {resumenFinanciero.subsidio.toLocaleString()}</Text>
-        )}
-        {resumenFinanciero.diferencia !== undefined && (
-          <Text>Diferencia: {resumenFinanciero.diferencia.toLocaleString()}</Text>
-        )}
-      </View>
-
-      {/* Broker */}
-      {broker && (
-        <View style={styles.section}>
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitleIcon}>🤝</Text>
-            <Text style={styles.sectionTitle}>Broker</Text>
+        {/* Cliente */}
+        <View style={styles.table}>
+          <View style={styles.tableRow}>
+            <Text style={styles.tableColLabel}>Cliente</Text>
+            <Text style={styles.tableColValue}>{cliente.nombreCompleto}</Text>
           </View>
-          <Text>Nombre: {broker.nombre}</Text>
-          {broker.razonSocial && <Text>Razón Social: {broker.razonSocial}</Text>}
-        </View>
-      )}
-
-      {/* Comisión Broker */}
-      {comisionBroker && (
-        <View style={styles.section}>
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitleIcon}>📋</Text>
-            <Text style={styles.sectionTitle}>Comisión Broker</Text>
+          <View style={styles.tableRow}>
+            <Text style={styles.tableColLabel}>RUT</Text>
+            <Text style={styles.tableColValue}>{cliente.rut}</Text>
           </View>
-          <Text>Monto Bruto: {comisionBroker.montoBruto.toLocaleString()}</Text>
-          <Text>Incluye IVA: {comisionBroker.incluyeIVA ? 'Sí' : 'No'}</Text>
-          {comisionBroker.montoNeto !== undefined && (
-            <Text>Monto Neto: {comisionBroker.montoNeto.toLocaleString()}</Text>
+          {cliente.email && (
+            <View style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>Email</Text>
+              <Text style={styles.tableColValue}>{cliente.email}</Text>
+            </View>
+          )}
+          {cliente.telefono && (
+            <View style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>Teléfono</Text>
+              <Text style={styles.tableColValue}>{cliente.telefono}</Text>
+            </View>
           )}
         </View>
-      )}
 
-      {/* Vendedor */}
-      {vendedor && (
-        <View style={styles.section}>
-          <Text>Vendedor Interno: {vendedor.nombreCompleto}</Text>
+        {/* Unidad */}
+        <View style={styles.table}>
+          <View style={styles.tableRow}>
+            <Text style={styles.tableColLabel}>Proyecto</Text>
+            <Text style={styles.tableColValue}>{unidad.proyectoNombre}</Text>
+          </View>
+          {unidad.proyectoEtapa && (
+            <View style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>Etapa</Text>
+              <Text style={styles.tableColValue}>{unidad.proyectoEtapa}</Text>
+            </View>
+          )}
+          <View style={styles.tableRow}>
+            <Text style={styles.tableColLabel}>Depto</Text>
+            <Text style={styles.tableColValue}>{unidad.deptoNumero}</Text>
+          </View>
+          {unidad.estacionamientoNumero && (
+            <View style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>Estac.</Text>
+              <Text style={styles.tableColValue}>{unidad.estacionamientoNumero}</Text>
+            </View>
+          )}
         </View>
-      )}
 
-      {/* Pie de página */}
-      <Text
-        style={styles.footer}
-        render={({ pageNumber, totalPages }) =>
-          `Inverapp | ${reportTitle} | Página ${pageNumber} de ${totalPages}`
-        }
-        fixed
-      />
+        {/* Fechas */}
+        <View style={styles.table}>
+          {Object.entries(fechas).map(([key, val]) =>
+            val ? (
+              <View key={key} style={styles.tableRow}>
+                <Text style={styles.tableColLabel}>{key.charAt(0).toUpperCase() + key.slice(1)}</Text>
+                <Text style={styles.tableColValue}>{val}</Text>
+              </View>
+            ) : null
+          )}
+        </View>
 
-    </Page>
-  </Document>
-);
+        {/* Precios Lista */}
+        <View style={styles.table}>
+          {['depto', 'estacionamiento', 'bodega', 'totalLista'].map((field) => (
+            <View key={field} style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>{field === 'totalLista' ? 'Total Lista' : field.charAt(0).toUpperCase() + field.slice(1)}</Text>
+              <Text style={styles.tableColValue}>{preciosLista[field].toLocaleString()}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Resumen Financiero */}
+        <View style={styles.table}>
+          {['precioMinimoVenta', 'totalEscrituracion', 'subsidio', 'diferencia'].map((f) => (
+            <View key={f} style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>{f.replace(/([A-Z])/g, ' $1')}</Text>
+              <Text style={styles.tableColValue}>{resumenFinanciero[f]?.toLocaleString()}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Broker y Comisión */}
+        {broker && (
+          <View style={styles.table}>
+            <View style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>Broker</Text>
+              <Text style={styles.tableColValue}>{broker.nombre}</Text>
+            </View>
+            {(broker.razonSocial || broker.rut) && (
+              <View style={styles.tableRow}>
+                <Text style={styles.tableColLabel}>Razón / RUT</Text>
+                <Text style={styles.tableColValue}>{broker.razonSocial || broker.rut}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {comisionBroker && (
+          <View style={styles.table}>
+            <View style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>Comisión Bruta</Text>
+              <Text style={styles.tableColValue}>{comisionBroker.montoBruto.toLocaleString()}</Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>Incluye IVA</Text>
+              <Text style={styles.tableColValue}>{comisionBroker.incluyeIVA ? 'Sí' : 'No'}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Vendedor */}
+        {vendedor && (
+          <View style={styles.table}>
+            <View style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>Vendedor</Text>
+              <Text style={styles.tableColValue}>{vendedor.nombreCompleto}</Text>
+            </View>
+          </View>
+        )}
+
+        <Text
+          style={styles.footer}
+          render={({ pageNumber, totalPages }) =>
+            `Inverapp | ${reportTitle} | Página ${pageNumber} de ${totalPages}`
+          }
+          fixed
+        />
+      </Page>
+    </Document>
+  );
+};
 
 export default LiquidacionGestionDocument;
