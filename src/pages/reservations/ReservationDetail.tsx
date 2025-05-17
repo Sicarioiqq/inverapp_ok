@@ -23,7 +23,7 @@ import RescindReservationPopup from '../../components/RescindReservationPopup';
 
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import LiquidacionGestionDocument from '../../components/pdf/LiquidacionNegocioGestionPDF';
-import { getLiquidacionGestionData } from '../lib/getLiquidacionGestionData';
+import { getLiquidacionGestionData } from '../../lib/getLiquidacionGestionData';
 
 
 // Importar tipos de promociones
