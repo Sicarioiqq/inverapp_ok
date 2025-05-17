@@ -101,7 +101,7 @@ const ReservationDetail: React.FC = () => {
   const [promotions, setPromotions] = useState<AppliedPromotion[]>([]);
   
     // ——— Estado para datos del Informe de Gestión ———
-  const [gestionData, setGestionData] = useState<any>(null);
+  const [gestionData, setGestionData] = useState<LiquidacionGestionData | null>(null);
 
 
   useEffect(() => {
