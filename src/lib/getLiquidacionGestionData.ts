@@ -8,7 +8,6 @@ export async function getLiquidacionGestionData(reservationId: string)
   const { data: r, error } = await supabase
     .from('reservations')
     .select(`
-      id,
       reservation_number,
       reservation_date,
       client:clients(
@@ -41,7 +40,7 @@ export async function getLiquidacionGestionData(reservationId: string)
         commission_percentage,
         first_payment_percentage
       ),
-      seller:users(
+      seller:profiles(
         first_name,
         last_name
       )
@@ -54,20 +53,16 @@ export async function getLiquidacionGestionData(reservationId: string)
   // 2) Consulta separada de promociones
   const { data: promoArr, error: promoError } = await supabase
     .from('promotions')
-    .select(`
-      name,
-      description,
-      estimated_value
-    `)
+    .select(`name, description, estimated_value`)
     .eq('reservation_id', reservationId);
 
   if (promoError) throw promoError;
 
-  // 3) Mappeo de resultados
+  // 3) Mappeo y retorno
   const client = r.client as any;
   const seller = (r.seller as any) || {};
   const brokerCommArr = (r.broker_commissions as any[]) || [];
-  
+
   return {
     reportTitle: `Liquidación Gestión ${r.reservation_number}`,
     generationDate: new Date().toLocaleDateString('es-CL'),
@@ -90,7 +85,6 @@ export async function getLiquidacionGestionData(reservationId: string)
 
     fechas: {
       reserva: r.reservation_date,
-      // promesa y escritura si las consultas aparte
     },
 
     preciosLista: {
@@ -100,9 +94,7 @@ export async function getLiquidacionGestionData(reservationId: string)
       totalLista: r.apartment_price + (r.parking_price || 0) + (r.storage_price || 0),
     },
 
-    descuentos: {
-      // aquí rellena si tienes esos porcentajes en tus datos
-    },
+    descuentos: {},
 
     promociones: promoArr?.map(p => ({
       nombre: p.name,
