@@ -19,7 +19,7 @@ export interface LiquidacionGestionData {
     proyectoNombre: string;
     proyectoEtapa?: string;
     deptoNumero: string;
-    estacionamientoNumero?: string;;
+    estacionamientoNumero?: string;
     bodegaNumero?: string;
   };
   fechas: { reserva?: string; promesa?: string; escritura?: string };
