@@ -99,6 +99,10 @@ const ReservationDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [promotions, setPromotions] = useState<AppliedPromotion[]>([]);
+  
+    // ——— Estado para datos del Informe de Gestión ———
+  const [gestionData, setGestionData] = useState<any>(null);
+
 
   useEffect(() => {
     if (id) {
@@ -155,6 +159,19 @@ const ReservationDetail: React.FC = () => {
       // No establecer error general para no bloquear la vista principal
     }
   };
+
+
+    // ——— Función para obtener datos de Gestión desde Supabase ———
+  const handleGenerateGestion = async () => {
+    if (!id) return;
+    try {
+      const data = await getLiquidacionGestionData(id);
+      setGestionData(data);
+    } catch (err) {
+      console.error('Error al generar datos de Gestión:', err);
+    }
+  };
+
 
   const handleRescind = () => {
     if (!reservation) return;
