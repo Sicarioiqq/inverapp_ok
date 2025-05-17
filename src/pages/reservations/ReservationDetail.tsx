@@ -23,6 +23,8 @@ import RescindReservationPopup from '../../components/RescindReservationPopup';
 
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import type { LiquidacionGestionData } from '../../components/pdf/LiquidacionNegocioGestionPDF';
+import LiquidacionGestionDocument from '../../components/pdf/LiquidacionNegocioGestionPDF';
+
 import { getLiquidacionGestionData } from '../../lib/getLiquidacionGestionData';
 
 
