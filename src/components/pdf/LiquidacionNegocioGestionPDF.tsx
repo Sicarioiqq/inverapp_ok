@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
 
 
 // --- Componente Principal del PDF ---
-const InformeGeneralNegocioPDF: React.FC<InformeDataProps> = ({
+const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = ({
   reportTitle,
   generationDate,
   periodCovered,
