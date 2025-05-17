@@ -225,7 +225,9 @@ const ReservationDetail: React.FC = () => {
       subsidyPayment: reservation.subsidy_payment,
       totalPayment: reservation.total_payment,
       brokerName: reservation.broker?.name,
-      sellerName: reservation.seller ? ${reservation.seller.first_name} ${reservation.seller.last_name} : undefined
+      sellerName: reservation.seller
+  ? `${reservation.seller.first_name} ${reservation.seller.last_name}`
+  : undefined,
     };
   };
 
