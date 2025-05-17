@@ -38,11 +38,10 @@ const styles = StyleSheet.create({
   header: { fontSize: 14, textAlign: 'center', marginBottom: 10, color: colors.text, fontWeight: 'bold' },
   subHeader: { fontSize: 8, textAlign: 'center', marginBottom: 12, color: colors.text },
   logo: { width: 80, height: 30, alignSelf: 'flex-end', marginBottom: 10 },
-  sectionHeader: { fontSize: 10, fontWeight: 'bold', marginBottom: 4, color: colors.text },
   table: { display: 'table', width: 'auto', marginBottom: 8, borderWidth: 1, borderColor: colors.border },
   tableRow: { flexDirection: 'row' },
-  tableColLabel: { width: '30%', backgroundColor: colors.backgroundLight, borderRightWidth: 1, borderColor: colors.border, padding: 4 },
-  tableColValue: { width: '70%', padding: 4 },
+  tableColLabel: { width: '50%', backgroundColor: colors.backgroundLight, borderRightWidth: 1, borderColor: colors.border, padding: 4 },
+  tableColValue: { width: '50%', padding: 4 },
   footer: { position: 'absolute', fontSize: 6, bottom: 10, left: 20, right: 20, textAlign: 'center', color: colors.text, borderTopWidth: 1, borderColor: colors.border, paddingTop: 4 },
 });
 
@@ -72,10 +71,9 @@ const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => 
         <Text style={styles.subHeader}>Reserva: {numeroReserva} | Fecha: {generationDate}</Text>
 
         {/* Cliente */}
-        <Text style={styles.sectionHeader}>Cliente</Text>
         <View style={styles.table}>
           <View style={styles.tableRow}>
-            <Text style={styles.tableColLabel}>Nombre</Text>
+            <Text style={styles.tableColLabel}>Cliente</Text>
             <Text style={styles.tableColValue}>{cliente.nombreCompleto}</Text>
           </View>
           <View style={styles.tableRow}>
@@ -96,8 +94,7 @@ const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => 
           )}
         </View>
 
-        {/* Detalle de Unidad */}
-        <Text style={styles.sectionHeader}>Detalle de Unidad</Text>
+        {/* Unidad */}
         <View style={styles.table}>
           <View style={styles.tableRow}>
             <Text style={styles.tableColLabel}>Proyecto</Text>
@@ -122,158 +119,74 @@ const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => 
         </View>
 
         {/* Fechas */}
-        <Text style={styles.sectionHeader}>Fechas</Text>
         <View style={styles.table}>
-          {fechas.reserva && (
-            <View style={styles.tableRow}>
-              <Text style={styles.tableColLabel}>Reserva</Text>
-              <Text style={styles.tableColValue}>{fechas.reserva}</Text>
-            </View>
-          )}
-          {fechas.promesa && (
-            <View style={styles.tableRow}>
-              <Text style={styles.tableColLabel}>Promesa</Text>
-              <Text style={styles.tableColValue}>{fechas.promesa}</Text>
-            </View>
-          )}
-          {fechas.escritura && (
-            <View style={styles.tableRow}>
-              <Text style={styles.tableColLabel}>Escritura</Text>
-              <Text style={styles.tableColValue}>{fechas.escritura}</Text>
-            </View>
+          {Object.entries(fechas).map(([key, val]) =>
+            val ? (
+              <View key={key} style={styles.tableRow}>
+                <Text style={styles.tableColLabel}>{key.charAt(0).toUpperCase() + key.slice(1)}</Text>
+                <Text style={styles.tableColValue}>{val}</Text>
+              </View>
+            ) : null
           )}
         </View>
 
-        {/* Precios de Lista */}
-        <Text style={styles.sectionHeader}>Precios de Lista</Text>
+        {/* Precios Lista */}
         <View style={styles.table}>
-          <View style={styles.tableRow}>
-            <Text style={styles.tableColLabel}>Depto</Text>
-            <Text style={styles.tableColValue}>{preciosLista.depto.toLocaleString()}</Text>
-          </View>
-          {preciosLista.estacionamiento !== undefined && (
-            <View style={styles.tableRow}>
-              <Text style={styles.tableColLabel}>Estac.</Text>
-              <Text style={styles.tableColValue}>{preciosLista.estacionamiento.toLocaleString()}</Text>
+          {['depto', 'estacionamiento', 'bodega', 'totalLista'].map((field) => (
+            <View key={field} style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>{field === 'totalLista' ? 'Total Lista' : field.charAt(0).toUpperCase() + field.slice(1)}</Text>
+              <Text style={styles.tableColValue}>{preciosLista[field].toLocaleString()}</Text>
             </View>
-          )}
-          {preciosLista.bodega !== undefined && (
-            <View style={styles.tableRow}>
-              <Text style={styles.tableColLabel}>Bodega</Text>
-              <Text style={styles.tableColValue}>{preciosLista.bodega.toLocaleString()}</Text>
-            </View>
-          )}
-          <View style={styles.tableRow}>
-            <Text style={styles.tableColLabel}>Total Lista</Text>
-            <Text style={styles.tableColValue}>{preciosLista.totalLista.toLocaleString()}</Text>
-          </View>
+          ))}
         </View>
-
-        {/* Descuentos y Promociones */}
-        <Text style={styles.sectionHeader}>Descuentos y Promociones</Text>
-        {descuentos && (
-          <View style={styles.table}>
-            {descuentos.columnaPct !== undefined && (
-              <View style={styles.tableRow}>
-                <Text style={styles.tableColLabel}>Descto. Columna</Text>
-                <Text style={styles.tableColValue}>{descuentos.columnaPct}%</Text>
-              </View>
-            )}
-            {descuentos.adicionalPct !== undefined && (
-              <View style={styles.tableRow}>
-                <Text style={styles.tableColLabel}>Descto. Adic.</Text>
-                <Text style={styles.tableColValue}>{descuentos.adicionalPct}%</Text>
-              </View>
-            )}
-            {descuentos.otrosPct !== undefined && (
-              <View style={styles.tableRow}>
-                <Text style={styles.tableColLabel}>Otros Desctos.</Text>
-                <Text style={styles.tableColValue}>{descuentos.otrosPct}%</Text>
-              </View>
-            )}
-          </View>
-        )}
-        {promociones && promociones.length > 0 && (
-          <View style={styles.table}>
-            {promociones.map((p, i) => (
-              <View key={i} style={styles.tableRow}>
-                <Text style={styles.tableColLabel}>{p.nombre}</Text>
-                <Text style={styles.tableColValue}>{p.descripcion} {p.valorEstimado ?? ''}</Text>
-              </View>
-            ))}
-          </View>
-        )}
 
         {/* Resumen Financiero */}
-        <Text style={styles.sectionHeader}>Resumen Financiero</n        ></Text>
         <View style={styles.table}>
-          <View style={styles.tableRow}>
-            <Text style={styles.tableColLabel}>Precio Min. Vta.</Text>
-            <Text style={styles.tableColValue}>{resumenFinanciero.precioMinimoVenta.toLocaleString()}</Text>
-          </View>
-          <View style={styles.tableRow}>
-            <Text style={styles.tableColLabel}>Total Escritur.</Text>
-            <Text style={styles.tableColValue}>{resumenFinanciero.totalEscrituracion.toLocaleString()}</Text>
-          </View>
-          {resumenFinanciero.subsidio !== undefined && (
-            <View style={styles.tableRow}>
-              <Text style={styles.tableColLabel}>Subsidio</Text>
-              <Text style={styles.tableColValue}>{resumenFinanciero.subsidio.toLocaleString()}</Text>
+          {['precioMinimoVenta', 'totalEscrituracion', 'subsidio', 'diferencia'].map((f) => (
+            <View key={f} style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>{f.replace(/([A-Z])/g, ' $1')}</Text>
+              <Text style={styles.tableColValue}>{resumenFinanciero[f]?.toLocaleString()}</Text>
             </View>
-          )}
-          {resumenFinanciero.diferencia !== undefined && (
-            <View style={styles.tableRow}>
-              <Text style={styles.tableColLabel}>Diferencia</Text>
-              <Text style={styles.tableColValue}>{resumenFinanciero.diferencia.toLocaleString()}</Text>
-            </View>
-          )}
+          ))}
         </View>
 
         {/* Broker y Comisión */}
         {broker && (
-          <>
-            <Text style={styles.sectionHeader}>Broker</Text>
-            <View style={styles.table}>
-              <View style={styles.tableRow}>
-                <Text style={styles.tableColLabel}>Nombre</Text>
-                <Text style={styles.tableColValue}>{broker.nombre}</Text>
-              </View>
-              {(broker.razonSocial || broker.rut) && (
-                <View style={styles.tableRow}>
-                  <Text style={styles.tableColLabel}>Razón / RUT</Text>
-                  <Text style={styles.tableColValue}>{broker.razonSocial || broker.rut}</Text>
-                </View>
-              )}
+          <View style={styles.table}>
+            <View style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>Broker</Text>
+              <Text style={styles.tableColValue}>{broker.nombre}</Text>
             </View>
-          </>
+            {(broker.razonSocial || broker.rut) && (
+              <View style={styles.tableRow}>
+                <Text style={styles.tableColLabel}>Razón / RUT</Text>
+                <Text style={styles.tableColValue}>{broker.razonSocial || broker.rut}</Text>
+              </View>
+            )}
+          </View>
         )}
+
         {comisionBroker && (
-          <>
-            <Text style={styles.sectionHeader}>Comisión Broker</Text>
-            <View style={styles.table}>
-              <View style={styles.tableRow}>
-                <Text style={styles.tableColLabel}>Monto Bruto</Text>
-                <Text style={styles.tableColValue}>{comisionBroker.montoBruto.toLocaleString()}</Text>
-              </View>
-              <View style={styles.tableRow}>
-                <Text style={styles.tableColLabel}>Incluye IVA</Text>
-                <Text style={styles.tableColValue}>{comisionBroker.incluyeIVA ? 'Sí' : 'No'}</Text>
-              </View>
+          <View style={styles.table}>
+            <View style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>Comisión Bruta</Text>
+              <Text style={styles.tableColValue}>{comisionBroker.montoBruto.toLocaleString()}</Text>
             </View>
-          </>
+            <View style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>Incluye IVA</Text>
+              <Text style={styles.tableColValue}>{comisionBroker.incluyeIVA ? 'Sí' : 'No'}</Text>
+            </View>
+          </View>
         )}
 
         {/* Vendedor */}
         {vendedor && (
-          <>        
-            <Text style={styles.sectionHeader}>Vendedor Interno</Text>
-            <View style={styles.table}>
-              <View style={styles.tableRow}>
-                <Text style={styles.tableColLabel}>Nombre</Text>
-                <Text style={styles.tableColValue}>{vendedor.nombreCompleto}</Text>
-              </View>
+          <View style={styles.table}>
+            <View style={styles.tableRow}>
+              <Text style={styles.tableColLabel}>Vendedor</Text>
+              <Text style={styles.tableColValue}>{vendedor.nombreCompleto}</Text>
             </View>
-          </>
+          </View>
         )}
 
         <Text
