@@ -4,7 +4,7 @@ import type { LiquidacionGestionData } from '../components/pdf/LiquidacionNegoci
 
 export async function getLiquidacionGestionData(reservationId: string)
 : Promise<LiquidacionGestionData> {
-  // 1) Consulta principal
+  // 1) Consulta principal de la reserva
   const { data: r, error } = await supabase
     .from('reservations')
     .select(`
@@ -57,17 +57,23 @@ export async function getLiquidacionGestionData(reservationId: string)
 
   if (error) throw error;
 
-  // 2) Promociones en consulta aparte
+  // 2) Consulta separada de promociones (estructura real)
   const { data: promoArr, error: promoError } = await supabase
     .from('promotions')
-    .select(`name, description, estimated_value`)
+    .select(`
+      promotion_type,
+      observations,
+      amount
+    `)
     .eq('reservation_id', reservationId);
+
   if (promoError) throw promoError;
 
-  // 3) Mappeo
+  // 3) Mappeo y retorno
   const client = r.client as any;
   const seller = (r.seller as any) || {};
-  const brokerRec = (r.broker_commissions as any[])[0] || null;
+  const brokerComArr = (r.broker_commissions as any[]) || [];
+  const brokerRec = brokerComArr[0] || null;
 
   return {
     reportTitle: `Liquidación Gestión ${r.reservation_number}`,
@@ -91,24 +97,23 @@ export async function getLiquidacionGestionData(reservationId: string)
 
     fechas: {
       reserva: r.reservation_date,
-      // promesa/escritura si las traes aparte…
     },
 
     preciosLista: {
       depto: r.apartment_price,
       estacionamiento: r.parking_price,
       bodega: r.storage_price,
-      totalLista: r.apartment_price + (r.parking_price||0) + (r.storage_price||0),
+      totalLista: r.apartment_price + (r.parking_price || 0) + (r.storage_price || 0),
     },
 
     descuentos: {
-      // rellena si tienes esos valores
+      // Rellena si dispones de los porcentajes
     },
 
     promociones: promoArr.map(p => ({
-      nombre: p.name,
-      descripcion: p.description,
-      valorEstimado: p.estimated_value,
+      nombre: p.promotion_type,
+      descripcion: p.observations,
+      valorEstimado: p.amount,
     })),
 
     resumenFinanciero: {
@@ -117,7 +122,7 @@ export async function getLiquidacionGestionData(reservationId: string)
       totalRecuperacion: r.recovery_payment,
       subsidio: r.subsidy_payment,
       diferencia:
-        (r.apartment_price + (r.parking_price||0) + (r.storage_price||0))
+        (r.apartment_price + (r.parking_price || 0) + (r.storage_price || 0))
         - r.minimum_price,
     },
 
