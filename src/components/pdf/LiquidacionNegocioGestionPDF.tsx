@@ -285,7 +285,7 @@ const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = ({
   const defaultGenerationDate = generationDate || `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
 
   return (
-    <Document title={reportTitle || "Informe General del Negocio"}>
+    <Document title={reportTitle || "Informe de Liquidación para Gestión"}>
       <Page size="A4" style={styles.page}>
         {/* --- Encabezado y Portada --- */}
         {companyLogoUrl && <Image style={styles.logo} src={companyLogoUrl} />}
