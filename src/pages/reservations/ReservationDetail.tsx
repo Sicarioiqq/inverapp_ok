@@ -203,7 +203,7 @@ const ReservationDetail: React.FC = () => {
     return {
       reservationNumber: reservation.reservation_number,
       reservationDate: formatDateChile(reservation.reservation_date),
-      clientName: ${reservation.client.first_name} ${reservation.client.last_name},
+      clientName: `${reservation.client.first_name} ${reservation.client.last_name}`,
       clientRut: reservation.client.rut,
       projectName: reservation.project.name,
       projectStage: reservation.project.stage,
