@@ -4,10 +4,11 @@ import type { LiquidacionGestionData } from '../components/pdf/LiquidacionNegoci
 
 export async function getLiquidacionGestionData(reservationId: string)
 : Promise<LiquidacionGestionData> {
-  // Traemos la reserva con sus relaciones básicas
+  // 1) Consulta principal de la reserva
   const { data: r, error } = await supabase
     .from('reservations')
     .select(`
+      id,
       reservation_number,
       reservation_date,
       client:clients(
@@ -24,6 +25,9 @@ export async function getLiquidacionGestionData(reservationId: string)
       apartment_number,
       parking_number,
       storage_number,
+      apartment_price,
+      parking_price,
+      storage_price,
       minimum_price,
       total_payment,
       subsidy_payment,
@@ -37,11 +41,6 @@ export async function getLiquidacionGestionData(reservationId: string)
         commission_percentage,
         first_payment_percentage
       ),
-      reservation_promotions(
-        name,
-        description,
-        estimated_value
-      ),
       seller:users(
         first_name,
         last_name
@@ -52,12 +51,23 @@ export async function getLiquidacionGestionData(reservationId: string)
 
   if (error) throw error;
 
-  // Ahora concatenamos en JS
+  // 2) Consulta separada de promociones
+  const { data: promoArr, error: promoError } = await supabase
+    .from('promotions')
+    .select(`
+      name,
+      description,
+      estimated_value
+    `)
+    .eq('reservation_id', reservationId);
+
+  if (promoError) throw promoError;
+
+  // 3) Mappeo de resultados
   const client = r.client as any;
   const seller = (r.seller as any) || {};
   const brokerCommArr = (r.broker_commissions as any[]) || [];
-  const promoArr = (r.reservation_promotions as any[]) || [];
-
+  
   return {
     reportTitle: `Liquidación Gestión ${r.reservation_number}`,
     generationDate: new Date().toLocaleDateString('es-CL'),
@@ -80,7 +90,7 @@ export async function getLiquidacionGestionData(reservationId: string)
 
     fechas: {
       reserva: r.reservation_date,
-      // promesa y escritura si las obtienes de otro lado
+      // promesa y escritura si las consultas aparte
     },
 
     preciosLista: {
@@ -91,10 +101,10 @@ export async function getLiquidacionGestionData(reservationId: string)
     },
 
     descuentos: {
-      // Asume que tú calculas o sacas estos campos aparte
+      // aquí rellena si tienes esos porcentajes en tus datos
     },
 
-    promociones: promoArr.map(p => ({
+    promociones: promoArr?.map(p => ({
       nombre: p.name,
       descripcion: p.description,
       valorEstimado: p.estimated_value,
