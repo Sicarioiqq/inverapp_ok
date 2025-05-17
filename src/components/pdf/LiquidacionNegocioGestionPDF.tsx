@@ -13,6 +13,83 @@ import {
 // --- INICIO: Definiciones de Tipos de Datos (Ejemplo, ajusta según tus necesidades) ---
 // Inspirado en DashboardStats y otras estructuras de Inverapp
 
+interface LiquidacionGestionData {
+  reportTitle: string;
+  generationDate: string;
+  companyLogoUrl?: string;
+
+  cliente: {
+    nombreCompleto: string;
+    rut: string;
+    email?: string;
+    telefono?: string;
+  };
+
+  unidad: {
+    proyectoNombre: string;
+    proyectoEtapa?: string;
+    deptoNumero: string;
+    estacionamientoNumero?: string;
+    bodegaNumero?: string;
+  };
+
+  fechas: {
+    reserva?: string;
+    promesa?: string;
+    escritura?: string;
+  };
+
+  preciosLista: {
+    depto: number;
+    estacionamiento?: number;
+    bodega?: number;
+    totalLista: number;
+  };
+
+  descuentos: {
+    columnaPct?: number;
+    adicionalPct?: number;
+    otrosPct?: number;
+  };
+
+  promociones?: Array<{
+    nombre: string;
+    descripcion?: string;
+    valorEstimado?: number;
+  }>;
+
+  resumenFinanciero: {
+    precioMinimoVenta: number;
+    totalEscrituracion: number;
+    totalRecuperacion?: number;
+    subsidio?: number;
+    diferencia?: number;
+  };
+
+  broker?: {
+    nombre: string;
+    razonSocial?: string;
+    rut?: string;
+  };
+
+  comisionBroker?: {
+    montoBruto: number;
+    incluyeIVA: boolean;
+    montoNeto?: number;
+    porcentajeComisionCalculado?: number;
+    baseComision?: number;
+    numeroPagos?: 1 | 2;
+    porcentajePrimerPago?: number;
+  };
+
+  vendedor?: {
+    nombreCompleto: string;
+  };
+
+  numeroReserva: string;
+}
+
+
 interface KPI {
   title: string;
   value: string;
