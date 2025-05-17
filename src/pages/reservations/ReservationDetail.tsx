@@ -320,7 +320,7 @@ const ReservationDetail: React.FC = () => {
     </button>
   )}
 </div>
-
+        </div>
 
         {/* Información de Resciliación si aplica */}
         {reservation.is_rescinded && (
