@@ -287,6 +287,29 @@ const ReservationDetail: React.FC = () => {
                 Descargar PDF
               </PDFDownloadLink_Reservation>
             )}
+
+  {/* ——— Botón para generar Informe Gestión ——— */}
+  <button
+    onClick={handleGenerateGestion}
+    className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+  >
+    <Download className="h-5 w-5 mr-2" />
+    Generar Informe Gestión
+  </button>
+
+  {gestionData && (
+    <PDFDownloadLink
+      document={<LiquidacionGestionDocument {...gestionData} />}
+      fileName={`liquidacion_gestion_${gestionData.numeroReserva}.pdf`}
+      className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm"
+    >
+      {({ loading }) =>
+        loading ? 'Generando…' : 'Descargar Informe Gestión'
+      }
+    </PDFDownloadLink>
+  )}
+
+            
             {!reservation.is_rescinded && (
               <button
                 onClick={handleRescind}
