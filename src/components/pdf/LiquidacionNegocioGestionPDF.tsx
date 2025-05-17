@@ -63,7 +63,11 @@ const styles = StyleSheet.create({
   logo: { width: 80, height: 30, alignSelf: 'flex-end', marginBottom: 10 },
   sectionHeader: { fontSize: 10, fontWeight: 'bold', marginBottom: 4, color: colors.text },
   table: { width: 'auto', marginBottom: 8, borderWidth: 1, borderColor: colors.border, flexDirection: 'column' },
-  tableRow: { flexDirection: 'row' },
+  tableRow: {
+  flexDirection: 'row',
+ borderBottomWidth: 1,
+ borderBottomColor: colors.border,
+},
   tableColLabel: { width: '30%', backgroundColor: colors.backgroundLight, borderRightWidth: 1, borderColor: colors.border, padding: 4 },
   tableColValue: { width: '70%', padding: 4 },
   footer: { position: 'absolute', fontSize: 6, bottom: 10, left: 20, right: 20, textAlign: 'center', color: colors.text, borderTopWidth: 1, borderColor: colors.border, paddingTop: 4 },
