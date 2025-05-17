@@ -270,23 +270,26 @@ const ReservationDetail: React.FC = () => {
               </span>
             )}
           </h1>
-          <div className="flex space-x-3">
-            <button
-              onClick={() => navigate(`/reservas/editar/${reservation.id}`)}
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <Edit2 className="h-5 w-5 mr-2" />
-              Editar
-            </button>
-            {pdfData && (
-              <PDFDownloadLink_Reservation 
-                data={pdfData}
-                fileName={`Reserva_${reservation.reservation_number}.pdf`}
-              >
-                <FileText className="h-5 w-5 mr-2" />
-                Descargar PDF
-              </PDFDownloadLink_Reservation>
-            )}
+
+          
+         <div className="flex space-x-3">
+  <button
+    onClick={() => navigate(`/reservas/editar/${reservation.id}`)}
+    className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+  >
+    <Edit2 className="h-5 w-5 mr-2" />
+    Editar
+  </button>
+
+  {pdfData && (
+    <PDFDownloadLink_Reservation
+      data={pdfData}
+      fileName={`Reserva_${reservation.reservation_number}.pdf`}
+    >
+      <FileText className="h-5 w-5 mr-2" />
+      Descargar PDF
+    </PDFDownloadLink_Reservation>
+  )}
 
   {/* ——— Botón para generar Informe Gestión ——— */}
   <button
@@ -303,24 +306,21 @@ const ReservationDetail: React.FC = () => {
       fileName={`liquidacion_gestion_${gestionData.numeroReserva}.pdf`}
       className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm"
     >
-      {({ loading }) =>
-        loading ? 'Generando…' : 'Descargar Informe Gestión'
-      }
+      {({ loading }) => (loading ? 'Generando…' : 'Descargar Informe Gestión')}
     </PDFDownloadLink>
   )}
 
-            
-            {!reservation.is_rescinded && (
-              <button
-                onClick={handleRescind}
-                className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
-              >
-                <Ban className="h-5 w-5 mr-2" />
-                Rescindir
-              </button>
-            )}
-          </div>
-        </div>
+  {!reservation.is_rescinded && (
+    <button
+      onClick={handleRescind}
+      className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+    >
+      <Ban className="h-5 w-5 mr-2" />
+      Rescindir
+    </button>
+  )}
+</div>
+
 
         {/* Información de Resciliación si aplica */}
         {reservation.is_rescinded && (
