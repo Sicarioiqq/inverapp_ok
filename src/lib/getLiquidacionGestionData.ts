@@ -4,7 +4,7 @@ import type { LiquidacionGestionData } from '../components/pdf/LiquidacionNegoci
 
 export async function getLiquidacionGestionData(reservationId: string)
 : Promise<LiquidacionGestionData> {
-  // 1) Consulta principal de la reserva
+  // 1) Consulta principal
   const { data: r, error } = await supabase
     .from('reservations')
     .select(`
@@ -31,14 +31,21 @@ export async function getLiquidacionGestionData(reservationId: string)
       total_payment,
       subsidy_payment,
       recovery_payment,
-      broker_commissions:broker_commissions(
-        broker_name,
-        business_name,
+      broker_commissions(
         commission_amount,
-        includes_tax,
-        net_amount,
-        commission_percentage,
-        first_payment_percentage
+        commission_includes_tax,
+        net_commission,
+        number_of_payments,
+        first_payment_percentage,
+        difference,
+        penalty_amount,
+        at_risk,
+        at_risk_reason
+      ),
+      broker:brokers(
+        name,
+        business_name,
+        rut
       ),
       seller:profiles(
         first_name,
@@ -50,18 +57,17 @@ export async function getLiquidacionGestionData(reservationId: string)
 
   if (error) throw error;
 
-  // 2) Consulta separada de promociones
+  // 2) Promociones en consulta aparte
   const { data: promoArr, error: promoError } = await supabase
     .from('promotions')
     .select(`name, description, estimated_value`)
     .eq('reservation_id', reservationId);
-
   if (promoError) throw promoError;
 
-  // 3) Mappeo y retorno
+  // 3) Mappeo
   const client = r.client as any;
   const seller = (r.seller as any) || {};
-  const brokerCommArr = (r.broker_commissions as any[]) || [];
+  const brokerRec = (r.broker_commissions as any[])[0] || null;
 
   return {
     reportTitle: `Liquidación Gestión ${r.reservation_number}`,
@@ -85,18 +91,21 @@ export async function getLiquidacionGestionData(reservationId: string)
 
     fechas: {
       reserva: r.reservation_date,
+      // promesa/escritura si las traes aparte…
     },
 
     preciosLista: {
       depto: r.apartment_price,
       estacionamiento: r.parking_price,
       bodega: r.storage_price,
-      totalLista: r.apartment_price + (r.parking_price || 0) + (r.storage_price || 0),
+      totalLista: r.apartment_price + (r.parking_price||0) + (r.storage_price||0),
     },
 
-    descuentos: {},
+    descuentos: {
+      // rellena si tienes esos valores
+    },
 
-    promociones: promoArr?.map(p => ({
+    promociones: promoArr.map(p => ({
       nombre: p.name,
       descripcion: p.description,
       valorEstimado: p.estimated_value,
@@ -105,27 +114,32 @@ export async function getLiquidacionGestionData(reservationId: string)
     resumenFinanciero: {
       precioMinimoVenta: r.minimum_price,
       totalEscrituracion: r.total_payment,
-      subsidio: r.subsidy_payment,
       totalRecuperacion: r.recovery_payment,
+      subsidio: r.subsidy_payment,
       diferencia:
-        (r.apartment_price + (r.parking_price || 0) + (r.storage_price || 0))
+        (r.apartment_price + (r.parking_price||0) + (r.storage_price||0))
         - r.minimum_price,
     },
 
-    broker: brokerCommArr[0]
+    broker: r.broker
       ? {
-          nombre: brokerCommArr[0].broker_name,
-          razonSocial: brokerCommArr[0].business_name,
+          nombre: (r.broker as any).name,
+          razonSocial: (r.broker as any).business_name,
+          rut: (r.broker as any).rut,
         }
       : undefined,
 
-    comisionBroker: brokerCommArr[0]
+    comisionBroker: brokerRec
       ? {
-          montoBruto: brokerCommArr[0].commission_amount,
-          incluyeIVA: brokerCommArr[0].includes_tax,
-          montoNeto: brokerCommArr[0].net_amount,
-          porcentajeComisionCalculado: brokerCommArr[0].commission_percentage,
-          porcentajePrimerPago: brokerCommArr[0].first_payment_percentage,
+          montoBruto: brokerRec.commission_amount,
+          incluyeIVA: brokerRec.commission_includes_tax,
+          montoNeto: brokerRec.net_commission,
+          numeroPagos: brokerRec.number_of_payments,
+          porcentajePrimerPago: brokerRec.first_payment_percentage,
+          diferencia: brokerRec.difference,
+          penaltyAmount: brokerRec.penalty_amount,
+          atRisk: brokerRec.at_risk,
+          atRiskReason: brokerRec.at_risk_reason,
         }
       : undefined,
 
