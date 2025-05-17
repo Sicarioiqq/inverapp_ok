@@ -115,24 +115,24 @@ const ReservationDetail: React.FC = () => {
     try {
       setLoading(true);
       const { data, error: fetchError } = await supabase
-        .from('reservations')
-        .select(
-          *,
-          client:clients(*),
-          project:projects(*),
-          seller:profiles(*),
-          broker:brokers(*),
-          rescinded_by_user:profiles(first_name, last_name),
-          broker_commission:broker_commissions(
-            id, 
-            commission_amount,
-            at_risk,
-            at_risk_reason,
-            penalty_amount
-          )
-        )
-        .eq('id', id!)
-        .single();
+  .from('reservations')
+  .select(`
+    *,
+    client:clients(*),
+    project:projects(*),
+    seller:profiles(*),
+    broker:brokers(*),
+    rescinded_by_user:profiles(first_name, last_name),
+    broker_commission:broker_commissions(
+      id,
+      commission_amount,
+      at_risk,
+      at_risk_reason,
+      penalty_amount
+    )
+  `)
+  .eq('id', id!)
+  .single();
 
       if (fetchError) throw fetchError;
       setReservation(data);
