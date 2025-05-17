@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   footer: { position: 'absolute', fontSize: 6, bottom: 10, left: 20, right: 20, textAlign: 'center', color: colors.text, borderTopWidth: 1, borderColor: colors.border, paddingTop: 4 },
 });
 
-const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => {
+export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => {
   const {
     reportTitle,
     generationDate,
@@ -260,7 +260,8 @@ const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => 
 
         {/* Broker */}
         {broker && (
-          <>n            <Text style={styles.sectionHeader}>Broker</Text>
+          <>
+            <Text style={styles.sectionHeader}>Broker</Text>
             <View style={styles.table}>
               <View style={styles.tableRow}>
                 <Text style={styles.tableColLabel}>Nombre</Text>
@@ -278,7 +279,8 @@ const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => 
 
         {/* Comisión Broker */}
         {comisionBroker && (
-          <>n            <Text style={styles.sectionHeader}>Comisión Broker</Text>
+          <>
+            <Text style={styles.sectionHeader}>Comisión Broker</Text>
             <View style={styles.table}>
               <View style={styles.tableRow}>
                 <Text style={styles.tableColLabel}>Monto Bruto</Text>
@@ -294,7 +296,8 @@ const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => 
 
         {/* Vendedor Interno */}
         {vendedor && (
-          <>n            <Text style={styles.sectionHeader}>Vendedor Interno</Text>
+          <>
+            <Text style={styles.sectionHeader}>Vendedor Interno</Text>
             <View style={styles.table}>
               <View style={styles.tableRow}>
                 <Text style={styles.tableColLabel}>Nombre</Text>
@@ -315,5 +318,3 @@ const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (props) => 
     </Document>
   );
 };
-
-export default LiquidacionGestionDocument;
