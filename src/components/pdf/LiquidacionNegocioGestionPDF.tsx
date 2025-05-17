@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   subHeader: { fontSize: 8, textAlign: 'center', marginBottom: 12, color: colors.text },
   logo: { width: 80, height: 30, alignSelf: 'flex-end', marginBottom: 10 },
   sectionHeader: { fontSize: 10, fontWeight: 'bold', marginBottom: 4, color: colors.text },
-  table: { display: 'table', width: 'auto', marginBottom: 8, borderWidth: 1, borderColor: colors.border },
+  table: { width: 'auto', marginBottom: 8, borderWidth: 1, borderColor: colors.border, flexDirection: 'column' },
   tableRow: { flexDirection: 'row' },
   tableColLabel: { width: '30%', backgroundColor: colors.backgroundLight, borderRightWidth: 1, borderColor: colors.border, padding: 4 },
   tableColValue: { width: '70%', padding: 4 },
