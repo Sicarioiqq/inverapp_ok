@@ -58,8 +58,12 @@ export async function getLiquidacionGestionData(reservationId: string)
     .single();
 
   if (error) {
-    console.error('Error fetching reservation data:', error); // Es buena práctica loguear el error
+    console.error('Error fetching reservation data:', error);
     throw error;
+  }
+
+  if (!r) {
+    throw new Error('Reservation not found');
   }
 
   // 2) Consulta separada de promociones (estructura real)
@@ -73,7 +77,7 @@ export async function getLiquidacionGestionData(reservationId: string)
     .eq('reservation_id', reservationId);
 
   if (promoError) {
-    console.error('Error fetching promotions data:', promoError); // Loguear error
+    console.error('Error fetching promotions data:', promoError);
     throw promoError;
   }
 
@@ -84,18 +88,14 @@ export async function getLiquidacionGestionData(reservationId: string)
   const brokerRec = brokerComArr[0] || null;
 
   // Función para formatear la fecha si es necesario (opcional, pero recomendado)
-  // Puedes usar una librería como date-fns o similar si ya la tienes, o el formateo básico.
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return undefined;
-    // Ejemplo de formateo, ajusta según el formato de tu base de datos y el deseado.
-    // Si ya viene como YYYY-MM-DD y quieres DD/MM/YYYY:
     try {
       const date = new Date(dateString);
-      // Asegúrate de que la fecha es válida antes de formatear
-      if (isNaN(date.getTime())) return dateString; // Devuelve el string original si no es una fecha válida
-      return new Intl.DateTimeFormat('es-CL').format(date); // Formato localizado para Chile
+      if (isNaN(date.getTime())) return dateString;
+      return new Intl.DateTimeFormat('es-CL').format(date);
     } catch (e) {
-      return dateString; // En caso de error, devuelve el string original
+      return dateString;
     }
   };
 
@@ -105,15 +105,15 @@ export async function getLiquidacionGestionData(reservationId: string)
     numeroReserva: r.reservation_number,
 
     cliente: {
-      nombreCompleto: `${client.first_name} ${client.last_name}`,
-      rut: client.rut,
-      email: client.email,
-      telefono: client.phone,
+      nombreCompleto: `${client?.first_name || ''} ${client?.last_name || ''}`.trim(),
+      rut: client?.rut,
+      email: client?.email,
+      telefono: client?.phone,
     },
 
     unidad: {
-      proyectoNombre: r.project.name,
-      proyectoEtapa: r.project.stage,
+      proyectoNombre: r.project?.name,
+      proyectoEtapa: r.project?.stage,
       deptoNumero: r.apartment_number,
       estacionamientoNumero: r.parking_number ?? undefined,
       bodegaNumero: r.storage_number ?? undefined,
@@ -127,8 +127,8 @@ export async function getLiquidacionGestionData(reservationId: string)
 
     preciosLista: {
       depto: r.apartment_price,
-      estacionamiento: r.parking_price,
-      bodega: r.storage_price,
+      estacionamiento: r.parking_price || 0,
+      bodega: r.storage_price || 0,
       totalLista: r.apartment_price + (r.parking_price || 0) + (r.storage_price || 0),
     },
 
@@ -136,7 +136,7 @@ export async function getLiquidacionGestionData(reservationId: string)
       // Rellena si dispones de los porcentajes
     },
 
-    promociones: promoArr.map(p => ({
+    promociones: (promoArr || []).map(p => ({
       nombre: p.promotion_type,
       descripcion: p.observations,
       valorEstimado: p.amount,
@@ -154,9 +154,9 @@ export async function getLiquidacionGestionData(reservationId: string)
 
     broker: r.broker
       ? {
-          nombre: (r.broker as any).name,
-          razonSocial: (r.broker as any).business_name,
-          rut: (r.broker as any).rut,
+          nombre: r.broker.name,
+          razonSocial: r.broker.business_name,
+          rut: r.broker.rut,
         }
       : undefined,
 
@@ -175,7 +175,7 @@ export async function getLiquidacionGestionData(reservationId: string)
       : undefined,
 
     vendedor: seller && seller.first_name
-      ? { nombreCompleto: `${seller.first_name} ${seller.last_name}` }
+      ? { nombreCompleto: `${seller.first_name} ${seller.last_name}`.trim() }
       : undefined,
   };
 }
