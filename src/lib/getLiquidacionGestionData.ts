@@ -11,7 +11,7 @@ export async function getLiquidacionGestionData(reservationId: string)
       reservation_number,
       reservation_date,
       promise_date,
-      deed_date
+      deed_date,
       client:clients(
         first_name,
         last_name,
