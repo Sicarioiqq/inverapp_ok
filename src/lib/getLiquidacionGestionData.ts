@@ -10,6 +10,8 @@ export async function getLiquidacionGestionData(reservationId: string)
     .select(`
       reservation_number,
       reservation_date,
+      promise_date,
+      deed_date
       client:clients(
         first_name,
         last_name,
@@ -55,7 +57,10 @@ export async function getLiquidacionGestionData(reservationId: string)
     .eq('id', reservationId)
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error fetching reservation data:', error); // Es buena práctica loguear el error
+    throw error;
+  }
 
   // 2) Consulta separada de promociones (estructura real)
   const { data: promoArr, error: promoError } = await supabase
