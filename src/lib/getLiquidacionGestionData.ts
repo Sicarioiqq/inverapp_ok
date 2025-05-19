@@ -121,6 +121,8 @@ export async function getLiquidacionGestionData(reservationId: string)
 
     fechas: {
       reserva: r.reservation_date,
+      promesa: formatDate(r.promise_date),     // <--- AÑADIR: Mapeo de la fecha de promesa
+      escritura: formatDate(r.deed_date),
     },
 
     preciosLista: {
