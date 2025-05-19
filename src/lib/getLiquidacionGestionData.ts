@@ -127,8 +127,8 @@ export async function getLiquidacionGestionData(reservationId: string)
 
     preciosLista: {
       depto: r.apartment_price,
-      estacionamiento: r.parking_price || 0,
-      bodega: r.storage_price || 0,
+      estacionamiento: r.parking_price ?? undefined,
+      bodega: r.storage_price ?? undefined,
       totalLista: r.apartment_price + (r.parking_price || 0) + (r.storage_price || 0),
     },
 
