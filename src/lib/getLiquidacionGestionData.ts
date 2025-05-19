@@ -83,6 +83,22 @@ export async function getLiquidacionGestionData(reservationId: string)
   const brokerComArr = (r.broker_commissions as any[]) || [];
   const brokerRec = brokerComArr[0] || null;
 
+  // Función para formatear la fecha si es necesario (opcional, pero recomendado)
+  // Puedes usar una librería como date-fns o similar si ya la tienes, o el formateo básico.
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return undefined;
+    // Ejemplo de formateo, ajusta según el formato de tu base de datos y el deseado.
+    // Si ya viene como YYYY-MM-DD y quieres DD/MM/YYYY:
+    try {
+      const date = new Date(dateString);
+      // Asegúrate de que la fecha es válida antes de formatear
+      if (isNaN(date.getTime())) return dateString; // Devuelve el string original si no es una fecha válida
+      return new Intl.DateTimeFormat('es-CL').format(date); // Formato localizado para Chile
+    } catch (e) {
+      return dateString; // En caso de error, devuelve el string original
+    }
+  };
+
   return {
     reportTitle: `Liquidación Gestión ${r.reservation_number}`,
     generationDate: new Date().toLocaleDateString('es-CL'),
