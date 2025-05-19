@@ -120,7 +120,7 @@ export async function getLiquidacionGestionData(reservationId: string)
     },
 
     fechas: {
-      reserva: r.reservation_date,
+      reserva: formatDate(r.reservation_date),
       promesa: formatDate(r.promise_date),     
       escritura: formatDate(r.deed_date),
     },
