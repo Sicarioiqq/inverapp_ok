@@ -72,7 +72,10 @@ export async function getLiquidacionGestionData(reservationId: string)
     `)
     .eq('reservation_id', reservationId);
 
-  if (promoError) throw promoError;
+  if (promoError) {
+    console.error('Error fetching promotions data:', promoError); // Loguear error
+    throw promoError;
+  }
 
   // 3) Mappeo y retorno
   const client = r.client as any;
