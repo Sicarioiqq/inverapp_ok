@@ -174,7 +174,7 @@ export async function getLiquidacionGestionData(reservationId: string)
         }
       : undefined,
 
-    vendedor: seller.first_name
+    vendedor: seller && seller.first_name
       ? { nombreCompleto: `${seller.first_name} ${seller.last_name}` }
       : undefined,
   };
