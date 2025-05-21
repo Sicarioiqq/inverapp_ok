@@ -134,7 +134,7 @@ const CotizadorSettings: React.FC = () => {
 
 
 
-    // Set para mantener un registro de las combinaciones únicas de proyecto_nombre y unidad
+    // Set para mantener un registro de las combinaciones únicas de proyecto_nombre, unidad y tipo
 
     const uniqueKeys = new Set<string>();
 
@@ -158,15 +158,11 @@ const CotizadorSettings: React.FC = () => {
 
 
 
-        // Si falta alguno de los campos clave, omitir la fila
-
-        if (!proyectoNombre || !unidad) {
-
-          console.warn('Fila sin proyecto o unidad:', row);
-
-          return null;
-
-        }
+  // Si falta nombre de proyecto, omitir la fila
+  if (!proyectoNombre) {
+     console.warn('Fila sin proyecto:', row);
+     return null;
+  }
 
 
 
