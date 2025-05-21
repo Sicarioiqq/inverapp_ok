@@ -202,7 +202,7 @@ const CotizadorSettings: React.FC = () => {
 
           unidad: unidad,
 
-          tipologia: getSafeString(row['Tipo']),
+          tipologia: tipoBien,
 
           piso: getSafeString(row['Piso']),
 
