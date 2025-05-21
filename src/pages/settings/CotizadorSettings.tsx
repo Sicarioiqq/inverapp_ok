@@ -1,9 +1,8 @@
 // src/pages/settings/CotizadorSettings.tsx
 import React, { useState } from 'react';
-import StockUploadCard from './components/StockUploadCard'; // Asumiendo que está en src/pages/settings/components/
-import { supabase } from '@/lib/supabase'; // ¡VERIFICA ESTA IMPORTACIÓN Y LA CONFIGURACIÓN DE TU ALIAS!
-                                        // Si falla después de los arreglos de Bolt, prueba temporalmente una ruta relativa.
-import { toast } from 'react-hot-toast';   // O tu sistema de notificaciones preferido
+import StockUploadCard from './components/StockUploadCard';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'react-hot-toast';
 
 // Función auxiliar para convertir strings con coma (o sin ella) a números
 const toNumber = (value: any): number | null => {
@@ -26,6 +25,26 @@ const getSafeString = (value: any): string | null => {
   return (str === 'EMPTY' || str === '') ? null : str;
 };
 
+// Función para normalizar el estado de la unidad
+const normalizeEstado = (estado: string | null): string => {
+  if (!estado) return 'Disponible';
+  
+  const estadoNormalizado = estado.trim().toLowerCase();
+  
+  switch (estadoNormalizado) {
+    case 'disponible':
+      return 'Disponible';
+    case 'reservado':
+      return 'Reservado';
+    case 'vendido':
+      return 'Vendido';
+    case 'no disponible':
+      return 'No Disponible';
+    default:
+      return 'Disponible';
+  }
+};
+
 const CotizadorSettings: React.FC = () => {
   const [isUploadingToSupabase, setIsUploadingToSupabase] = useState<boolean>(false);
   const [supabaseError, setSupabaseError] = useState<string | null>(null);
@@ -45,22 +64,20 @@ const CotizadorSettings: React.FC = () => {
 
     const mappedData = dataFromExcel.map(row => {
       // Mapeo: Columna Supabase : row['Encabezado EXACTO del Excel']
-      // Basado en tu Excel: "Nombre del Proyecto", "N° Bien", "Tipo", "Piso", "Orientación",
-      // "Estado Bien", "Valor lista", "Sup. Útil", "Sup. terraza", "Sup. total".
       const item = {
         proyecto_nombre: getSafeString(row['Nombre del Proyecto']),
-        unidad_codigo:   getSafeString(row['N° Bien']),
-        tipologia:       getSafeString(row['Tipo']),
-        piso:            getSafeString(row['Piso']),
-        orientacion:     getSafeString(row['Orientación']),
-        m2_utiles:       toNumber(row['Sup. Útil']),
-        m2_terraza:      toNumber(row['Sup. terraza']),
-        m2_totales:      toNumber(row['Sup. total']),
-        precio_uf:       toNumber(row['Valor lista']),
-        estado_unidad:   getSafeString(row['Estado Bien']) || 'Disponible', // Fallback a 'Disponible'
+        unidad_codigo: getSafeString(row['N° Bien']),
+        tipologia: getSafeString(row['Tipo']),
+        piso: getSafeString(row['Piso']),
+        orientacion: getSafeString(row['Orientación']),
+        m2_utiles: toNumber(row['Sup. Útil']),
+        m2_terraza: toNumber(row['Sup. terraza']),
+        m2_totales: toNumber(row['Sup. total']),
+        precio_uf: toNumber(row['Valor lista']),
+        estado_unidad: normalizeEstado(getSafeString(row['Estado Bien']))
       };
       return item;
-    }).filter(row => row.unidad_codigo && row.unidad_codigo.trim() !== ''); // Solo filas con un 'N° Bien' válido
+    }).filter(row => row.unidad_codigo && row.unidad_codigo.trim() !== '');
 
     if (mappedData.length === 0) {
       toast.error('No se encontraron datos válidos (con "N° Bien") para cargar tras el mapeo.');
@@ -71,18 +88,15 @@ const CotizadorSettings: React.FC = () => {
     console.log('Datos mapeados para Supabase:', mappedData);
 
     try {
-      // **IMPORTANTE**: 'onConflict' debe coincidir con tu UNIQUE constraint en la tabla 'stock_unidades'.
-      // Si tu constraint es UNIQUE(proyecto_nombre, unidad_codigo), entonces usa 'proyecto_nombre,unidad_codigo'.
-      // Si tu constraint es solo UNIQUE(unidad_codigo), entonces usa 'unidad_codigo'.
       const { data, error } = await supabase
-        .from('stock_unidades') // Nombre exacto de tu tabla en Supabase
+        .from('stock_unidades')
         .upsert(mappedData, {
-          onConflict: 'proyecto_nombre,unidad_codigo', // AJUSTA ESTO A TU CONSTRAINT
+          onConflict: 'proyecto_nombre,unidad_codigo',
         });
 
       if (error) {
         console.error('Error de Supabase al hacer upsert:', error);
-        throw error; // Esto será capturado por el bloque catch
+        throw error;
       }
 
       const successMsg = `¡Stock procesado! ${mappedData.length} unidades consideradas para carga/actualización en Supabase.`;
@@ -92,7 +106,6 @@ const CotizadorSettings: React.FC = () => {
 
     } catch (error: any) {
       console.error('Error en el proceso de carga a Supabase:', error);
-      // El mensaje de error de Supabase suele ser informativo
       const errorMsg = `Error al guardar en Supabase: ${error.message || 'Error desconocido. Revisa la consola del navegador y de Supabase.'}`;
       setSupabaseError(errorMsg);
       toast.error(errorMsg);
