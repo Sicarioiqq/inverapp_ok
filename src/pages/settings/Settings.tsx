@@ -6,6 +6,7 @@ import Projects from './Projects';
 import UsersComponent from './Users';
 import FlowConfig from './FlowConfig';
 import PaymentFlowConfig from './PaymentFlowConfig';
+import CotizadorSettings from './CotizadorSettings';
 
 type Tab = 'projects' | 'agencies' | 'users' | 'permissions' | 'flow' | 'payment-flow';
 
