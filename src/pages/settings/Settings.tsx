@@ -44,6 +44,12 @@ const Settings = () => {
       name: 'Permisos',
       icon: <Shield className="h-5 w-5" />,
     },
+    // <--- ADICIÓN: Nueva pestaña para Cotizador
+    {
+      id: 'cotizador' as Tab,
+      name: 'Cotizador',
+      icon: <BarChart3 className="h-5 w-5" />, // Puedes cambiar este ícono por uno que prefieras
+    },
   ];
 
   return (
