@@ -29,20 +29,24 @@ const getSafeString = (value: any): string | null => {
 const normalizeEstado = (estado: string | null): string => {
   if (!estado) return 'Disponible';
   
+  // Normaliza el string removiendo espacios extra y convirtiendo a minúsculas
   const estadoNormalizado = estado.trim().toLowerCase();
   
-  switch (estadoNormalizado) {
-    case 'disponible':
-      return 'Disponible';
-    case 'reservado':
-      return 'Reservado';
-    case 'vendido':
-      return 'Vendido';
-    case 'no disponible':
-      return 'No Disponible';
-    default:
-      return 'Disponible';
-  }
+  // Mapa de estados válidos y sus normalizaciones
+  const estadosValidos: { [key: string]: string } = {
+    'disponible': 'Disponible',
+    'reservado': 'Reservado',
+    'vendido': 'Vendido',
+    'no disponible': 'No Disponible',
+    'nodisponible': 'No Disponible',
+    'no_disponible': 'No Disponible',
+    'disponible ': 'Disponible',
+    'reservada': 'Reservado',
+    'vendida': 'Vendido',
+  };
+
+  // Retorna el estado normalizado si existe en el mapa, o 'Disponible' por defecto
+  return estadosValidos[estadoNormalizado] || 'Disponible';
 };
 
 const CotizadorSettings: React.FC = () => {
@@ -82,7 +86,8 @@ const CotizadorSettings: React.FC = () => {
         m2_terraza: toNumber(row['Sup. terraza']),
         m2_totales: toNumber(row['Sup. total']),
         precio_uf: toNumber(row['Valor lista']),
-        estado_unidad: normalizeEstado(getSafeString(row['Estado Bien'])) // Corregido: Aseguramos que siempre tenga un valor válido
+        estado: normalizeEstado(getSafeString(row['Estado Bien'])), // Aseguramos que siempre tenga un valor válido
+        estado_unidad: normalizeEstado(getSafeString(row['Estado Bien'])) // Mantenemos ambos campos sincronizados
       };
 
       // Verificar que tenemos los campos requeridos
