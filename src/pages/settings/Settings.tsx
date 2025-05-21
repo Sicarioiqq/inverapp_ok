@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Layout from '../../components/Layout';
-import { Building2, Users as UsersIcon, Shield, Home, ListChecks } from 'lucide-react';
+import { Building2, Users as UsersIcon, Shield, Home, ListChecks, BarChart3 } from 'lucide-react';
 import RealEstateAgencies from './RealEstateAgencies';
 import Projects from './Projects';
 import UsersComponent from './Users';
