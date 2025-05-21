@@ -87,7 +87,7 @@ const Settings = () => {
           {activeTab === 'flow' && <FlowConfig />}
           {activeTab === 'payment-flow' && <PaymentFlowConfig />}
           {activeTab === 'permissions' && <div>Contenido de Permisos</div>}
-          {activeTab === 'payment-flow' && <CotizadorSettings />}
+          {activeTab === 'cotizador' && <CotizadorSettings />}
         </div>
       </div>
     </Layout>
