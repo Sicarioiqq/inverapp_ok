@@ -63,9 +63,17 @@ const CotizadorSettings: React.FC = () => {
     setIsUploadingToSupabase(true);
 
     const mappedData = dataFromExcel.map(row => {
+      // Asegurarse de que tenemos un valor válido para 'unidad'
+      const unidad = getSafeString(row['N° Bien']) || row['Unidad'] || row['N° Unidad'];
+      if (!unidad) {
+        console.warn('Fila sin número de unidad:', row);
+        return null;
+      }
+
       // Mapeo: Columna Supabase : row['Encabezado EXACTO del Excel']
       const item = {
         proyecto_nombre: getSafeString(row['Nombre del Proyecto']),
+        unidad: unidad, // Campo requerido
         unidad_codigo: getSafeString(row['N° Bien']),
         tipologia: getSafeString(row['Tipo']),
         piso: getSafeString(row['Piso']),
@@ -76,11 +84,24 @@ const CotizadorSettings: React.FC = () => {
         precio_uf: toNumber(row['Valor lista']),
         estado_unidad: normalizeEstado(getSafeString(row['Estado Bien']))
       };
+
+      // Verificar que tenemos los campos requeridos
+      if (!item.proyecto_nombre) {
+        console.warn('Fila sin nombre de proyecto:', row);
+        return null;
+      }
+
       return item;
-    }).filter(row => row.unidad_codigo && row.unidad_codigo.trim() !== '');
+    }).filter((item): item is NonNullable<typeof item> => 
+      item !== null && 
+      item.unidad !== null && 
+      item.proyecto_nombre !== null
+    );
 
     if (mappedData.length === 0) {
-      toast.error('No se encontraron datos válidos (con "N° Bien") para cargar tras el mapeo.');
+      const errorMsg = 'No se encontraron datos válidos para cargar. Asegúrese de que el archivo contiene las columnas requeridas y valores válidos.';
+      toast.error(errorMsg);
+      setSupabaseError(errorMsg);
       setIsUploadingToSupabase(false);
       return;
     }
