@@ -66,7 +66,7 @@ const CotizadorSettings: React.FC = () => {
 
     setIsUploadingToSupabase(true);
 
-    // Set para mantener un registro de las combinaciones únicas de proyecto_nombre y unidad_codigo
+    // Set para mantener un registro de las combinaciones únicas de proyecto_nombre y unidad
     const uniqueKeys = new Set<string>();
     const mappedData = dataFromExcel
       .map(row => {
@@ -78,16 +78,15 @@ const CotizadorSettings: React.FC = () => {
         }
 
         const proyectoNombre = getSafeString(row['Nombre del Proyecto']);
-        const unidadCodigo = getSafeString(row['N° Bien']);
 
         // Si falta alguno de los campos clave, omitir la fila
-        if (!proyectoNombre || !unidadCodigo) {
-          console.warn('Fila sin proyecto o código de unidad:', row);
+        if (!proyectoNombre || !unidad) {
+          console.warn('Fila sin proyecto o unidad:', row);
           return null;
         }
 
         // Crear una clave única para esta combinación
-        const uniqueKey = `${proyectoNombre}:${unidadCodigo}`;
+        const uniqueKey = `${proyectoNombre}:${unidad}`;
 
         // Si ya hemos visto esta combinación, omitir la fila
         if (uniqueKeys.has(uniqueKey)) {
@@ -102,7 +101,6 @@ const CotizadorSettings: React.FC = () => {
         return {
           proyecto_nombre: proyectoNombre,
           unidad: unidad,
-          //unidad_codigo: unidadCodigo,
           tipologia: getSafeString(row['Tipo']),
           piso: getSafeString(row['Piso']),
           orientacion: getSafeString(row['Orientación']),
@@ -110,7 +108,6 @@ const CotizadorSettings: React.FC = () => {
           m2_terraza: toNumber(row['Sup. terraza']),
           m2_totales: toNumber(row['Sup. total']),
           precio_uf: toNumber(row['Valor lista']),
-          //estado: normalizeEstado(getSafeString(row['Estado Bien'])),
           estado_unidad: normalizeEstado(getSafeString(row['Estado Bien']))
         };
       })
@@ -139,7 +136,7 @@ const CotizadorSettings: React.FC = () => {
       const { data, error } = await supabase
         .from('stock_unidades')
         .upsert(mappedData, {
-          onConflict: 'proyecto_nombre,unidad',
+          onConflict: 'proyecto_nombre,unidad'
         });
 
       if (error) {
