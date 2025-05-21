@@ -51,6 +51,7 @@ const CotizadorSettings: React.FC = () => {
           piso: getSafeString(row['Piso']),
           orientacion: getSafeString(row['Orientación']),
           etapa: toNumber(row['Etapa']),
+          tipoBien   = getSafeString(row['Tipo Bien']);
           valor_lista: toNumber(row['Valor lista']),
           descuento: toNumber(row['Descuento']),
           sup_interior: toNumber(row['Sup. Interior']),
