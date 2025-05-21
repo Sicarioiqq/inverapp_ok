@@ -142,17 +142,15 @@ const CotizadorSettings: React.FC = () => {
 
       .map(row => {
 
-        // Asegurarse de que tenemos un valor válido para 'unidad'
+        // Asegurarse de que tenemos un valor válido para 'unidad' y 'tipo'
 
         const unidad = getSafeString(row['N° Bien']) || row['Unidad'] || row['N° Unidad'];
+        const tipoBien = getSafeString(row['Tipo Bien']) || getSafeString(row['Tipo']);
 
-        if (!unidad) {
-
-          console.warn('Fila sin número de unidad:', row);
-
-          return null;
-
-        }
+        if (!unidad /* || !tipoBien? */) {
+        console.warn('Fila sin número de unidad (o tipo):', row);
+        return null;
+      }
 
 
 
@@ -174,7 +172,7 @@ const CotizadorSettings: React.FC = () => {
 
         // Crear una clave única para esta combinación
 
-        const uniqueKey = `${proyectoNombre}:${unidad}`;
+        const uniqueKey = `${proyectoNombre}:${unidad}:${tipoBien}`;
 
 
 
@@ -274,7 +272,7 @@ const CotizadorSettings: React.FC = () => {
 
         .upsert(mappedData, {
 
-          onConflict: 'proyecto_nombre,unidad'
+          onConflict: 'proyecto_nombre,unidad,tipologia'
 
         });
 
