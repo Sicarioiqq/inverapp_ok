@@ -8,7 +8,7 @@ import FlowConfig from './FlowConfig';
 import PaymentFlowConfig from './PaymentFlowConfig';
 import CotizadorSettings from './CotizadorSettings';
 
-type Tab = 'projects' | 'agencies' | 'users' | 'permissions' | 'flow' | 'payment-flow';
+type Tab = 'projects' | 'agencies' | 'users' | 'permissions' | 'flow' | 'payment-flow' | 'cotizador';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState<Tab>('projects');
