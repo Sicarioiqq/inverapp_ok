@@ -82,7 +82,7 @@ const CotizadorSettings: React.FC = () => {
         m2_terraza: toNumber(row['Sup. terraza']),
         m2_totales: toNumber(row['Sup. total']),
         precio_uf: toNumber(row['Valor lista']),
-        estado_unidad: normalizeEstado(getSafeString(row['Estado Bien']))
+        estado_unidad: normalizeEstado(getSafeString(row['Estado Bien'])) // Corregido: Aseguramos que siempre tenga un valor válido
       };
 
       // Verificar que tenemos los campos requeridos
