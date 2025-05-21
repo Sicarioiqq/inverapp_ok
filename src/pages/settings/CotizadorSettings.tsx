@@ -268,7 +268,7 @@ const CotizadorSettings: React.FC = () => {
 
         .upsert(mappedData, {
 
-          onConflict: 'proyecto_nombre,unidad,tipologia'
+          onConflict: 'proyecto_nombre,unidad,tipo_bien'
 
         });
 
