@@ -139,7 +139,7 @@ const CotizadorSettings: React.FC = () => {
       const { data, error } = await supabase
         .from('stock_unidades')
         .upsert(mappedData, {
-          onConflict: 'proyecto_nombre,unidad_codigo',
+          onConflict: 'proyecto_nombre,unidad',
         });
 
       if (error) {
