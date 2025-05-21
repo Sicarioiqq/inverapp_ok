@@ -66,42 +66,59 @@ const CotizadorSettings: React.FC = () => {
 
     setIsUploadingToSupabase(true);
 
-    const mappedData = dataFromExcel.map(row => {
-      // Asegurarse de que tenemos un valor válido para 'unidad'
-      const unidad = getSafeString(row['N° Bien']) || row['Unidad'] || row['N° Unidad'];
-      if (!unidad) {
-        console.warn('Fila sin número de unidad:', row);
-        return null;
-      }
+    // Set para mantener un registro de las combinaciones únicas de proyecto_nombre y unidad_codigo
+    const uniqueKeys = new Set<string>();
+    const mappedData = dataFromExcel
+      .map(row => {
+        // Asegurarse de que tenemos un valor válido para 'unidad'
+        const unidad = getSafeString(row['N° Bien']) || row['Unidad'] || row['N° Unidad'];
+        if (!unidad) {
+          console.warn('Fila sin número de unidad:', row);
+          return null;
+        }
 
-      // Mapeo: Columna Supabase : row['Encabezado EXACTO del Excel']
-      const item = {
-        proyecto_nombre: getSafeString(row['Nombre del Proyecto']),
-        unidad: unidad, // Campo requerido
-        unidad_codigo: getSafeString(row['N° Bien']),
-        tipologia: getSafeString(row['Tipo']),
-        piso: getSafeString(row['Piso']),
-        orientacion: getSafeString(row['Orientación']),
-        m2_utiles: toNumber(row['Sup. Útil']),
-        m2_terraza: toNumber(row['Sup. terraza']),
-        m2_totales: toNumber(row['Sup. total']),
-        precio_uf: toNumber(row['Valor lista']),
-        estado: normalizeEstado(getSafeString(row['Estado Bien'])), // Aseguramos que siempre tenga un valor válido
-        estado_unidad: normalizeEstado(getSafeString(row['Estado Bien'])) // Mantenemos ambos campos sincronizados
-      };
+        const proyectoNombre = getSafeString(row['Nombre del Proyecto']);
+        const unidadCodigo = getSafeString(row['N° Bien']);
 
-      // Verificar que tenemos los campos requeridos
-      if (!item.proyecto_nombre) {
-        console.warn('Fila sin nombre de proyecto:', row);
-        return null;
-      }
+        // Si falta alguno de los campos clave, omitir la fila
+        if (!proyectoNombre || !unidadCodigo) {
+          console.warn('Fila sin proyecto o código de unidad:', row);
+          return null;
+        }
 
-      return item;
-    }).filter((item): item is NonNullable<typeof item> => 
-      item !== null && 
-      item.unidad !== null && 
-      item.proyecto_nombre !== null
-    );
+        // Crear una clave única para esta combinación
+        const uniqueKey = `${proyectoNombre}:${unidadCodigo}`;
+
+        // Si ya hemos visto esta combinación, omitir la fila
+        if (uniqueKeys.has(uniqueKey)) {
+          console.warn('Entrada duplicada encontrada:', uniqueKey);
+          return null;
+        }
+
+        // Agregar la clave al Set
+        uniqueKeys.add(uniqueKey);
+
+        // Mapeo: Columna Supabase : row['Encabezado EXACTO del Excel']
+        return {
+          proyecto_nombre: proyectoNombre,
+          unidad: unidad,
+          unidad_codigo: unidadCodigo,
+          tipologia: getSafeString(row['Tipo']),
+          piso: getSafeString(row['Piso']),
+          orientacion: getSafeString(row['Orientación']),
+          m2_utiles: toNumber(row['Sup. Útil']),
+          m2_terraza: toNumber(row['Sup. terraza']),
+          m2_totales: toNumber(row['Sup. total']),
+          precio_uf: toNumber(row['Valor lista']),
+          estado: normalizeEstado(getSafeString(row['Estado Bien'])),
+          estado_unidad: normalizeEstado(getSafeString(row['Estado Bien']))
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => 
+        item !== null && 
+        item.unidad !== null && 
+        item.proyecto_nombre !== null
+      );
 
     if (mappedData.length === 0) {
       const errorMsg = 'No se encontraron datos válidos para cargar. Asegúrese de que el archivo contiene las columnas requeridas y valores válidos.';
@@ -109,6 +126,11 @@ const CotizadorSettings: React.FC = () => {
       setSupabaseError(errorMsg);
       setIsUploadingToSupabase(false);
       return;
+    }
+
+    const duplicatesRemoved = dataFromExcel.length - mappedData.length;
+    if (duplicatesRemoved > 0) {
+      console.log(`Se eliminaron ${duplicatesRemoved} entradas duplicadas`);
     }
     
     console.log('Datos mapeados para Supabase:', mappedData);
@@ -125,7 +147,9 @@ const CotizadorSettings: React.FC = () => {
         throw error;
       }
 
-      const successMsg = `¡Stock procesado! ${mappedData.length} unidades consideradas para carga/actualización en Supabase.`;
+      const successMsg = `¡Stock procesado! ${mappedData.length} unidades consideradas para carga/actualización en Supabase.${
+        duplicatesRemoved > 0 ? ` Se omitieron ${duplicatesRemoved} entradas duplicadas.` : ''
+      }`;
       setSupabaseSuccess(successMsg);
       toast.success(successMsg);
       console.log('Datos guardados/actualizados en Supabase:', data);
