@@ -139,94 +139,71 @@ const CotizadorSettings: React.FC = () => {
     const uniqueKeys = new Set<string>();
 
     const mappedData = dataFromExcel
+  .map(row => {
+    const unidad      = getSafeString(row['N° Bien']) || row['Unidad'] || row['N° Unidad'];
+    const tipo        = getSafeString(row['Tipo']);
+    const tipoBien    = getSafeString(row['Tipo Bien']);
+    const proyecto    = getSafeString(row['Nombre del Proyecto']);
+    const bloqueado   = getSafeString(row['Bloqueado']);        // para estado_unidad
+    const etapa       = getSafeString(row['Etapa']);
+    const piso        = getSafeString(row['Piso']);
+    const orientacion = getSafeString(row['Orientación']);
 
-      .map(row => {
+    // Campos numéricos
+    const valorLista     = toNumber(row['Valor lista']);
+    const descuentoAut   = toNumber(row['Descuento autorizado']);
+    const supInterior    = toNumber(row['Sup. Interior']);
+    const supUtil        = toNumber(row['Sup. Útil']);
+    const supTerraza     = toNumber(row['Sup. terraza']);
+    const supPonderada   = toNumber(row['Sup. ponderada']);
+    const supTerreno     = toNumber(row['Sup. terreno']);
+    const supJardin      = toNumber(row['Sup. jardín']);
+    const supTotal       = toNumber(row['Sup. total']);
+    const supLogia       = toNumber(row['Sup. logia']);
 
-        // Asegurarse de que tenemos un valor válido para 'unidad' y 'tipo'
+    // Validaciones
+    if (!proyecto || !unidad || !tipoBien) {
+      console.warn('Fila incompleta (Proyecto, Unidad o Tipo Bien faltante):', row);
+      return null;
+    }
 
-        const unidad = getSafeString(row['N° Bien']) || row['Unidad'] || row['N° Unidad'];
-        const tipoBien = getSafeString(row['Tipo Bien']) || getSafeString(row['Tipo']);
+    // Detección de duplicados por (proyecto, unidad, tipo_bien)
+    const key = `${proyecto}:${unidad}:${tipoBien}`;
+    if (uniqueKeys.has(key)) {
+      console.warn('Duplicado detectado:', key);
+      return null;
+    }
+    uniqueKeys.add(key);
 
-        if (!unidad || !tipoBien) {
-        console.warn('Fila sin número de unidad (o tipo):', row);
-        return null;
-      }
+    return {
+      proyecto_nombre: proyecto,              // Nombre del Proyecto
+      unidad:          unidad,                // N° Bien
+      tipo_bien:       tipoBien,              // Tipo Bien
+      tipologia:       tipo || null,          // Tipo
+      etapa:           etapa || null,         // Etapa
+      piso:            piso || null,          // Piso
+      orientacion:     orientacion || null,   // Orientación
 
+      valor_lista:    valorLista,             // Valor lista
+      descuento:      descuentoAut,           // Descuento autorizado
+      sup_interior:   supInterior,            // Sup. Interior
+      sup_util:       supUtil,                // Sup. Útil
+      sup_terraza:    supTerraza,             // Sup. terraza
+      sup_ponderada:  supPonderada,           // Sup. ponderada
+      sup_terreno:    supTerreno,             // Sup. terreno
+      sup_jardin:     supJardin,              // Sup. jardín
+      sup_total:      supTotal,               // Sup. total
+      sup_logia:      supLogia,               // Sup. logia
 
+      estado_unidad: normalizeEstado(bloqueado) // Bloqueado
+    };
+  })
+  .filter((item): item is NonNullable<typeof item> =>
+    item !== null &&
+    item.unidad !== null &&
+    item.proyecto_nombre !== null
+  );
 
-        const proyectoNombre = getSafeString(row['Nombre del Proyecto']);
-
-
-
-  // Si falta nombre de proyecto, omitir la fila
-  if (!proyectoNombre) {
-     console.warn('Fila sin proyecto:', row);
-     return null;
-  }
-
-
-
-        // Crear una clave única para esta combinación
-
-        const uniqueKey = `${proyectoNombre}:${unidad}:${tipoBien}`;
-
-
-
-        // Si ya hemos visto esta combinación, omitir la fila
-
-        if (uniqueKeys.has(uniqueKey)) {
-
-          console.warn('Entrada duplicada encontrada:', uniqueKey);
-
-          return null;
-
-        }
-
-
-
-        // Agregar la clave al Set
-
-        uniqueKeys.add(uniqueKey);
-
-
-
-        // Mapeo: Columna Supabase : row['Encabezado EXACTO del Excel']
-
-        return {
-
-          proyecto_nombre: proyectoNombre,
-
-          unidad: unidad,
-
-          tipologia: tipoBien,
-
-          piso: getSafeString(row['Piso']),
-
-          orientacion: getSafeString(row['Orientación']),
-
-          m2_utiles: toNumber(row['Sup. Útil']),
-
-          m2_terraza: toNumber(row['Sup. terraza']),
-
-          m2_totales: toNumber(row['Sup. total']),
-
-          precio_uf: toNumber(row['Valor lista']),
-
-          estado_unidad: normalizeEstado(getSafeString(row['Estado Bien']))
-
-        };
-
-      })
-
-      .filter((item): item is NonNullable<typeof item> => 
-
-        item !== null && 
-
-        item.unidad !== null && 
-
-        item.proyecto_nombre !== null
-
-      );
 
 
 
