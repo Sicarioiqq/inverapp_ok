@@ -147,7 +147,7 @@ const CotizadorSettings: React.FC = () => {
         const unidad = getSafeString(row['N° Bien']) || row['Unidad'] || row['N° Unidad'];
         const tipoBien = getSafeString(row['Tipo Bien']) || getSafeString(row['Tipo']);
 
-        if (!unidad /* || !tipoBien? */) {
+        if (!unidad || !tipoBien) {
         console.warn('Fila sin número de unidad (o tipo):', row);
         return null;
       }
