@@ -102,7 +102,7 @@ const CotizadorSettings: React.FC = () => {
         return {
           proyecto_nombre: proyectoNombre,
           unidad: unidad,
-          unidad_codigo: unidadCodigo,
+          //unidad_codigo: unidadCodigo,
           tipologia: getSafeString(row['Tipo']),
           piso: getSafeString(row['Piso']),
           orientacion: getSafeString(row['Orientación']),
@@ -110,7 +110,7 @@ const CotizadorSettings: React.FC = () => {
           m2_terraza: toNumber(row['Sup. terraza']),
           m2_totales: toNumber(row['Sup. total']),
           precio_uf: toNumber(row['Valor lista']),
-          estado: normalizeEstado(getSafeString(row['Estado Bien'])),
+          //estado: normalizeEstado(getSafeString(row['Estado Bien'])),
           estado_unidad: normalizeEstado(getSafeString(row['Estado Bien']))
         };
       })
