@@ -983,4 +983,235 @@ const BrokerQuotePage: React.FC = () => {
                                       id="secondaryUnitSelect"
                                       value={selectedSecondaryUnitToAdd}
                                       onChange={e => setSelectedSecondaryUnitToAdd(e.target.value)}
-                                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-
+                                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                  >
+                                      <option value="">Seleccione un secundario</option>
+                                      {projectSecondaryUnits.length === 0 ? (
+                                          <option disabled>No hay unidades secundarias disponibles.</option>
+                                      ) : (
+                                          projectSecondaryUnits.map(unit => (
+                                              // Solo mostrar unidades que no han sido añadidas ya
+                                              !addedSecondaryUnits.some(addedUnit => addedUnit.id === unit.id) && (
+                                                  <option key={unit.id} value={unit.id}>
+                                                      {unit.unidad} ({unit.tipo_bien}) - {formatCurrency(unit.valor_lista)} UF
+                                                  </option>
+                                              )
+                                          ))
+                                      )}
+                                  </select>
+                              </div>
+                              <button
+                                  type="button"
+                                  onClick={handleAddSecondaryUnit}
+                                  disabled={!selectedSecondaryUnitToAdd}
+                                  className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 flex items-center"
+                              >
+                                  <PlusCircle className="h-5 w-5 mr-1" /> Agregar
+                              </button>
+                          </div>
+                      </div>
+
+                      {/* Columna 3: Lista de Secundarios Agregados */}
+                      <div className="border-t lg:border-t-0 lg:border-l lg:pl-6 pt-4 lg:pt-0"> {/* Separación visual y para columnas */}
+                          <h4 className="text-lg font-semibold mb-3">Secundarios Agregados:</h4>
+                          {addedSecondaryUnits.length === 0 ? (
+                              <p className="text-gray-500">Ningún secundario añadido.</p>
+                          ) : (
+                              <ul className="space-y-2">
+                                  {addedSecondaryUnits.map(unit => (
+                                      <li key={unit.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
+                                          <span className="text-sm text-gray-800">
+                                              {unit.unidad} ({unit.tipo_bien}) - {formatCurrency(unit.valor_lista)} UF
+                                          </span>
+                                          <button
+                                              type="button"
+                                              onClick={() => handleRemoveAddedSecondaryUnit(unit.id)}
+                                              className="text-red-600 hover:text-red-800 ml-4 p-1 rounded-full hover:bg-red-100"
+                                              title="Eliminar de la cotización"
+                                          >
+                                              <Trash2 className="h-4 w-4" />
+                                          </button>
+                                      </li>
+                                  ))}
+                              </ul>
+                          )}
+                      </div>
+                  </div>
+              </div>
+            )} {/* FIN NUEVA TARJETA: Configuración de Cotización */}
+            
+            {/* NUEVA TARJETA: Resumen de Cotización */}
+            {selectedUnidad && ( /* Solo mostrar esta tarjeta si hay una unidad seleccionada */
+                <div className="bg-white shadow rounded p-6 mt-6">
+                    <h3 className="text-xl font-semibold mb-4">Cotización</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Columna Izquierda: Precios de Unidades */}
+                        <div>
+                            <h4 className="text-lg font-semibold mb-3 flex items-center"><DollarSign className="h-5 w-5 mr-2 text-green-600" />Precios de Unidades</h4>
+                            <div className="space-y-2 text-gray-700">
+                                <div className="flex justify-between items-center">
+                                    <span>Departamento {selectedUnidad.unidad}:</span>
+                                    <span className="font-semibold">{formatCurrency(selectedUnidad.valor_lista)} UF</span>
+                                </div>
+                                {/* Mostrar descuento solo si es tipo 'descuento' o 'mix' y el monto es > 0 */}
+                                {(quotationType === 'descuento' || quotationType === 'mix') && precioDescuentoDepartamento > 0 && (
+                                  <div className="flex justify-between items-center">
+                                    <span>Descuento ({formatCurrency(discountAmount)}%):</span>
+                                    <span className="font-semibold text-red-600">- {formatCurrency(precioDescuentoDepartamento)} UF</span>
+                                  </div>
+                                )}
+                                
+                                {addedSecondaryUnits.map(unit => (
+                                    <div key={unit.id} className="flex justify-between items-center">
+                                        <span>{unit.tipo_bien} {unit.unidad}:</span>
+                                        <span className="font-semibold">{formatCurrency(unit.valor_lista)} UF</span>
+                                    </div>
+                                ))}
+                                <div className="border-t pt-2 mt-2 flex justify-between items-center font-bold">
+                                    <span>Total Escritura:</span>
+                                    <span>{formatCurrency(totalEscritura)} UF</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Columna Derecha: Forma de Pago */}
+                        <div>
+                            <h4 className="text-lg font-semibold mb-3 flex items-center"><Wallet className="h-5 w-5 mr-2 text-blue-600" />Forma de Pago</h4>
+                            <div className="space-y-2 text-gray-700">
+                                {/* Encabezados de tabla para la forma de pago */}
+                                <div className="grid grid-cols-5 text-sm font-medium text-gray-500 pb-1 border-b">
+                                    <span className="col-span-2">Glosa</span>
+                                    <span className="text-right">%</span>
+                                    <span className="text-right">Pesos</span>
+                                    <span className="text-right">UF</span>
+                                </div>
+
+                                {/* Fila: Reserva */}
+                                <div className="grid grid-cols-5 items-center">
+                                    <span className="col-span-2">Reserva:</span>
+                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoReserva / totalEscritura) * 100) : formatCurrency(0)}%</span>
+                                    <span className="text-right">{ufToPesos(pagoReserva)}</span>
+                                    <div className="flex justify-end">
+                                        {/* Ahora es un input type="text" con el valor formateado */}
+                                        <input
+                                            type="text"
+                                            value={formatCurrency(pagoReserva)}
+                                            readOnly
+                                            className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed font-semibold"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Fila: Promesa */}
+                                <div className="grid grid-cols-5 items-center">
+                                    <span className="col-span-2">Promesa:</span>
+                                    {/* Input de porcentaje */}
+                                    <div className="flex justify-end items-center">
+                                        <input
+                                            type="number"
+                                            value={parseFloat(pagoPromesaPct.toFixed(2))} // Mostrar con 2 decimales
+                                            onChange={e => handlePromesaChange('pct', e.target.value)}
+                                            className="w-20 text-right border rounded-md px-2 py-1" // Ajuste de ancho
+                                            step="0.01"
+                                        />
+                                        <span className="ml-1">%</span>
+                                    </div>
+                                    <span className="text-right">{ufToPesos(pagoPromesa)}</span>
+                                    {/* Input de UF */}
+                                    <div className="flex justify-end">
+                                        <input
+                                            type="text" // Cambiado a text para mostrar el formato
+                                            value={formatCurrency(pagoPromesa)} // Usar formatCurrency para la visualización
+                                            onChange={e => handlePromesaChange('uf', e.target.value)}
+                                            className="w-24 text-right border rounded-md px-2 py-1"
+                                            // No usar step con type="text", el formateo lo maneja formatCurrency
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Fila: Pie */}
+                                <div className="grid grid-cols-5 items-center">
+                                    <span className="col-span-2">Pie:</span>
+                                    {/* Input de porcentaje */}
+                                    <div className="flex justify-end items-center">
+                                        <input
+                                            type="number"
+                                            value={parseFloat(pagoPiePct.toFixed(2))} // Mostrar con 2 decimales
+                                            onChange={e => handlePieChange('pct', e.target.value)}
+                                            className="w-20 text-right border rounded-md px-2 py-1" // Ajuste de ancho
+                                            step="0.01"
+                                        />
+                                        <span className="ml-1">%</span>
+                                    </div>
+                                    <span className="text-right">{ufToPesos(pagoPie)}</span>
+                                    {/* Input de UF */}
+                                    <div className="flex justify-end">
+                                        <input
+                                            type="text" // Cambiado a text para mostrar el formato
+                                            value={formatCurrency(pagoPie)} // Usar formatCurrency para la visualización
+                                            onChange={e => handlePieChange('uf', e.target.value)}
+                                            className="w-24 text-right border rounded-md px-2 py-1"
+                                            // No usar step con type="text", el formateo lo maneja formatCurrency
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Fila: Crédito Hipotecario (ajustable automáticamente) */}
+                                <div className="grid grid-cols-5 items-center">
+                                    <span className="col-span-2">Crédito Hipotecario:</span>
+                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoCreditoHipotecarioCalculado / totalEscritura) * 100) : formatCurrency(0)}%</span>
+                                    <span className="text-right">{ufToPesos(pagoCreditoHipotecarioCalculado)}</span>
+                                    <div className="flex justify-end">
+                                        {/* Ahora es un input type="text" con el valor formateado */}
+                                        <input
+                                            type="text"
+                                            value={formatCurrency(pagoCreditoHipotecarioCalculado)}
+                                            readOnly
+                                            className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed font-semibold"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Fila: Bono Pie */}
+                                <div className="grid grid-cols-5 items-center">
+                                    <span className="col-span-2">Bono Pie:</span>
+                                    {/* Porcentaje de Bono Pie en la Forma de Pago */}
+                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoBonoPieCotizacion / totalEscritura) * 100) : formatCurrency(0)}%</span>
+                                    <span className="text-right">{ufToPesos(pagoBonoPieCotizacion)}</span>
+                                    <div className="flex justify-end">
+                                        <input
+                                            type="text" // Cambiado a text para usar formatCurrency
+                                            value={formatCurrency(pagoBonoPieCotizacion)} // Usar formatCurrency para mostrar 2 decimales
+                                            // Solo editable si es 'bono' puro. En 'mix', el valor se sincroniza desde la configuración.
+                                            readOnly={quotationType === 'mix'} 
+                                            className={`w-24 text-right border rounded-md px-2 py-1 ${quotationType === 'mix' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                            // El onChange de este input ya no es necesario si se controla desde la configuración en 'mix'
+                                            // Si `quotationType === 'bono'`, este input sí es editable y no necesita un handler para afectar otros campos.
+                                            // Si `quotationType === 'descuento'`, el valor es 0 y es readOnly.
+                                            // La sincronización en 'mix' se maneja desde el `useEffect` y `handleBonoPieConfigChange`.
+                                        />
+                                    </div>
+                                </div>
+                                
+                                {/* Total Forma de Pago */}
+                                <div className="grid grid-cols-5 items-center font-bold border-t pt-2 mt-2">
+                                    <span className="col-span-2">Total:</span>
+                                    {/* El porcentaje y pesos deben basarse en totalEscritura */}
+                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((totalFormaDePago / totalEscritura) * 100) : formatCurrency(0)}%</span>
+                                    <span className="text-right">{ufToPesos(totalFormaDePago)}</span>
+                                    <span className="text-right">{formatCurrency(totalFormaDePago)} UF</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+          </>
+        )}
+      </main>
+      <footer className="text-center py-6 text-sm text-gray-500">© {new Date().getFullYear()} InverAPP - Cotizador Brokers</footer>
+    </div>
+  );
+};
+
+export default BrokerQuotePage;
