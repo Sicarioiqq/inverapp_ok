@@ -153,7 +153,7 @@ const StockReportPage: React.FC = () => {
                 // Usar item.id como key si está disponible y es único, sino una combinación única.
                 <tr key={item.id || `${item.proyecto_nombre}-${item.unidad}-${item.tipo_bien}`} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{item.proyecto_nombre}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.unidad_codigo}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.unidad}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.tipo_bien}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.tipologia}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.piso}</td>
