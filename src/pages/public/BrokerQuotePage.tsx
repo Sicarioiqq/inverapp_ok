@@ -240,26 +240,33 @@ const BrokerQuotePage: React.FC = () => {
       // Calcular el bono total disponible basado en el descuento ajustado inicial (en UF)
       const calculatedInitialTotalBonoUF = (selectedUnidad.valor_lista ?? 0) * (initialAdjustedDiscount ?? 0);
       setInitialTotalAvailableBono(parseFloat(calculatedInitialTotalBonoUF.toFixed(2)));
-
-      // Calcular el porcentaje total disponible para el bono (sobre el total escritura inicial)
-      const totalEscrituraInitial = selectedUnidad.valor_lista ?? 0; // Solo el depto. inicialmente
-      const initialBonoPct = totalEscrituraInitial > 0 ? (calculatedInitialTotalBonoUF / totalEscrituraInitial) * 100 : 0;
       
+      // Resetear la forma de pago al cambiar de unidad
+      setPagoReserva(0);
+      setPagoPromesa(0);
+      setPagoPromesaPct(0);
+      setPagoPie(0);
+      setPagoPiePct(0);
+
 
       if (quotationType === 'descuento') {
         setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2)));  
-        setBonoAmount(0); // Restablecer bono en este modo
-        setBonoAmountPct(0);
+        setBonoAmount(0); // Restablecer bono UF en este modo
+        setBonoAmountPct(0); // Restablecer bono % en este modo
+        setPagoBonoPieCotizacion(0); // Restablecer bono en forma de pago
       } else if (quotationType === 'bono') {
         setDiscountAmount(0); // Restablecer descuento en modo bono
-        setBonoAmount(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // Bono total disponible
-        setBonoAmountPct(parseFloat(initialBonoPct.toFixed(2)));
+        setBonoAmount(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // Bono total disponible UF
+        // bonoAmountPct se calculará en el useEffect que depende de totalEscritura
+        setBonoAmountPct(0); // Inicializar a 0, se actualizará en el useEffect principal
+        setPagoBonoPieCotizacion(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // Sincronizar con forma de pago
       } else if (quotationType === 'mix') {
-        setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); // Descuento inicial
-        setBonoAmount(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // Bono inicial disponible
-        setBonoAmountPct(parseFloat(initialBonoPct.toFixed(2))); // Bono inicial disponible en %
-        // Al seleccionar mix, el pagoBonoPieCotizacion se inicializa con el valor total disponible del bono
-        setPagoBonoPieCotizacion(parseFloat(calculatedInitialTotalBonoUF.toFixed(2)));
+        // Al seleccionar mix, inicialmente todo el "bono" se muestra como tal.
+        setDiscountAmount(0); // Descuento inicial 0, ya que todo está en bono
+        setBonoAmount(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // Bono inicial disponible UF
+        // bonoAmountPct se calculará en el useEffect que depende de totalEscritura
+        setBonoAmountPct(0); // Inicializar a 0, se actualizará en el useEffect principal
+        setPagoBonoPieCotizacion(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // También inicializar el bono en forma de pago
       }
     } else {
       // Resetear estados si no hay unidad seleccionada
@@ -269,9 +276,56 @@ const BrokerQuotePage: React.FC = () => {
       setBonoAmount(0);
       setBonoAmountPct(0);
       setInitialTotalAvailableBono(0);
-      setPagoBonoPieCotizacion(0); // Resetear también este en caso de no unidad
+      setPagoReserva(0);
+      setPagoPromesa(0);
+      setPagoPromesaPct(0);
+      setPagoPie(0);
+      setPagoPiePct(0);
+      setPagoBonoPieCotizacion(0);
     }
   }, [selectedUnidad, quotationType, brokerCommissions, brokerInfo]);
+
+  // Cálculos para la nueva sección de Cotización usando useMemo
+  const {
+    precioBaseDepartamento,
+    precioDescuentoDepartamento,
+    precioDepartamentoConDescuento,
+    precioTotalSecundarios,
+    totalEscritura, // Definido dentro de useMemo
+    pagoCreditoHipotecarioCalculado,
+    totalFormaDePago
+  } = useMemo(() => {
+    const pBaseDepto = selectedUnidad?.valor_lista || 0;
+    let pDescuentoDepto = 0;
+    let pDeptoConDescuento = pBaseDepto;
+
+    // Utiliza el discountAmount actual del estado para el cálculo del descuento
+    if (quotationType === 'descuento' || quotationType === 'mix') {
+      pDescuentoDepto = (pBaseDepto * discountAmount) / 100;
+      pDeptoConDescuento = pBaseDepto - pDescuentoDepto;
+    } else {
+      pDescuentoDepto = 0;
+      pDeptoConDescuento = pBaseDepto;
+    }
+
+    const pTotalSecundarios = addedSecondaryUnits.reduce((sum, unit) => sum + (unit.valor_lista || 0), 0);
+    const tEscritura = pDeptoConDescuento + pTotalSecundarios;
+
+    const pCreditoHipotecarioCalculado = tEscritura - (pagoReserva + pagoPromesa + pagoPie + pagoBonoPieCotizacion);
+    const tFormaDePago = pagoReserva + pagoPromesa + pagoPie + pCreditoHipotecarioCalculado + pagoBonoPieCotizacion;
+
+    return {
+      precioBaseDepartamento: parseFloat(pBaseDepto.toFixed(2)),
+      precioDescuentoDepartamento: parseFloat(pDescuentoDepto.toFixed(2)),
+      precioDepartamentoConDescuento: parseFloat(pDeptoConDescuento.toFixed(2)),
+      precioTotalSecundarios: parseFloat(pTotalSecundarios.toFixed(2)),
+      totalEscritura: parseFloat(tEscritura.toFixed(2)),
+      pagoCreditoHipotecarioCalculado: parseFloat(pCreditoHipotecarioCalculado.toFixed(2)),
+      totalFormaDePago: parseFloat(tFormaDePago.toFixed(2))
+    };
+  }, [selectedUnidad, quotationType, discountAmount, addedSecondaryUnits,
+      pagoReserva, pagoPromesa, pagoPie, pagoBonoPieCotizacion]);
+
 
   // Efecto para inicializar el pago de reserva (en UF) y para sincronizar el bono pie de configuración con el de cotización
   // Este useEffect también maneja la lógica inversa para el modo 'mix'
@@ -280,33 +334,48 @@ const BrokerQuotePage: React.FC = () => {
       setPagoReserva(parseFloat((VALOR_RESERVA_PESOS / ufValue).toFixed(2))); // Redondear a 2 decimales
     }
     
+    // Asegurarse de que selectedUnidad sea válido antes de proceder con cálculos complejos
+    if (!selectedUnidad) {
+        // Si no hay unidad seleccionada, resetear los valores relacionados con la cotización
+        setBonoAmount(0);
+        setBonoAmountPct(0);
+        setPagoBonoPieCotizacion(0);
+        setDiscountAmount(0); // También resetear descuento si no hay unidad
+        return;
+    }
+
     // Si estamos en mix, y el bono de cotización se ha editado (o inicializado con total disponible)
-    if (quotationType === 'mix' && selectedUnidad) {
-        // El pagoBonoPieCotizacion (el editable por el usuario en la forma de pago) es el que manda.
-        // Sincronizamos los estados de configuración (bonoAmount y bonoAmountPct) con este valor.
-        setBonoAmount(parseFloat(pagoBonoPieCotizacion.toFixed(2))); // Sincronizar bono UF de configuración
-        const bonoPct = (totalEscritura > 0) ? (pagoBonoPieCotizacion / totalEscritura) * 100 : 0;
-        setBonoAmountPct(parseFloat(bonoPct.toFixed(2))); // Sincronizar bono % de configuración
+    if (quotationType === 'mix') {
+        // Bono en UF que el usuario está "usando" en la forma de pago (o que se inicializó)
+        const currentBonoUsedUF = pagoBonoPieCotizacion;
+
+        // Calcular el porcentaje de este bono respecto al totalEscritura
+        const bonoPct = (totalEscritura > 0) ? (currentBonoUsedUF / totalEscritura) * 100 : 0;
+        setBonoAmountPct(parseFloat(bonoPct.toFixed(2))); // Sincronizar bono % de configuración con el de la forma de pago
+        setBonoAmount(parseFloat(currentBonoUsedUF.toFixed(2))); // Sincronizar bono UF de configuración
 
         // Calcular el descuento "restante" como la diferencia entre el bono total disponible inicial y el bono usado.
-        // remainingBonoForDiscount es el monto en UF del bono que *no se usó como bono* y que se convierte en descuento.
-        const remainingBonoForDiscount = Math.max(0, initialTotalAvailableBono - pagoBonoPieCotizacion);
+        const remainingBonoForDiscountUF = Math.max(0, initialTotalAvailableBono - currentBonoUsedUF);
         
         // Convertir el bono restante en un porcentaje de descuento del VALOR_LISTA del departamento
         let newDiscountPercentage = 0;
         if (selectedUnidad.valor_lista && selectedUnidad.valor_lista > 0) {
-            newDiscountPercentage = (remainingBonoForDiscount / selectedUnidad.valor_lista) * 100;
+            newDiscountPercentage = (remainingBonoForDiscountUF / selectedUnidad.valor_lista) * 100;
         }
         setDiscountAmount(parseFloat(newDiscountPercentage.toFixed(2))); // Actualizar el descuento en %
         
     } else if (quotationType === 'bono') {
-      // Para 'bono' (no mix), el bonoAmount de la configuración es el principal.
+      // Para 'bono' (no mix), el bonoAmount (UF en config) es el que manda.
       // Aquí, bonoAmount representa el bono total disponible de la unidad.
       setPagoBonoPieCotizacion(parseFloat(bonoAmount.toFixed(2))); // El bono en la forma de pago es el total disponible
+      const bonoPct = (totalEscritura > 0) ? (bonoAmount / totalEscritura) * 100 : 0;
+      setBonoAmountPct(parseFloat(bonoPct.toFixed(2)));
     } else {
       setPagoBonoPieCotizacion(0); // Si es solo descuento, el bono pie de la cotización es 0
+      setBonoAmountPct(0);
+      setBonoAmount(0);
     }
-  }, [ufValue, bonoAmount, quotationType, pagoBonoPieCotizacion, initialTotalAvailableBono, selectedUnidad, totalEscritura]);
+  }, [ufValue, quotationType, pagoBonoPieCotizacion, initialTotalAvailableBono, selectedUnidad, totalEscritura, bonoAmount]);
 
 
   // Opciones de filtro
@@ -373,72 +442,6 @@ const BrokerQuotePage: React.FC = () => {
       return 0;
     });
 
-  // Cálculos para la nueva sección de Cotización usando useMemo
-  const {
-    precioBaseDepartamento,
-    precioDescuentoDepartamento,
-    precioDepartamentoConDescuento,
-    precioTotalSecundarios,
-    totalEscritura, // Definido dentro de useMemo
-    pagoCreditoHipotecarioCalculado,
-    totalFormaDePago
-  } = useMemo(() => {
-    const pBaseDepto = selectedUnidad?.valor_lista || 0;
-    let pDescuentoDepto = 0;
-    let pDeptoConDescuento = pBaseDepto;
-
-    if (quotationType === 'descuento' || quotationType === 'mix') {
-      pDescuentoDepto = (pBaseDepto * discountAmount) / 100;
-      pDeptoConDescuento = pBaseDepto - pDescuentoDepto;
-    } else {
-      pDescuentoDepto = 0;
-      pDeptoConDescuento = pBaseDepto;
-    }
-
-    const pTotalSecundarios = addedSecondaryUnits.reduce((sum, unit) => sum + (unit.valor_lista || 0), 0);
-    const tEscritura = pDeptoConDescuento + pTotalSecundarios;
-
-    const pCreditoHipotecarioCalculado = tEscritura - (pagoReserva + pagoPromesa + pagoPie + pagoBonoPieCotizacion);
-    const tFormaDePago = pagoReserva + pagoPromesa + pagoPie + pCreditoHipotecarioCalculado + pagoBonoPieCotizacion;
-
-    return {
-      precioBaseDepartamento: parseFloat(pBaseDepto.toFixed(2)),
-      precioDescuentoDepartamento: parseFloat(pDescuentoDepto.toFixed(2)),
-      precioDepartamentoConDescuento: parseFloat(pDeptoConDescuento.toFixed(2)),
-      precioTotalSecundarios: parseFloat(pTotalSecundarios.toFixed(2)),
-      totalEscritura: parseFloat(tEscritura.toFixed(2)),
-      pagoCreditoHipotecarioCalculado: parseFloat(pCreditoHipotecarioCalculado.toFixed(2)),
-      totalFormaDePago: parseFloat(tFormaDePago.toFixed(2))
-    };
-  }, [selectedUnidad, quotationType, discountAmount, addedSecondaryUnits,
-      pagoReserva, pagoPromesa, pagoPie, pagoBonoPieCotizacion]);
-
-
-  // Sincronizar pagoPromesa y pagoPromesaPct
-  useEffect(() => {
-    // Solo sincronizar si totalEscritura es válido y mayor a 0
-    if (totalEscritura > 0 && !isNaN(pagoPromesa) && isFinite(pagoPromesa)) {
-      setPagoPromesaPct(parseFloat(((pagoPromesa / totalEscritura) * 100).toFixed(2)));
-    } else if (isNaN(pagoPromesa) || !isFinite(pagoPromesa)) { // Si pagoPromesa se vuelve inválido, resetear pct
-      setPagoPromesaPct(0);
-    } else { // Si totalEscritura es 0 o inválido
-      setPagoPromesaPct(0);
-    }
-  }, [pagoPromesa, totalEscritura]); // Dependencia de totalEscritura está correcta ahora
-
-  // Sincronizar pagoPie y pagoPiePct
-  useEffect(() => {
-    // Solo sincronizar si totalEscritura es válido y mayor a 0
-    if (totalEscritura > 0 && !isNaN(pagoPie) && isFinite(pagoPie)) {
-      setPagoPiePct(parseFloat(((pagoPie / totalEscritura) * 100).toFixed(2)));
-    } else if (isNaN(pagoPie) || !isFinite(pagoPie)) { // Si pagoPie se vuelve inválido, resetear pct
-      setPagoPiePct(0);
-    } else { // Si totalEscritura es 0 o inválido
-      setPagoPiePct(0);
-    }
-  }, [pagoPie, totalEscritura]); // Dependencia de totalEscritura está correcta ahora
-
-
   // Handler para agregar unidad secundaria a la cotización
   const handleAddSecondaryUnit = () => {
     if (selectedSecondaryUnitToAdd) {
@@ -501,14 +504,15 @@ const BrokerQuotePage: React.FC = () => {
   // Handler para la edición del Bono Pie en la sección "Configuración de Cotización" (cuando es porcentaje)
   const handleBonoPieConfigChange = (value: string) => {
     const numValue = parseFloat(value);
+    // Si el valor ingresado no es un número válido o es infinito, se trata como 0
     const finalValue = isNaN(numValue) || !isFinite(numValue) ? 0 : numValue;
 
-    // Asegurar que el porcentaje no exceda el 100%
-    const limitedBonoPct = Math.min(100, Math.max(0, finalValue));
-    setBonoAmountPct(parseFloat(limitedBonoPct.toFixed(2)));
+    // Asegurar que el porcentaje no exceda el 100% y no sea negativo
+    let limitedBonoPct = Math.min(100, Math.max(0, finalValue));
 
-    if (!selectedUnidad || selectedUnidad.valor_lista === null || selectedUnidad.valor_lista === 0) {
-        // No hay unidad seleccionada o valor de lista inválido, no se puede calcular.
+    // Si no hay unidad seleccionada o totalEscritura es 0, no se puede calcular.
+    if (!selectedUnidad || selectedUnidad.valor_lista === null || selectedUnidad.valor_lista === 0 || totalEscritura <= 0) {
+        setBonoAmountPct(parseFloat(limitedBonoPct.toFixed(2)));
         setBonoAmount(0);
         setPagoBonoPieCotizacion(0);
         setDiscountAmount(0);
@@ -516,18 +520,30 @@ const BrokerQuotePage: React.FC = () => {
     }
 
     // Calcular el valor en UF del bono basado en el porcentaje ingresado por el usuario
-    const bonoUFFromPct = (limitedBonoPct / 100) * totalEscritura; // Usamos totalEscritura para el cálculo del %
-    setBonoAmount(parseFloat(bonoUFFromPct.toFixed(2))); // Actualizar bono UF en configuración
-    setPagoBonoPieCotizacion(parseFloat(bonoUFFromPct.toFixed(2))); // Sincronizar el bono de la forma de pago con este valor
+    const bonoUFFromPct = (limitedBonoPct / 100) * totalEscritura; // Usamos totalEscritura como base para el porcentaje
+    
+    // Asegurar que el bono UF calculado no exceda el initialTotalAvailableBono
+    // Si el usuario intenta poner un % que resulta en más UF de las disponibles inicialmente,
+    // limitamos el bono UF a initialTotalAvailableBono y ajustamos el porcentaje de nuevo.
+    const finalBonoUF = Math.min(bonoUFFromPct, initialTotalAvailableBono);
+    
+    // Recalcular el porcentaje final si el bono UF fue limitado
+    if (totalEscritura > 0 && bonoUFFromPct !== finalBonoUF) {
+      limitedBonoPct = (finalBonoUF / totalEscritura) * 100;
+    }
+
+    setBonoAmountPct(parseFloat(limitedBonoPct.toFixed(2))); // Actualizar bono % en configuración
+    setBonoAmount(parseFloat(finalBonoUF.toFixed(2))); // Actualizar bono UF en configuración
+    setPagoBonoPieCotizacion(parseFloat(finalBonoUF.toFixed(2))); // Sincronizar el bono de la forma de pago
 
     // Recalcular el descuento restante
-    const remainingBonoForDiscount = Math.max(0, initialTotalAvailableBono - bonoUFFromPct);
+    const remainingBonoForDiscount = Math.max(0, initialTotalAvailableBono - finalBonoUF);
     let newDiscountPercentage = 0;
     if (selectedUnidad.valor_lista > 0) {
         newDiscountPercentage = (remainingBonoForDiscount / selectedUnidad.valor_lista) * 100;
     }
     setDiscountAmount(parseFloat(newDiscountPercentage.toFixed(2))); // Actualizar el descuento en %
-};
+  };
 
 
   // Función para formatear moneda (siempre con 2 decimales)
@@ -552,6 +568,18 @@ const BrokerQuotePage: React.FC = () => {
       maximumFractionDigits: 0
     }).format(uf * ufValue);
   };
+
+  // Memoized value for the max percentage allowed for Bono Pie in mix mode.
+  // This helps prevent ReferenceError by ensuring totalEscritura is valid before division in JSX.
+  const maxBonoPctAllowed = useMemo(() => {
+    // If selectedUnidad is not available, or its valor_lista is 0, or totalEscritura is 0,
+    // the calculation is not meaningful, so return a default maximum (100%).
+    if (!selectedUnidad || selectedUnidad.valor_lista === null || selectedUnidad.valor_lista === 0 || totalEscritura <= 0) {
+        return 100; 
+    }
+    const calculatedMaxPct = (initialTotalAvailableBono / totalEscritura) * 100;
+    return parseFloat(calculatedMaxPct.toFixed(2));
+  }, [initialTotalAvailableBono, totalEscritura, selectedUnidad]);
 
 
   if (isValidating || loadingCommissions || loadingUf) // Esperar también a que carguen las comisiones y la UF
@@ -851,24 +879,26 @@ const BrokerQuotePage: React.FC = () => {
                                               selectedUnidad.proyecto_nombre
                                           );
                                           const calculatedInitialTotalBonoUF = (selectedUnidad.valor_lista ?? 0) * (initialAdjustedDiscount ?? 0);
-                                          const totalEscrituraInitial = selectedUnidad.valor_lista ?? 0;
-                                          const initialBonoPct = totalEscrituraInitial > 0 ? (calculatedInitialTotalBonoUF / totalEscrituraInitial) * 100 : 0;
+                                          
+                                          setInitialTotalAvailableBono(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // Siempre calcular y guardar este
 
                                           if (newQuotationType === 'descuento') {
-                                              setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); // Usar el descuento ajustado del departamento
-                                              setBonoAmount(0); // Restablecer bono UF en este modo
-                                              setBonoAmountPct(0); // Restablecer bono % en este modo
-                                              setPagoBonoPieCotizacion(0); // Restablecer bono en forma de pago
+                                              setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); 
+                                              setBonoAmount(0);
+                                              setBonoAmountPct(0);
+                                              setPagoBonoPieCotizacion(0);
                                           } else if (newQuotationType === 'bono') {
-                                              setDiscountAmount(0); // Restablecer descuento en modo bono
-                                              setBonoAmount(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // Bono total disponible UF
-                                              setBonoAmountPct(parseFloat(initialBonoPct.toFixed(2))); // Bono total disponible %
-                                              setPagoBonoPieCotizacion(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // Sincronizar con forma de pago
+                                              setDiscountAmount(0);
+                                              setBonoAmount(parseFloat(calculatedInitialTotalBonoUF.toFixed(2)));
+                                              // bonoAmountPct se calculará en el useEffect principal
+                                              setBonoAmountPct(0); 
+                                              setPagoBonoPieCotizacion(parseFloat(calculatedInitialTotalBonoUF.toFixed(2)));
                                           } else if (newQuotationType === 'mix') {
-                                              setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); // Descuento inicial
-                                              setBonoAmount(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // Bono inicial disponible UF
-                                              setBonoAmountPct(parseFloat(initialBonoPct.toFixed(2))); // Bono inicial disponible en %
-                                              setPagoBonoPieCotizacion(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // También inicializar el bono en forma de pago
+                                              setDiscountAmount(0); // Al inicio en mix, descuento es 0, todo es bono
+                                              setBonoAmount(parseFloat(calculatedInitialTotalBonoUF.toFixed(2)));
+                                              // bonoAmountPct se calculará en el useEffect principal
+                                              setBonoAmountPct(0);
+                                              setPagoBonoPieCotizacion(parseFloat(calculatedInitialTotalBonoUF.toFixed(2)));
                                           }
                                       }
                                   }}
@@ -932,7 +962,7 @@ const BrokerQuotePage: React.FC = () => {
                                               value={parseFloat(bonoAmountPct.toFixed(2))} // Ahora usa el estado de porcentaje
                                               onChange={e => handleBonoPieConfigChange(e.target.value)} // Nuevo handler para editar el porcentaje
                                               min="0" // Limitar para que no sea negativo
-                                              max={totalEscritura > 0 ? parseFloat(((initialTotalAvailableBono / totalEscritura) * 100).toFixed(2)) : 100} // Limitar al % máximo disponible o 100%
+                                              max={maxBonoPctAllowed} // Usar el valor memoizado para el máximo
                                               step="0.01"
                                               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                           />
@@ -953,235 +983,4 @@ const BrokerQuotePage: React.FC = () => {
                                       id="secondaryUnitSelect"
                                       value={selectedSecondaryUnitToAdd}
                                       onChange={e => setSelectedSecondaryUnitToAdd(e.target.value)}
-                                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                  >
-                                      <option value="">Seleccione un secundario</option>
-                                      {projectSecondaryUnits.length === 0 ? (
-                                          <option disabled>No hay unidades secundarias disponibles.</option>
-                                      ) : (
-                                          projectSecondaryUnits.map(unit => (
-                                              // Solo mostrar unidades que no han sido añadidas ya
-                                              !addedSecondaryUnits.some(addedUnit => addedUnit.id === unit.id) && (
-                                                  <option key={unit.id} value={unit.id}>
-                                                      {unit.unidad} ({unit.tipo_bien}) - {formatCurrency(unit.valor_lista)} UF
-                                                  </option>
-                                              )
-                                          ))
-                                      )}
-                                  </select>
-                              </div>
-                              <button
-                                  type="button"
-                                  onClick={handleAddSecondaryUnit}
-                                  disabled={!selectedSecondaryUnitToAdd}
-                                  className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 flex items-center"
-                              >
-                                  <PlusCircle className="h-5 w-5 mr-1" /> Agregar
-                              </button>
-                          </div>
-                      </div>
-
-                      {/* Columna 3: Lista de Secundarios Agregados */}
-                      <div className="border-t lg:border-t-0 lg:border-l lg:pl-6 pt-4 lg:pt-0"> {/* Separación visual y para columnas */}
-                          <h4 className="text-lg font-semibold mb-3">Secundarios Agregados:</h4>
-                          {addedSecondaryUnits.length === 0 ? (
-                              <p className="text-gray-500">Ningún secundario añadido.</p>
-                          ) : (
-                              <ul className="space-y-2">
-                                  {addedSecondaryUnits.map(unit => (
-                                      <li key={unit.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
-                                          <span className="text-sm text-gray-800">
-                                              {unit.unidad} ({unit.tipo_bien}) - {formatCurrency(unit.valor_lista)} UF
-                                          </span>
-                                          <button
-                                              type="button"
-                                              onClick={() => handleRemoveAddedSecondaryUnit(unit.id)}
-                                              className="text-red-600 hover:text-red-800 ml-4 p-1 rounded-full hover:bg-red-100"
-                                              title="Eliminar de la cotización"
-                                          >
-                                              <Trash2 className="h-4 w-4" />
-                                          </button>
-                                      </li>
-                                  ))}
-                              </ul>
-                          )}
-                      </div>
-                  </div>
-              </div>
-            )} {/* FIN NUEVA TARJETA: Configuración de Cotización */}
-            
-            {/* NUEVA TARJETA: Resumen de Cotización */}
-            {selectedUnidad && ( /* Solo mostrar esta tarjeta si hay una unidad seleccionada */
-                <div className="bg-white shadow rounded p-6 mt-6">
-                    <h3 className="text-xl font-semibold mb-4">Cotización</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Columna Izquierda: Precios de Unidades */}
-                        <div>
-                            <h4 className="text-lg font-semibold mb-3 flex items-center"><DollarSign className="h-5 w-5 mr-2 text-green-600" />Precios de Unidades</h4>
-                            <div className="space-y-2 text-gray-700">
-                                <div className="flex justify-between items-center">
-                                    <span>Departamento {selectedUnidad.unidad}:</span>
-                                    <span className="font-semibold">{formatCurrency(selectedUnidad.valor_lista)} UF</span>
-                                </div>
-                                {/* Mostrar descuento solo si es tipo 'descuento' o 'mix' y el monto es > 0 */}
-                                {(quotationType === 'descuento' || quotationType === 'mix') && precioDescuentoDepartamento > 0 && (
-                                  <div className="flex justify-between items-center">
-                                    <span>Descuento ({formatCurrency(discountAmount)}%):</span>
-                                    <span className="font-semibold text-red-600">- {formatCurrency(precioDescuentoDepartamento)} UF</span>
-                                  </div>
-                                )}
-                                
-                                {addedSecondaryUnits.map(unit => (
-                                    <div key={unit.id} className="flex justify-between items-center">
-                                        <span>{unit.tipo_bien} {unit.unidad}:</span>
-                                        <span className="font-semibold">{formatCurrency(unit.valor_lista)} UF</span>
-                                    </div>
-                                ))}
-                                <div className="border-t pt-2 mt-2 flex justify-between items-center font-bold">
-                                    <span>Total Escritura:</span>
-                                    <span>{formatCurrency(totalEscritura)} UF</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Columna Derecha: Forma de Pago */}
-                        <div>
-                            <h4 className="text-lg font-semibold mb-3 flex items-center"><Wallet className="h-5 w-5 mr-2 text-blue-600" />Forma de Pago</h4>
-                            <div className="space-y-2 text-gray-700">
-                                {/* Encabezados de tabla para la forma de pago */}
-                                <div className="grid grid-cols-5 text-sm font-medium text-gray-500 pb-1 border-b">
-                                    <span className="col-span-2">Glosa</span>
-                                    <span className="text-right">%</span>
-                                    <span className="text-right">Pesos</span>
-                                    <span className="text-right">UF</span>
-                                </div>
-
-                                {/* Fila: Reserva */}
-                                <div className="grid grid-cols-5 items-center">
-                                    <span className="col-span-2">Reserva:</span>
-                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoReserva / totalEscritura) * 100) : formatCurrency(0)}%</span>
-                                    <span className="text-right">{ufToPesos(pagoReserva)}</span>
-                                    <div className="flex justify-end">
-                                        {/* Ahora es un input type="text" con el valor formateado */}
-                                        <input
-                                            type="text"
-                                            value={formatCurrency(pagoReserva)}
-                                            readOnly
-                                            className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed font-semibold"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Fila: Promesa */}
-                                <div className="grid grid-cols-5 items-center">
-                                    <span className="col-span-2">Promesa:</span>
-                                    {/* Input de porcentaje */}
-                                    <div className="flex justify-end items-center">
-                                        <input
-                                            type="number"
-                                            value={parseFloat(pagoPromesaPct.toFixed(2))} // Mostrar con 2 decimales
-                                            onChange={e => handlePromesaChange('pct', e.target.value)}
-                                            className="w-20 text-right border rounded-md px-2 py-1" // Ajuste de ancho
-                                            step="0.01"
-                                        />
-                                        <span className="ml-1">%</span>
-                                    </div>
-                                    <span className="text-right">{ufToPesos(pagoPromesa)}</span>
-                                    {/* Input de UF */}
-                                    <div className="flex justify-end">
-                                        <input
-                                            type="text" // Cambiado a text para mostrar el formato
-                                            value={formatCurrency(pagoPromesa)} // Usar formatCurrency para la visualización
-                                            onChange={e => handlePromesaChange('uf', e.target.value)}
-                                            className="w-24 text-right border rounded-md px-2 py-1"
-                                            // No usar step con type="text", el formateo lo maneja formatCurrency
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Fila: Pie */}
-                                <div className="grid grid-cols-5 items-center">
-                                    <span className="col-span-2">Pie:</span>
-                                    {/* Input de porcentaje */}
-                                    <div className="flex justify-end items-center">
-                                        <input
-                                            type="number"
-                                            value={parseFloat(pagoPiePct.toFixed(2))} // Mostrar con 2 decimales
-                                            onChange={e => handlePieChange('pct', e.target.value)}
-                                            className="w-20 text-right border rounded-md px-2 py-1" // Ajuste de ancho
-                                            step="0.01"
-                                        />
-                                        <span className="ml-1">%</span>
-                                    </div>
-                                    <span className="text-right">{ufToPesos(pagoPie)}</span>
-                                    {/* Input de UF */}
-                                    <div className="flex justify-end">
-                                        <input
-                                            type="text" // Cambiado a text para mostrar el formato
-                                            value={formatCurrency(pagoPie)} // Usar formatCurrency para la visualización
-                                            onChange={e => handlePieChange('uf', e.target.value)}
-                                            className="w-24 text-right border rounded-md px-2 py-1"
-                                            // No usar step con type="text", el formateo lo maneja formatCurrency
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Fila: Crédito Hipotecario (ajustable automáticamente) */}
-                                <div className="grid grid-cols-5 items-center">
-                                    <span className="col-span-2">Crédito Hipotecario:</span>
-                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoCreditoHipotecarioCalculado / totalEscritura) * 100) : formatCurrency(0)}%</span>
-                                    <span className="text-right">{ufToPesos(pagoCreditoHipotecarioCalculado)}</span>
-                                    <div className="flex justify-end">
-                                        {/* Ahora es un input type="text" con el valor formateado */}
-                                        <input
-                                            type="text"
-                                            value={formatCurrency(pagoCreditoHipotecarioCalculado)}
-                                            readOnly
-                                            className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed font-semibold"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Fila: Bono Pie */}
-                                <div className="grid grid-cols-5 items-center">
-                                    <span className="col-span-2">Bono Pie:</span>
-                                    {/* Porcentaje de Bono Pie en la Forma de Pago */}
-                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoBonoPieCotizacion / totalEscritura) * 100) : formatCurrency(0)}%</span>
-                                    <span className="text-right">{ufToPesos(pagoBonoPieCotizacion)}</span>
-                                    <div className="flex justify-end">
-                                        <input
-                                            type="text" // Cambiado a text para usar formatCurrency
-                                            value={formatCurrency(pagoBonoPieCotizacion)} // Usar formatCurrency para mostrar 2 decimales
-                                            // Solo editable si es 'bono' puro. En 'mix', el valor se sincroniza desde la configuración.
-                                            readOnly={quotationType === 'mix'} 
-                                            className={`w-24 text-right border rounded-md px-2 py-1 ${quotationType === 'mix' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                            // El onChange de este input ya no es necesario si se controla desde la configuración en 'mix'
-                                            // Si `quotationType === 'bono'`, este input sí es editable y no necesita un handler para afectar otros campos.
-                                            // Si `quotationType === 'descuento'`, el valor es 0 y es readOnly.
-                                            // La sincronización en 'mix' se maneja desde el `useEffect` y `handleBonoPieConfigChange`.
-                                        />
-                                    </div>
-                                </div>
-                                
-                                {/* Total Forma de Pago */}
-                                <div className="grid grid-cols-5 items-center font-bold border-t pt-2 mt-2">
-                                    <span className="col-span-2">Total:</span>
-                                    {/* El porcentaje y pesos deben basarse en totalEscritura */}
-                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((totalFormaDePago / totalEscritura) * 100) : formatCurrency(0)}%</span>
-                                    <span className="text-right">{ufToPesos(totalFormaDePago)}</span>
-                                    <span className="text-right">{formatCurrency(totalFormaDePago)} UF</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-          </>
-        )}
-      </main>
-      <footer className="text-center py-6 text-sm text-gray-500">© {new Date().getFullYear()} InverAPP - Cotizador Brokers</footer>
-    </div>
-  );
-};
-
-export default BrokerQuotePage;
+                                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-
