@@ -955,8 +955,13 @@ const BrokerQuotePage: React.FC = () => {
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoReserva / totalEscritura) * 100) : formatCurrency(0)}%</span>
                                     <span className="text-right">{ufToPesos(pagoReserva)}</span>
                                     <div className="flex justify-end">
-                                        {/* Ahora es un span porque es de solo lectura y formateado */}
-                                        <span className="w-24 text-right px-2 py-1 bg-gray-100 rounded-md border border-gray-300 font-semibold">{formatCurrency(pagoReserva)}</span>
+                                        {/* Ahora es un input type="text" con el valor formateado */}
+                                        <input
+                                            type="text"
+                                            value={formatCurrency(pagoReserva)}
+                                            readOnly
+                                            className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed font-semibold"
+                                        />
                                     </div>
                                 </div>
 
@@ -964,14 +969,15 @@ const BrokerQuotePage: React.FC = () => {
                                 <div className="grid grid-cols-5 items-center">
                                     <span className="col-span-2">Promesa:</span>
                                     {/* Input de porcentaje */}
-                                    <div className="flex justify-end">
+                                    <div className="flex justify-end items-center">
                                         <input
                                             type="number"
                                             value={parseFloat(pagoPromesaPct.toFixed(2))} // Mostrar con 2 decimales
                                             onChange={e => handlePromesaChange('pct', e.target.value)}
-                                            className="w-24 text-right border rounded-md px-2 py-1"
+                                            className="w-20 text-right border rounded-md px-2 py-1" // Ajuste de ancho
                                             step="0.01"
-                                        />%
+                                        />
+                                        <span className="ml-1">%</span>
                                     </div>
                                     <span className="text-right">{ufToPesos(pagoPromesa)}</span>
                                     {/* Input de UF */}
@@ -990,14 +996,15 @@ const BrokerQuotePage: React.FC = () => {
                                 <div className="grid grid-cols-5 items-center">
                                     <span className="col-span-2">Pie:</span>
                                     {/* Input de porcentaje */}
-                                    <div className="flex justify-end">
+                                    <div className="flex justify-end items-center">
                                         <input
                                             type="number"
                                             value={parseFloat(pagoPiePct.toFixed(2))} // Mostrar con 2 decimales
                                             onChange={e => handlePieChange('pct', e.target.value)}
-                                            className="w-24 text-right border rounded-md px-2 py-1"
+                                            className="w-20 text-right border rounded-md px-2 py-1" // Ajuste de ancho
                                             step="0.01"
-                                        />%
+                                        />
+                                        <span className="ml-1">%</span>
                                     </div>
                                     <span className="text-right">{ufToPesos(pagoPie)}</span>
                                     {/* Input de UF */}
@@ -1018,8 +1025,13 @@ const BrokerQuotePage: React.FC = () => {
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoCreditoHipotecarioCalculado / totalEscritura) * 100) : formatCurrency(0)}%</span>
                                     <span className="text-right">{ufToPesos(pagoCreditoHipotecarioCalculado)}</span>
                                     <div className="flex justify-end">
-                                        {/* Ahora es un span porque es de solo lectura y formateado */}
-                                        <span className="w-24 text-right px-2 py-1 bg-gray-100 rounded-md border border-gray-300 font-semibold">{formatCurrency(pagoCreditoHipotecarioCalculado)}</span>
+                                        {/* Ahora es un input type="text" con el valor formateado */}
+                                        <input
+                                            type="text"
+                                            value={formatCurrency(pagoCreditoHipotecarioCalculado)}
+                                            readOnly
+                                            className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed font-semibold"
+                                        />
                                     </div>
                                 </div>
 
@@ -1029,8 +1041,13 @@ const BrokerQuotePage: React.FC = () => {
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoBonoPieCotizacion / totalEscritura) * 100) : formatCurrency(0)}%</span>
                                     <span className="text-right">{ufToPesos(pagoBonoPieCotizacion)}</span>
                                     <div className="flex justify-end">
-                                        {/* Ahora es un span porque es de solo lectura y formateado */}
-                                        <span className="w-24 text-right px-2 py-1 bg-gray-100 rounded-md border border-gray-300 font-semibold">{formatCurrency(pagoBonoPieCotizacion)}</span>
+                                        {/* Ahora es un input type="text" con el valor formateado */}
+                                        <input
+                                            type="text"
+                                            value={formatCurrency(pagoBonoPieCotizacion)}
+                                            readOnly
+                                            className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed font-semibold"
+                                        />
                                     </div>
                                 </div>
                                 
