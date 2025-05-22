@@ -34,6 +34,7 @@ const StockReportPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
+        // Columnas a seleccionar
         const columns = `
           id,
           created_at,
@@ -50,11 +51,13 @@ const StockReportPage: React.FC = () => {
           estado_unidad,
           etapa
         `;
+        // Fetch all filas (sin límite) usando range
         const { data, error: fetchError } = await supabase
           .from('stock_unidades')
           .select(columns)
           .order('proyecto_nombre', { ascending: true })
-          .order('unidad',         { ascending: true });
+          .order('unidad',         { ascending: true })
+          .range(0, 10000); // Ajusta el rango según tu volumen de datos
 
         if (fetchError) throw fetchError;
         setStockData(data ?? []);
@@ -185,13 +188,13 @@ const StockReportPage: React.FC = () => {
         </div>
 
         {/* Pestañas */}
-        <div className="border-b border-gray-200 mb-4">
+        <div className="border-б border-gray-200 mb-4">
           <nav className="-mb-px flex space-x-8">
             {['todos','principales','secundarios'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`whitespace-nowrap py-4 px-1 border-б-2 font-medium text-sm ${
                   activeTab===tab
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
