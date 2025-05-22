@@ -239,7 +239,7 @@ const BrokerQuotePage: React.FC = () => {
       if (quotationType === 'descuento') {
         // En este modo, el descuento se "autocarga" con el descuento disponible del departamento
         // y se redondea a 2 decimales para la visualización.
-        setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); 
+        setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2)));  
         setBonoAmount(0); // Restablecer bono en este modo
       } else if (quotationType === 'bono') {
         setDiscountAmount(0); // Restablecer descuento en modo bono
@@ -260,12 +260,12 @@ const BrokerQuotePage: React.FC = () => {
   // Efecto para inicializar el pago de reserva (en UF) y para sincronizar el bono pie de configuración con el de cotización
   useEffect(() => {
     if (ufValue !== null) {
-      setPagoReserva(VALOR_RESERVA_PESOS / ufValue);
+      setPagoReserva(parseFloat((VALOR_RESERVA_PESOS / ufValue).toFixed(2))); // Redondear a 2 decimales
     }
     // Sincronizar el bonoAmount de la configuración con el pagoBonoPieCotizacion
     // Solo si el tipo de configuración es 'bono' o 'mix'
     if (quotationType === 'bono' || quotationType === 'mix') {
-      setPagoBonoPieCotizacion(bonoAmount);
+      setPagoBonoPieCotizacion(parseFloat(bonoAmount.toFixed(2))); // Asegurar 2 decimales
     } else {
       setPagoBonoPieCotizacion(0); // Si es solo descuento, el bono pie de la cotización es 0
     }
@@ -365,13 +365,13 @@ const BrokerQuotePage: React.FC = () => {
     const tFormaDePago = pagoReserva + pagoPromesa + pagoPie + pCreditoHipotecarioCalculado + pagoBonoPieCotizacion;
 
     return {
-      precioBaseDepartamento: pBaseDepto,
-      precioDescuentoDepartamento: pDescuentoDepto,
-      precioDepartamentoConDescuento: pDeptoConDescuento,
-      precioTotalSecundarios: pTotalSecundarios,
-      totalEscritura: tEscritura,
-      pagoCreditoHipotecarioCalculado: pCreditoHipotecarioCalculado,
-      totalFormaDePago: tFormaDePago
+      precioBaseDepartamento: parseFloat(pBaseDepto.toFixed(2)),
+      precioDescuentoDepartamento: parseFloat(pDescuentoDepto.toFixed(2)),
+      precioDepartamentoConDescuento: parseFloat(pDeptoConDescuento.toFixed(2)),
+      precioTotalSecundarios: parseFloat(pTotalSecundarios.toFixed(2)),
+      totalEscritura: parseFloat(tEscritura.toFixed(2)),
+      pagoCreditoHipotecarioCalculado: parseFloat(pCreditoHipotecarioCalculado.toFixed(2)),
+      totalFormaDePago: parseFloat(tFormaDePago.toFixed(2))
     };
   }, [selectedUnidad, quotationType, discountAmount, addedSecondaryUnits,
       pagoReserva, pagoPromesa, pagoPie, pagoBonoPieCotizacion]);
@@ -381,7 +381,7 @@ const BrokerQuotePage: React.FC = () => {
   useEffect(() => {
     // Solo sincronizar si totalEscritura es válido y mayor a 0
     if (totalEscritura > 0 && !isNaN(pagoPromesa) && isFinite(pagoPromesa)) {
-      setPagoPromesaPct((pagoPromesa / totalEscritura) * 100);
+      setPagoPromesaPct(parseFloat(((pagoPromesa / totalEscritura) * 100).toFixed(2)));
     } else if (isNaN(pagoPromesa) || !isFinite(pagoPromesa)) { // Si pagoPromesa se vuelve inválido, resetear pct
       setPagoPromesaPct(0);
     } else { // Si totalEscritura es 0 o inválido
@@ -393,7 +393,7 @@ const BrokerQuotePage: React.FC = () => {
   useEffect(() => {
     // Solo sincronizar si totalEscritura es válido y mayor a 0
     if (totalEscritura > 0 && !isNaN(pagoPie) && isFinite(pagoPie)) {
-      setPagoPiePct((pagoPie / totalEscritura) * 100);
+      setPagoPiePct(parseFloat(((pagoPie / totalEscritura) * 100).toFixed(2)));
     } else if (isNaN(pagoPie) || !isFinite(pagoPie)) { // Si pagoPie se vuelve inválido, resetear pct
       setPagoPiePct(0);
     } else { // Si totalEscritura es 0 o inválido
@@ -420,23 +420,23 @@ const BrokerQuotePage: React.FC = () => {
 
   // Funciones para manejar la edición bidireccional de Promesa y Pie
   const handlePromesaChange = (type: 'uf' | 'pct', value: string) => {
-    const numValue = parseFloat(value); 
+    const numValue = parseFloat(value);  
     
     // Si el valor ingresado no es un número válido o es infinito, se trata como 0
     const finalValue = isNaN(numValue) || !isFinite(numValue) ? 0 : numValue;
 
     if (totalEscritura === 0) { // Si el total escritura es 0, no se puede calcular porcentaje, solo se actualiza el UF si es directo
-      setPagoPromesa(finalValue);
+      setPagoPromesa(parseFloat(finalValue.toFixed(2))); // Asegurar 2 decimales
       // El porcentaje se calculará via useEffect si totalEscritura deja de ser 0
       return;
     }
 
     if (type === 'uf') {
-      setPagoPromesa(finalValue);
+      setPagoPromesa(parseFloat(finalValue.toFixed(2))); // Asegurar 2 decimales
       // El porcentaje se calculará y actualizará vía useEffect
     } else { // type === 'pct'
-      setPagoPromesaPct(finalValue); // Actualiza el estado del porcentaje directamente
-      setPagoPromesa((finalValue / 100) * totalEscritura);
+      setPagoPromesaPct(parseFloat(finalValue.toFixed(2))); // Actualiza el estado del porcentaje directamente, asegurando 2 decimales
+      setPagoPromesa(parseFloat(((finalValue / 100) * totalEscritura).toFixed(2))); // Calcular y redondear a 2 decimales
     }
   };
 
@@ -447,17 +447,17 @@ const BrokerQuotePage: React.FC = () => {
     const finalValue = isNaN(numValue) || !isFinite(numValue) ? 0 : numValue;
 
     if (totalEscritura === 0) {
-      setPagoPie(finalValue);
+      setPagoPie(parseFloat(finalValue.toFixed(2))); // Asegurar 2 decimales
       // El porcentaje se calculará via useEffect si totalEscritura deja de ser 0
       return;
     }
 
     if (type === 'uf') {
-      setPagoPie(finalValue);
+      setPagoPie(parseFloat(finalValue.toFixed(2))); // Asegurar 2 decimales
       // El porcentaje se calculará y actualizará vía useEffect
     } else { // type === 'pct'
-      setPagoPiePct(finalValue); // Actualiza el estado del porcentaje directamente
-      setPagoPie((finalValue / 100) * totalEscritura);
+      setPagoPiePct(parseFloat(finalValue.toFixed(2))); // Actualiza el estado del porcentaje directamente, asegurando 2 decimales
+      setPagoPie(parseFloat(((finalValue / 100) * totalEscritura).toFixed(2))); // Calcular y redondear a 2 decimales
     }
   };
 
@@ -465,7 +465,7 @@ const BrokerQuotePage: React.FC = () => {
   // Función para formatear moneda (siempre con 2 decimales)
   const formatCurrency = (amount: number | null): string => {
     // Manejar null, NaN, Infinity explícitamente para evitar problemas de visualización
-    if (amount === null || isNaN(amount) || !isFinite(amount)) return '0.00'; 
+    if (amount === null || isNaN(amount) || !isFinite(amount)) return '0.00';  
     return new Intl.NumberFormat('es-CL', {
       style: 'decimal',
       minimumFractionDigits: 2,
@@ -658,7 +658,7 @@ const BrokerQuotePage: React.FC = () => {
                         <td className="px-4 py-2">{u.proyecto_nombre}</td>
                         <td className="px-4 py-2">{u.unidad}</td>
                         {/* Renderizar tipo_bien si la pestaña es 'secundarios', de lo contrario, tipología */}
-                        <td className="px-4 py-2">{activeTab === 'secundarios' ? u.tipo_bien : u.tipologia}</td> 
+                        <td className="px-4 py-2">{activeTab === 'secundarios' ? u.tipo_bien : u.tipologia}</td>  
                         <td className="px-4 py-2">{u.piso || '-'}</td>
                         <td className="px-4 py-2 text-right">{u.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td className="px-4 py-2 text-right">{u.valor_lista?.toLocaleString()}</td>
@@ -759,11 +759,11 @@ const BrokerQuotePage: React.FC = () => {
 
             {/* NUEVA TARJETA: Configuración de Cotización (Separada) */}
             {selectedUnidad && ( /* Solo mostrar esta tarjeta si hay una unidad seleccionada */
-              <div className="bg-white shadow rounded p-6 mt-6"> {/* Añadido mt-6 para la separación */}
+              <div className="bg-white shadow rounded p-6 mt-6">
                   <h3 className="text-xl font-semibold mb-4">Configuración de Cotización</h3>
 
                   {/* Contenedor principal para las 3 columnas */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> 
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">  
                       {/* Columna 1: Tipo de Configuración y Campos de Ingreso */}
                       <div>
                           <div className="mb-4">
@@ -773,23 +773,23 @@ const BrokerQuotePage: React.FC = () => {
                                   name="quotationType"
                                   value={quotationType}
                                   onChange={e => {
-                                    const newQuotationType = e.target.value as QuotationType;
-                                    setQuotationType(newQuotationType);
-                                    // Al cambiar el tipo de configuración, inicializar montos
-                                    if (selectedUnidad) {
-                                      const initialAdjustedDiscount = calculateAdjustedDiscount(
-                                        selectedUnidad.valor_lista,
-                                        selectedUnidad.descuento,
-                                        selectedUnidad.proyecto_nombre
-                                      );
-                                      if (newQuotationType === 'descuento' || newQuotationType === 'mix') {
-                                        setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); // Usar el descuento ajustado del departamento
-                                        setBonoAmount(0); // Restablecer bono en estos modos
-                                      } else if (newQuotationType === 'bono') {
-                                        setDiscountAmount(0); // Restablecer descuento en modo bono
-                                        setBonoAmount(0); // El bono en modo 'bono' se ingresa manualmente por ahora, no hay un valor inicial automático
+                                      const newQuotationType = e.target.value as QuotationType;
+                                      setQuotationType(newQuotationType);
+                                      // Al cambiar el tipo de configuración, inicializar montos
+                                      if (selectedUnidad) {
+                                          const initialAdjustedDiscount = calculateAdjustedDiscount(
+                                              selectedUnidad.valor_lista,
+                                              selectedUnidad.descuento,
+                                              selectedUnidad.proyecto_nombre
+                                          );
+                                          if (newQuotationType === 'descuento' || newQuotationType === 'mix') {
+                                              setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); // Usar el descuento ajustado del departamento
+                                              setBonoAmount(0); // Restablecer bono en estos modos
+                                          } else if (newQuotationType === 'bono') {
+                                              setDiscountAmount(0); // Restablecer descuento en modo bono
+                                              setBonoAmount(0); // El bono en modo 'bono' se ingresa manualmente por ahora, no hay un valor inicial automático
+                                          }
                                       }
-                                    }
                                   }}
                                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                               >
@@ -825,7 +825,7 @@ const BrokerQuotePage: React.FC = () => {
                                       <input
                                           type="number"
                                           id="bonoInput"
-                                          value={bonoAmount}
+                                          value={parseFloat(bonoAmount.toFixed(2))} // Asegurar 2 decimales para la visualización
                                           onChange={e => setBonoAmount(parseFloat(e.target.value) || 0)}
                                           min="0"
                                           step="0.01"
@@ -855,7 +855,7 @@ const BrokerQuotePage: React.FC = () => {
                                           <input
                                               type="number"
                                               id="mixBonoInput"
-                                              value={bonoAmount} // Este se calculará automáticamente más tarde si se provee la fórmula
+                                              value={parseFloat(bonoAmount.toFixed(2))} // Asegurar 2 decimales para la visualización
                                               readOnly
                                               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed"
                                               step="0.01"
@@ -950,8 +950,8 @@ const BrokerQuotePage: React.FC = () => {
                                 {/* Mostrar descuento solo si es tipo 'descuento' o 'mix' y el monto es > 0 */}
                                 {(quotationType === 'descuento' || quotationType === 'mix') && precioDescuentoDepartamento > 0 && (
                                   <div className="flex justify-between items-center">
-                                      <span>Descuento ({formatCurrency(discountAmount)}%):</span>
-                                      <span className="font-semibold text-red-600">- {formatCurrency(precioDescuentoDepartamento)} UF</span>
+                                    <span>Descuento ({formatCurrency(discountAmount)}%):</span>
+                                    <span className="font-semibold text-red-600">- {formatCurrency(precioDescuentoDepartamento)} UF</span>
                                   </div>
                                 )}
                                 
@@ -1014,11 +1014,11 @@ const BrokerQuotePage: React.FC = () => {
                                     {/* Input de UF */}
                                     <div className="flex justify-end">
                                         <input
-                                            type="number"
-                                            value={pagoPromesa} // Valor numérico para edición directa
+                                            type="text" // Cambiado a text para mostrar el formato
+                                            value={formatCurrency(pagoPromesa)} // Usar formatCurrency para la visualización
                                             onChange={e => handlePromesaChange('uf', e.target.value)}
                                             className="w-24 text-right border rounded-md px-2 py-1"
-                                            step="0.01"
+                                            // No usar step con type="text", el formateo lo maneja formatCurrency
                                         />
                                     </div>
                                 </div>
@@ -1041,11 +1041,11 @@ const BrokerQuotePage: React.FC = () => {
                                     {/* Input de UF */}
                                     <div className="flex justify-end">
                                         <input
-                                            type="number"
-                                            value={pagoPie} // Valor numérico para edición directa
+                                            type="text" // Cambiado a text para mostrar el formato
+                                            value={formatCurrency(pagoPie)} // Usar formatCurrency para la visualización
                                             onChange={e => handlePieChange('uf', e.target.value)}
                                             className="w-24 text-right border rounded-md px-2 py-1"
-                                            step="0.01"
+                                            // No usar step con type="text", el formateo lo maneja formatCurrency
                                         />
                                     </div>
                                 </div>
