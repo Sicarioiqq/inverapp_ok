@@ -410,33 +410,57 @@ const BrokerQuotePage: React.FC = () => {
                   <p>{selectedUnidad.proyecto_nombre}</p>
                 </section>
                 {/* Sección Unidad, Estado, Tipología, Piso, Descuento, Valor */}
-                <section className="mb-4">
-                  <h3 className="text-lg font-medium">Unidad</h3>
-                  <p>
-                    {selectedUnidad.unidad} <span className="text-sm text-gray-500">({selectedUnidad.estado_unidad})</span>
-                  </p>
-                  <p>Tipología: {selectedUnidad.tipologia}</p>
-                  <p>Piso: {selectedUnidad.piso || '-'}</p>
-                  {/* Mostrar el descuento ajustado en la sección de configuración también */}
-                  <p>Descuento: {
-                    (calculateAdjustedDiscount(
-                      selectedUnidad.valor_lista,
-                      selectedUnidad.descuento,
-                      selectedUnidad.proyecto_nombre
-                    ) !== null ? (calculateAdjustedDiscount(
-                      selectedUnidad.valor_lista,
-                      selectedUnidad.descuento,
-                      selectedUnidad.proyecto_nombre
-                    )! * 100) : (selectedUnidad.descuento ?? 0) * 100).toFixed(2)
-                  }%</p>
-                  <p>Valor Lista: {selectedUnidad.valor_lista?.toLocaleString()} UF</p>
+                {/* Modificado para ocupar 4 columnas */}
+                <section className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <h3 className="text-lg font-medium col-span-full">Unidad</h3>
+                  <div>
+                    <p>
+                      **N° Bien:** {selectedUnidad.unidad} <span className="text-sm text-gray-500">({selectedUnidad.estado_unidad})</span>
+                    </p>
+                  </div>
+                  <div>
+                    <p>**Tipología:** {selectedUnidad.tipologia}</p>
+                  </div>
+                  <div>
+                    <p>**Piso:** {selectedUnidad.piso || '-'}</p>
+                  </div>
+                  <div>
+                    {/* Mostrar el descuento ajustado en la sección de configuración también */}
+                    <p>
+                      **Descuento:** {
+                        (calculateAdjustedDiscount(
+                          selectedUnidad.valor_lista,
+                          selectedUnidad.descuento,
+                          selectedUnidad.proyecto_nombre
+                        ) !== null ? (calculateAdjustedDiscount(
+                          selectedUnidad.valor_lista,
+                          selectedUnidad.descuento,
+                          selectedUnidad.proyecto_nombre
+                        )! * 100) : (selectedUnidad.descuento ?? 0) * 100).toFixed(2)
+                      }%
+                    </p>
+                  </div>
+                  <div className="col-span-full">
+                    <p>**Valor Lista:** {selectedUnidad.valor_lista?.toLocaleString()} UF</p>
+                  </div>
                 </section>
                 {/* Sección Superficies */}
-                <section>
-                  <h3 className="text-lg font-medium">Superficies</h3>
-                  <p>Sup. Útil: {selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</p>
-                  {selectedUnidad.sup_terraza != null && <p>Sup. Terraza: {selectedUnidad.sup_terraza} m²</p>}
-                  {selectedUnidad.sup_total != null && <p>Sup. Total: {selectedUnidad.sup_total} m²</p>}
+                {/* Modificado para ocupar 4 columnas */}
+                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <h3 className="text-lg font-medium col-span-full">Superficies</h3>
+                  <div>
+                    <p>**Sup. Útil:** {selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</p>
+                  </div>
+                  {selectedUnidad.sup_terraza != null && (
+                    <div>
+                      <p>**Sup. Terraza:** {selectedUnidad.sup_terraza} m²</p>
+                    </div>
+                  )}
+                  {selectedUnidad.sup_total != null && (
+                    <div>
+                      <p>**Sup. Total:** {selectedUnidad.sup_total} m²</p>
+                    </div>
+                  )}
                 </section>
               </>
             )}
