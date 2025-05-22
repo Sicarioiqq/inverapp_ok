@@ -2,6 +2,9 @@
 import React, { useState, useEffect, useMemo } from 'react'; // Importar useMemo
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { PDFDownloadLink } from '@react-pdf/renderer'; // Importar PDFDownloadLink
+import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF'; // Importar el componente PDF
+
 import {
   LayoutDashboard,
   Home,
@@ -13,7 +16,8 @@ import {
   PlusCircle, // Icono para añadir
   Trash2, // Icono para eliminar
   DollarSign, // Icono para precios
-  Wallet // Icono para forma de pago
+  Wallet, // Icono para forma de pago
+  Download // Icono para descarga
 } from 'lucide-react';
 
 interface BrokerInfo {
@@ -269,7 +273,7 @@ const BrokerQuotePage: React.FC = () => {
         // Al seleccionar mix, inicialmente todo el "bono" se muestra como tal.
         setDiscountAmount(0); // Descuento inicial 0, ya que todo está en bono
         setBonoAmount(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // Bono inicial disponible UF
-        // bonoAmountPct se calculará en el useEffect que depende de totalEscritura
+        // bonoAmountPct se calculará en el useEffect principal
         setBonoAmountPct(0); // Inicializar a 0, se actualizará en el useEffect principal
         setTempBonoAmountPctInput('0.00'); // Resetear input temporal
         setPagoBonoPieCotizacion(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // También inicializar el bono en forma de pago
@@ -513,7 +517,6 @@ const BrokerQuotePage: React.FC = () => {
   };
 
   // Función para aplicar los cambios del input temporal del Bono Pie (%)
-  // Ahora se invoca en onChange para las flechas y en onBlur/onKeyDown para la entrada manual.
   const applyBonoPieConfigChange = (value: string) => {
     const numValue = parseFloat(value);
     const finalValue = isNaN(numValue) || !isFinite(numValue) ? 0 : numValue;
@@ -967,8 +970,11 @@ const BrokerQuotePage: React.FC = () => {
                                               value={tempBonoAmountPctInput} // Usa el estado temporal
                                               onChange={e => {
                                                   setTempBonoAmountPctInput(e.target.value); // Siempre actualiza el estado temporal
-                                                  // Intenta aplicar el cálculo si el valor es numérico y no es una entrada parcial como "1." o "12."
-                                                  if (!isNaN(parseFloat(e.target.value)) && e.target.value !== '' && e.target.value.slice(-1) !== '.') {
+                                                  // Aplica el cálculo inmediatamente si el valor es un número completo (flechas o finalización de escritura)
+                                                  // La regex ` /^-?\d*\.?\d*$/ ` verifica si la cadena es un número válido o una entrada parcial como "1.", ".5".
+                                                  // Si no termina en un punto flotante (indicando entrada incompleta de decimal), y no es solo un guion, se aplica el cálculo.
+                                                  const isPartialInput = e.target.value.endsWith('.') || e.target.value === '-' || e.target.value === '';
+                                                  if (!isPartialInput && !isNaN(parseFloat(e.target.value))) {
                                                       applyBonoPieConfigChange(e.target.value);
                                                   }
                                               }}
@@ -1108,7 +1114,7 @@ const BrokerQuotePage: React.FC = () => {
                                 <div className="grid grid-cols-5 items-center">
                                     <span className="col-span-2">Reserva:</span>
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoReserva / totalEscritura) * 100) : formatCurrency(0)}%</span>
-                                    <span className="text-right">{ufToPesos(pagoReserva)}</span>
+                                    <span className="text-right">{ufToPesos(pagoReserva, ufValue)}</span>
                                     <div className="flex justify-end">
                                         {/* Ahora es un input type="text" con el valor formateado */}
                                         <input
@@ -1134,7 +1140,7 @@ const BrokerQuotePage: React.FC = () => {
                                         />
                                         <span className="ml-1">%</span>
                                     </div>
-                                    <span className="text-right">{ufToPesos(pagoPromesa)}</span>
+                                    <span className="text-right">{ufToPesos(pagoPromesa, ufValue)}</span>
                                     {/* Input de UF */}
                                     <div className="flex justify-end">
                                         <input
@@ -1142,7 +1148,7 @@ const BrokerQuotePage: React.FC = () => {
                                             value={formatCurrency(pagoPromesa)} // Usar formatCurrency para la visualización
                                             onChange={e => handlePromesaChange('uf', e.target.value)}
                                             className="w-24 text-right border rounded-md px-2 py-1"
-                                            // No usar step con type="text", el formateo lo maneja formatCurrency
+                                            // No usar step con type="text", el formateo lo maneja great
                                         />
                                     </div>
                                 </div>
@@ -1161,7 +1167,7 @@ const BrokerQuotePage: React.FC = () => {
                                         />
                                         <span className="ml-1">%</span>
                                     </div>
-                                    <span className="text-right">{ufToPesos(pagoPie)}</span>
+                                    <span className="text-right">{ufToPesos(pagoPie, ufValue)}</span>
                                     {/* Input de UF */}
                                     <div className="flex justify-end">
                                         <input
@@ -1178,7 +1184,7 @@ const BrokerQuotePage: React.FC = () => {
                                 <div className="grid grid-cols-5 items-center">
                                     <span className="col-span-2">Crédito Hipotecario:</span>
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoCreditoHipotecarioCalculado / totalEscritura) * 100) : formatCurrency(0)}%</span>
-                                    <span className="text-right">{ufToPesos(pagoCreditoHipotecarioCalculado)}</span>
+                                    <span className="text-right">{ufToPesos(pagoCreditoHipotecarioCalculado, ufValue)}</span>
                                     <div className="flex justify-end">
                                         {/* Ahora es un input type="text" con el valor formateado */}
                                         <input
@@ -1195,7 +1201,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <span className="col-span-2">Bono Pie:</span>
                                     {/* Porcentaje de Bono Pie en la Forma de Pago */}
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoBonoPieCotizacion / totalEscritura) * 100) : formatCurrency(0)}%</span>
-                                    <span className="text-right">{ufToPesos(pagoBonoPieCotizacion)}</span>
+                                    <span className="text-right">{ufToPesos(pagoBonoPieCotizacion, ufValue)}</span>
                                     <div className="flex justify-end">
                                         <input
                                             type="text" // Cambiado a text para usar formatCurrency
@@ -1216,11 +1222,55 @@ const BrokerQuotePage: React.FC = () => {
                                     <span className="col-span-2">Total:</span>
                                     {/* El porcentaje y pesos deben basarse en totalEscritura */}
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((totalFormaDePago / totalEscritura) * 100) : formatCurrency(0)}%</span>
-                                    <span className="text-right">{ufToPesos(totalFormaDePago)}</span>
+                                    <span className="text-right">{ufToPesos(totalFormaDePago, ufValue)}</span>
                                     <span className="text-right">{formatCurrency(totalFormaDePago)} UF</span>
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Botón para generar PDF */}
+                    <div className="mt-8 text-center">
+                        {selectedUnidad && ( // Solo habilitar si hay una unidad seleccionada
+                            <PDFDownloadLink
+                                document={
+                                    <BrokerQuotePDF
+                                        cliente={cliente}
+                                        rut={rut}
+                                        ufValue={ufValue}
+                                        selectedUnidad={selectedUnidad}
+                                        addedSecondaryUnits={addedSecondaryUnits}
+                                        quotationType={quotationType}
+                                        discountAmount={discountAmount}
+                                        bonoAmount={bonoAmount}
+                                        pagoReserva={pagoReserva}
+                                        pagoPromesa={pagoPromesa}
+                                        pagoPromesaPct={pagoPromesaPct}
+                                        pagoPie={pagoPie}
+                                        pagoPiePct={pagoPiePct}
+                                        pagoBonoPieCotizacion={pagoBonoPieCotizacion}
+                                        precioBaseDepartamento={precioBaseDepartamento}
+                                        precioDescuentoDepartamento={precioDescuentoDepartamento}
+                                        precioDepartamentoConDescuento={precioDepartamentoConDescuento}
+                                        precioTotalSecundarios={precioTotalSecundarios}
+                                        totalEscritura={totalEscritura}
+                                        pagoCreditoHipotecarioCalculado={pagoCreditoHipotecarioCalculado}
+                                        totalFormaDePago={totalFormaDePago}
+                                    />
+                                }
+                                fileName={`Cotizacion_${cliente.replace(/\s/g, '_') || 'Cliente'}_${selectedUnidad.unidad}.pdf`}
+                            >
+                                {({ blob, url, loading, error }) => (
+                                    <button
+                                        className="bg-green-600 text-white px-6 py-3 rounded-md shadow-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center justify-center mx-auto"
+                                        disabled={loading || !selectedUnidad}
+                                    >
+                                        <Download className="h-5 w-5 mr-2" />
+                                        {loading ? 'Generando PDF...' : 'Generar Cotización PDF'}
+                                    </button>
+                                )}
+                            </PDFDownloadLink>
+                        )}
                     </div>
                 </div>
             )}
