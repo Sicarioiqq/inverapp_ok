@@ -239,7 +239,12 @@ const ReservationForm = () => {
           down_payment,
           credit_payment,
           subsidy_payment,
-          clients!inner(id, rut, first_name, last_name)
+          clients (
+            id,
+            rut,
+            first_name,
+            last_name
+          )
         `)
         .eq('id', id)
         .single();
