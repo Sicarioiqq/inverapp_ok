@@ -15,7 +15,7 @@ interface StockUnidad {
   piso: string | null;
   orientacion: string | null;
   sup_util: number | null;    // Coincide con la columna de Supabase
-  m2_terraza: number | null;   // Coincide con la columna de Supabase
+  sup_terraza: number | null;   // Coincide con la columna de Supabase
   m2_totales: number | null;   // Coincide con la columna de Supabase
   precio_uf: number | null;    // Coincide con la columna de Supabase
   estado_unidad: string | null;
@@ -45,7 +45,7 @@ const StockReportPage: React.FC = () => {
           piso, 
           orientacion, 
           sup_util, 
-          m2_terraza, 
+          sup_terraza, 
           m2_totales, 
           precio_uf, 
           estado_unidad,
