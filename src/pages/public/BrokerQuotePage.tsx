@@ -40,6 +40,7 @@ interface BrokerProjectCommission {
 }
 
 type Tab = 'principales' | 'secundarios' | 'configuracion';
+type QuotationType = 'descuento' | 'bono' | 'mix'; // Tipos para la configuración de cotización
 
 const BrokerQuotePage: React.FC = () => {
   const { brokerSlug, accessToken } = useParams<{ brokerSlug: string; accessToken: string }>();
@@ -60,7 +61,6 @@ const BrokerQuotePage: React.FC = () => {
   const [ufValue, setUfValue] = useState<number | null>(null);
   const [loadingUf, setLoadingUf] = useState(true);
 
-
   const [sortField, setSortField] = useState<keyof Unidad>('unidad');
   const [sortAsc, setSortAsc] = useState(true);
   const [filterProyecto, setFilterProyecto] = useState<string>('Todos');
@@ -69,6 +69,16 @@ const BrokerQuotePage: React.FC = () => {
   const [selectedUnidad, setSelectedUnidad] = useState<Unidad | null>(null);
   const [cliente, setCliente] = useState('');
   const [rut, setRut] = useState('');
+
+  // NUEVOS ESTADOS para la configuración de cotización
+  const [quotationType, setQuotationType] = useState<QuotationType>('descuento');
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [bonoAmount, setBonoAmount] = useState<number>(0); // Renamed from bonusAmount to bonoAmount for clarity
+
+  // NUEVOS ESTADOS para unidades secundarias del proyecto
+  const [projectSecondaryUnits, setProjectSecondaryUnits] = useState<Unidad[]>([]);
+  const [selectedSecondaryUnits, setSelectedSecondaryUnits] = useState<string[]>([]); // Array de IDs de unidades secundarias seleccionadas
+
 
   // Validar broker
   useEffect(() => {
@@ -177,6 +187,34 @@ const BrokerQuotePage: React.FC = () => {
     fetchUf();
   }, []); // Empty dependency array means this runs once on mount
 
+  // NUEVO: Fetch secondary units for the selected project
+  useEffect(() => {
+    if (selectedUnidad?.proyecto_nombre) {
+      const fetchProjectUnits = async () => {
+        try {
+          const { data, error: suError } = await supabase
+            .from<Unidad>('stock_unidades')
+            .select('id, unidad, tipologia, valor_lista, tipo_bien')
+            .eq('proyecto_nombre', selectedUnidad.proyecto_nombre)
+            .neq('tipo_bien', 'DEPARTAMENTO') // Filter for secondary units
+            .order('unidad');
+
+          if (suError) throw suError;
+          setProjectSecondaryUnits(data || []);
+          setSelectedSecondaryUnits([]); // Reset selected secondary units when project changes
+        } catch (e) {
+          console.error('Error loading project secondary units:', e);
+          setProjectSecondaryUnits([]);
+        }
+      };
+      fetchProjectUnits();
+    } else {
+      setProjectSecondaryUnits([]);
+      setSelectedSecondaryUnits([]);
+    }
+  }, [selectedUnidad?.proyecto_nombre]);
+
+
   // Opciones de filtro
   const proyectos = ['Todos', ...Array.from(new Set(stock.map(u => u.proyecto_nombre))).sort()];
   const tipologias = [
@@ -241,6 +279,15 @@ const BrokerQuotePage: React.FC = () => {
       if (av > bv) return sortAsc ? 1 : -1;
       return 0;
     });
+
+  // Handler para seleccionar/deseleccionar unidades secundarias
+  const handleSelectSecondaryUnit = (unitId: string) => {
+    setSelectedSecondaryUnits(prev =>
+      prev.includes(unitId)
+        ? prev.filter(id => id !== unitId)
+        : [...prev, unitId]
+    );
+  };
 
   if (isValidating || loadingCommissions || loadingUf) // Esperar también a que carguen las comisiones y la UF
     return (
@@ -488,7 +535,7 @@ const BrokerQuotePage: React.FC = () => {
                 </section>
                 {/* Sección Superficies */}
                 {/* Modified to use grid, added bold tags to values, added 'mt-6' */}
-                <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-b pb-4"> {/* Added border-b pb-4 for separation */}
                   <h3 className="text-lg font-medium col-span-full mb-2">Superficies</h3>
                   <div>
                     <p>Sup. Útil: <span className="font-semibold">{selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</span></p>
@@ -504,6 +551,113 @@ const BrokerQuotePage: React.FC = () => {
                     </div>
                   )}
                 </section>
+
+                {/* NUEVA TARJETA/SECCIÓN: Configuración de Cotización */}
+                <section className="mt-6 border-t pt-4"> {/* Added border-t and pt-4 for separation */}
+                    <h3 className="text-lg font-semibold col-span-full mb-4">Configuración de Cotización</h3>
+
+                    {/* Tipo de Descuento/Bono */}
+                    <div className="mb-4">
+                        <label htmlFor="quotationType" className="block text-sm font-medium text-gray-700">Tipo de Configuración</label>
+                        <select
+                            id="quotationType"
+                            name="quotationType"
+                            value={quotationType}
+                            onChange={e => setQuotationType(e.target.value as QuotationType)}
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        >
+                            <option value="descuento">Descuento</option>
+                            <option value="bono">Bono Pie</option>
+                            <option value="mix">Mix (Descuento + Bono)</option>
+                        </select>
+                    </div>
+
+                    {/* Campos de Ingreso Condicionales */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        {quotationType === 'descuento' && (
+                            <div>
+                                <label htmlFor="discountInput" className="block text-sm font-medium text-gray-700">Descuento (%)</label>
+                                <input
+                                    type="number"
+                                    id="discountInput"
+                                    value={discountAmount}
+                                    onChange={e => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                                    min="0"
+                                    max="100"
+                                    step="0.001"
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                />
+                            </div>
+                        )}
+                        {quotationType === 'bono' && (
+                            <div>
+                                <label htmlFor="bonoInput" className="block text-sm font-medium text-gray-700">Bono Pie (UF)</label>
+                                <input
+                                    type="number"
+                                    id="bonoInput"
+                                    value={bonoAmount}
+                                    onChange={e => setBonoAmount(parseFloat(e.target.value) || 0)}
+                                    min="0"
+                                    step="0.01"
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                />
+                            </div>
+                        )}
+                        {quotationType === 'mix' && (
+                            <>
+                                <div>
+                                    <label htmlFor="mixDiscountInput" className="block text-sm font-medium text-gray-700">Descuento (%)</label>
+                                    <input
+                                        type="number"
+                                        id="mixDiscountInput"
+                                        value={discountAmount}
+                                        onChange={e => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                                        min="0"
+                                        max="100"
+                                        step="0.001"
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="mixBonoInput" className="block text-sm font-medium text-gray-700">Bono Pie (UF) (Automático)</label>
+                                    <input
+                                        type="number"
+                                        id="mixBonoInput"
+                                        value={bonoAmount} // This will be calculated automatically later
+                                        readOnly
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed"
+                                    />
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Listado de Secundarios para agregar a la cotización */}
+                    <div className="border-t pt-4">
+                        <h4 className="text-lg font-medium mb-3">Agregar Secundarios a la Cotización</h4>
+                        {projectSecondaryUnits.length === 0 ? (
+                            <p className="text-gray-500">No hay unidades secundarias disponibles para este proyecto.</p>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {projectSecondaryUnits.map(unit => (
+                                    <div key={unit.id} className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id={`secondary-${unit.id}`}
+                                            checked={selectedSecondaryUnits.includes(unit.id)}
+                                            onChange={() => handleSelectSecondaryUnit(unit.id)}
+                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        />
+                                        <label htmlFor={`secondary-${unit.id}`} className="ml-2 text-sm text-gray-700">
+                                            {unit.unidad} ({unit.tipologia}) - {unit.valor_lista?.toLocaleString()} UF
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </section>
+                {/* FIN NUEVA TARJETA/SECCIÓN */}
               </>
             )}
           </div>
