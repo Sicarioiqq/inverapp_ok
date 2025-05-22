@@ -21,6 +21,7 @@ const ufToPesos = (uf: number | null, ufValue: number | null): string => {
 };
 
 // Create styles
+// IMPORTANT: Define base styles first if they are to be merged into others
 const styles = StyleSheet.create({
   page: {
     padding: 30,
@@ -58,15 +59,14 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
   },
-  // Generic column style
-  tableCol: {
+  // Generic column base styles - these must be defined before specific ones that merge them
+  baseTableCol: { // A general base style for merging
     borderStyle: 'solid',
     borderColor: '#bfbfbf',
     borderWidth: 1,
     padding: 5,
-    // Add flexGrow to allow content to dictate initial width, or specific width if needed
   },
-  tableColHeader: {
+  baseTableColHeader: { // A general base header style for merging
     borderStyle: 'solid',
     borderColor: '#bfbfbf',
     borderBottomColor: '#000',
@@ -76,63 +76,52 @@ const styles = StyleSheet.create({
     padding: 5,
     fontFamily: 'Helvetica-Bold',
   },
-  
+  baseTableColRight: { // A general base right-aligned style for merging
+    borderStyle: 'solid',
+    borderColor: '#bfbfbf',
+    borderWidth: 1,
+    padding: 5,
+    textAlign: 'right',
+  },
+  baseTableColSmallRight: { // A general base small right-aligned style for merging
+    borderStyle: 'solid',
+    borderColor: '#bfbfbf',
+    borderWidth: 1,
+    padding: 5,
+    textAlign: 'right',
+  },
+
+
   // Specific column widths for Unit Characteristics table
   unitTableColHeader: {
     width: '14.28%', // 100% / 7 columns
-    borderStyle: 'solid',
-    borderColor: '#bfbfbf',
-    borderBottomColor: '#000',
-    borderWidth: 1,
-    backgroundColor: '#f2f2f2',
-    textAlign: 'center',
-    padding: 5,
-    fontFamily: 'Helvetica-Bold',
+    ...this.baseTableColHeader, // Merge base header properties
   },
   unitTableCol: {
     width: '14.28%', // 100% / 7 columns
-    borderStyle: 'solid',
-    borderColor: '#bfbfbf',
-    borderWidth: 1,
-    padding: 5,
+    ...this.baseTableCol, // Merge base column properties
   },
 
   // Specific column widths for Prices table
-  pricesColItem: { width: '25%', ...Styles.tableCol }, // ÍTEM
-  pricesColListPrice: { width: '15%', ...Styles.tableColRight }, // PRECIO LISTA (UF)
-  pricesColDiscountPct: { width: '10%', ...Styles.tableColSmallRight }, // DSCTO. %
-  pricesColDiscountUF: { width: '15%', ...Styles.tableColRight }, // DSCTO. (UF)
-  pricesColNetPriceUF: { width: '15%', ...Styles.tableColRight }, // PRECIO NETO (UF)
-  pricesColNetPriceCLP: { width: '20%', ...Styles.tableColRight }, // PRECIO NETO ($)
+  pricesColHeader: {
+    ...this.baseTableColHeader, // Merge base header properties
+  },
+  pricesColItem: { width: '25%', ...this.baseTableCol }, // ÍTEM
+  pricesColListPrice: { width: '15%', ...this.baseTableColRight }, // PRECIO LISTA (UF)
+  pricesColDiscountPct: { width: '10%', ...this.baseTableColSmallRight }, // DSCTO. %
+  pricesColDiscountUF: { width: '15%', ...this.baseTableColRight }, // DSCTO. (UF)
+  pricesColNetPriceUF: { width: '15%', ...this.baseTableColRight }, // PRECIO NETO (UF)
+  pricesColNetPriceCLP: { width: '20%', ...this.baseTableColRight }, // PRECIO NETO ($)
 
   // Specific column widths for Payment Method table
-  paymentColGlosa: { width: '35%', ...Styles.tableCol }, // GLOSA
-  paymentColPct: { width: '10%', ...Styles.tableColSmallRight }, // %
-  paymentColPesos: { width: '25%', ...Styles.tableColRight }, // PESOS
-  paymentColUF: { width: '30%', ...Styles.tableColRight }, // UF
+  paymentColHeader: {
+    ...this.baseTableColHeader, // Merge base header properties
+  },
+  paymentColGlosa: { width: '35%', ...this.baseTableCol }, // GLOSA
+  paymentColPct: { width: '10%', ...this.baseTableColSmallRight }, // %
+  paymentColPesos: { width: '25%', ...this.baseTableColRight }, // PESOS
+  paymentColUF: { width: '30%', ...this.baseTableColRight }, // UF
 
-
-  tableColLeft: { // For glosa type columns
-    flexGrow: 1,
-    borderStyle: 'solid',
-    borderColor: '#bfbfbf',
-    borderWidth: 1,
-    padding: 5,
-  },
-  tableColRight: { // For generic right-aligned number columns
-    borderStyle: 'solid',
-    borderColor: '#bfbfbf',
-    borderWidth: 1,
-    textAlign: 'right',
-    padding: 5,
-  },
-  tableColSmallRight: { // For percentages
-    borderStyle: 'solid',
-    borderColor: '#bfbfbf',
-    borderWidth: 1,
-    textAlign: 'right',
-    padding: 5,
-  },
 
   totalRow: {
     flexDirection: 'row',
@@ -165,8 +154,8 @@ const styles = StyleSheet.create({
   }
 });
 
-// Alias for easier use in JSX
-const Styles = styles; // This is a common pattern to avoid `styles.` repetition
+// Alias for easier use in JSX - now this is safe as 'styles' is fully defined
+const Styles = styles;
 
 interface BrokerQuotePDFProps {
   cliente: string;
@@ -238,7 +227,7 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
           {/* You can add an <Image /> component here for logos later */}
           {/* <Image src="path/to/your/logo.png" style={{ width: 100, height: 50 }} /> */}
           <Text style={[Styles.header, { marginTop: 10 }]}>COTIZACIÓN DE PROPIEDAD</Text>
-          <Text style={Styles.dateInfo}>Fecha: {currentDate}</Text> {/* Added "Fecha:" */}
+          <Text style={Styles.dateInfo}>Fecha: {currentDate}</Text>
           <Text style={Styles.quotationNumber}>COTIZACIÓN Nº: [PENDIENTE]</Text>
           <Text style={Styles.dateInfo}>UF: $ {ufValue ? ufValue.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}</Text>
         </View>
@@ -282,12 +271,12 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
           <Text style={Styles.subHeader}>III. PRECIOS</Text>
           <View style={Styles.table}>
             <View style={Styles.tableRow}>
-              <View style={Styles.tableColHeader}><Text style={Styles.pricesColItem}>ÍTEM</Text></View>
-              <View style={Styles.tableColHeader}><Text style={Styles.pricesColListPrice}>PRECIO LISTA (UF)</Text></View>
-              <View style={Styles.tableColHeader}><Text style={Styles.pricesColDiscountPct}>DSCTO. %</Text></View>
-              <View style={Styles.tableColHeader}><Text style={Styles.pricesColDiscountUF}>DSCTO. (UF)</Text></View>
-              <View style={Styles.tableColHeader}><Text style={Styles.pricesColNetPriceUF}>PRECIO NETO (UF)</Text></View>
-              <View style={Styles.tableColHeader}><Text style={Styles.pricesColNetPriceCLP}>PRECIO NETO ($)</Text></View>
+              <View style={Styles.pricesColHeader}><Text>ÍTEM</Text></View>
+              <View style={Styles.pricesColHeader}><Text>PRECIO LISTA (UF)</Text></View>
+              <View style={Styles.pricesColHeader}><Text>DSCTO. %</Text></View>
+              <View style={Styles.pricesColHeader}><Text>DSCTO. (UF)</Text></View>
+              <View style={Styles.pricesColHeader}><Text>PRECIO NETO (UF)</Text></View>
+              <View style={Styles.pricesColHeader}><Text>PRECIO NETO ($)</Text></View>
             </View>
             {selectedUnidad && (
               <View style={Styles.tableRow}>
@@ -311,7 +300,7 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
             ))}
             <View style={Styles.tableRow}>
                 <View style={Styles.pricesColItem}><Text style={Styles.boldText}>TOTAL ESCRITURA</Text></View>
-                <View style={Styles.pricesColListPrice}><Text></Text></View> {/* Empty cells for non-total columns */}
+                <View style={Styles.pricesColListPrice}><Text></Text></View>
                 <View style={Styles.pricesColDiscountPct}><Text></Text></View>
                 <View style={Styles.pricesColDiscountUF}><Text></Text></View>
                 <View style={Styles.pricesColNetPriceUF}><Text style={Styles.boldText}>{formatCurrency(totalEscritura)}</Text></View>
@@ -325,10 +314,10 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
           <Text style={Styles.subHeader}>IV. FORMA DE PAGO</Text>
           <View style={Styles.table}>
             <View style={Styles.tableRow}>
-              <View style={Styles.tableColHeader}><Text style={Styles.paymentColGlosa}>GLOSA</Text></View>
-              <View style={Styles.tableColHeader}><Text style={Styles.paymentColPct}>%</Text></View>
-              <View style={Styles.tableColHeader}><Text style={Styles.paymentColPesos}>PESOS</Text></View>
-              <View style={Styles.tableColHeader}><Text style={Styles.paymentColUF}>UF</Text></View>
+              <View style={Styles.paymentColHeader}><Text style={Styles.paymentColGlosa}>GLOSA</Text></View>
+              <View style={Styles.paymentColHeader}><Text style={Styles.paymentColPct}>%</Text></View>
+              <View style={Styles.paymentColHeader}><Text style={Styles.paymentColPesos}>PESOS</Text></View>
+              <View style={Styles.paymentColHeader}><Text style={Styles.paymentColUF}>UF</Text></View>
             </View>
             <View style={Styles.tableRow}>
               <View style={Styles.paymentColGlosa}><Text>Reserva</Text></View>
