@@ -57,7 +57,7 @@ const StockReportPage: React.FC = () => {
           .from('stock_unidades') // Nombre exacto de tu tabla
           .select(columnsToSelect)
           .order('proyecto_nombre', { ascending: true })
-          .order('unidad_codigo', { ascending: true }); // Ordenar por la columna correcta
+          .order('unidad', { ascending: true }); // Ordenar por la columna correcta
 
         // --- INICIO DE LOGS DE DEPURACIÓN DETALLADOS ---
         console.log('----------------------------------------------------');
