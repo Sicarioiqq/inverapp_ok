@@ -239,12 +239,7 @@ const ReservationForm = () => {
           down_payment,
           credit_payment,
           subsidy_payment,
-          client:clients (
-            id,
-            rut,
-            first_name,
-            last_name
-          )
+          clients!inner(id, rut, first_name, last_name)
         `)
         .eq('id', id)
         .single();
@@ -266,7 +261,8 @@ const ReservationForm = () => {
         other_discount: (reservationData.other_discount || 0) * 100
       });
       
-      setSelectedClient(reservationData.client);
+      // Extract client data from the nested clients object
+      setSelectedClient(reservationData.clients);
     } catch (err: any) {
       console.error('Error in fetchReservation:', err);
       setError(err.message);
