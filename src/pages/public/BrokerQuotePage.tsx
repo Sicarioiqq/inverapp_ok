@@ -131,43 +131,131 @@ const BrokerQuotePage: React.FC = () => {
     { key: 'estado_unidad', label: 'Estado' },
   ];
 
-  if (isValidating) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" />Validando...</div>;
-  if (error || !brokerInfo) return <div className="p-6 text-center"><ShieldX className="h-16 w-16 text-red-500 mx-auto"/><p className="mt-4 text-red-600">{error}</p></div>;
+  if (isValidating)
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="animate-spin" />
+        Validando...
+      </div>
+    );
+  if (error || !brokerInfo)
+    return (
+      <div className="p-6 text-center">
+        <ShieldX className="h-16 w-16 text-red-500 mx-auto" />
+        <p className="mt-4 text-red-600">{error}</p>
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow"><div className="container mx-auto p-4"><h1 className="text-2xl font-bold">Cotizador Broker: {brokerInfo.name}</h1></div></header>
+      <header className="bg-white shadow">
+        <div className="container mx-auto p-4">
+          <h1 className="text-2xl font-bold">Cotizador Broker: {brokerInfo.name}</h1>
+        </div>
+      </header>
       <main className="container mx-auto p-4">
         <nav className="flex space-x-4 border-b mb-4">
-          <button onClick={()=>setActiveTab('principales')} className={activeTab==='principales' ? 'border-b-2 border-blue-600 pb-2' : 'pb-2 text-gray-500'}><Home className="inline mr-1"/>Principales</button>
-          <button onClick={()=>setActiveTab('secundarios')} className={activeTab==='secundarios' ? 'border-b-2 border-blue-600 pb-2' : 'pb-2 text-gray-500'}><LayoutDashboard className="inline mr-1"/>Secundarios</button>
-          <button onClick={()=>setActiveTab('configuracion')} className={activeTab==='configuracion' ? 'border-b-2 border-blue-600 pb-2' : 'pb-2 text-gray-500'}><SlidersHorizontal className="inline mr-1"/>Configuración</button>
+          <button
+            onClick={() => setActiveTab('principales')}
+            className={
+              activeTab === 'principales'
+                ? 'border-b-2 border-blue-600 pb-2'
+                : 'pb-2 text-gray-500'
+            }
+          >
+            <Home className="inline mr-1" />Principales
+          </button>
+          <button
+            onClick={() => setActiveTab('secundarios')}
+            className={
+              activeTab === 'secundarios'
+                ? 'border-b-2 border-blue-600 pb-2'
+                : 'pb-2 text-gray-500'
+            }
+          >
+            <LayoutDashboard className="inline mr-1" />Secundarios
+          </button>
+          <button
+            onClick={() => setActiveTab('configuracion')}
+            className={
+              activeTab === 'configuracion'
+                ? 'border-b-2 border-blue-600 pb-2'
+                : 'pb-2 text-gray-500'
+            }
+          >
+            <SlidersHorizontal className="inline mr-1" />Configuración
+          </button>
         </nav>
 
-        {activeTab==='principales' && (
+        {activeTab === 'principales' && (
           <>
             <div className="flex space-x-4 mb-4">
-              <select value={selectedProject} onChange={e=>{setSelectedProject(e.target.value); setSelectedTip('');}} className="border p-2 rounded">
-                <option value="">Todos Proyectos</option>{projects.map(p=><option key={p} value={p}>{p}</option>) }
+              <select
+                value={selectedProject}
+                onChange={e => {
+                  setSelectedProject(e.target.value);
+                  setSelectedTip('');
+                }}
+                className="border p-2 rounded"
+              >
+                <option value="">Todos Proyectos</option>
+                {projects.map(p => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
               </select>
-              <select value={selectedTip} onChange={e=>setSelectedTip(e.target.value)} className="border p-2 rounded">
-                <option value="">Todas Tipologías</option>{typologies.map(t=><option key={t} value={t}>{t}</option>) }
+              <select
+                value={selectedTip}
+                onChange={e => setSelectedTip(e.target.value)}
+                className="border p-2 rounded"
+              >
+                <option value="">Todas Tipologías</option>
+                {typologies.map(t => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full bg-white">
-                <thead><tr>{headers.map(h=><th key={h.key} className="px-4 py-2 cursor-pointer" onClick={()=>{if(sortField===h.key) setSortAsc(!sortAsc); else{setSortField(h.key); setSortAsc(true);}}}><div className="flex items-center">{h.label}{sortField===h.key && (sortAsc?<ArrowUp/>:<ArrowDown/>)}</div></th>)}</tr></thead>
-                <tbody>{loadingStock ? <tr><td colSpan={headers.length} className="p-4 text-center"><Loader2 className="animate-spin"/></td></tr> : filtered.map(u=><tr key={u.id} className="odd:bg-gray-50 hover:bg-gray-100"><td className="px-4 py-2">{u.proyecto_nombre}</td><td className="px-4 py-2">{u.unidad}</td><td className="px-4 py-2>{u.tipologia}</td><td className="px-4 py-2">{u.piso||'-'}</td><td className="px-4 py-2 text-right">{u.sup_util?.toFixed(2)||'-'}</td><td className="px-4 py-2 text-right">{u.valor_lista?.toFixed(0)||'-'}</td><td className="px-4 py-2 text-right">{u.descuento?.toFixed(3)||'-'}</td><td className="px-4 py-2">{u.estado_unidad}</td></tr>) }
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-        {activeTab!=='principales' && <div className="bg-white p-6 rounded shadow text-center text-gray-500">Pestaña "{activeTab}" sin implementar aún.</div>}
-      </main>
-      <footer className="text-center py-6 text-sm text-gray-500">© {new Date().getFullYear()} InverAPP</footer>
-    </div>
-  );
-};
-
-export default BrokerQuotePage;
+                <thead>
+                  <tr>
+                    {headers.map(h => (
+                      <th
+                        key={h.key}
+                        className="px-4 py-2 cursor-pointer"
+                        onClick={() => {
+                          if (sortField === h.key) setSortAsc(!sortAsc);
+                          else {
+                            setSortField(h.key);
+                            setSortAsc(true);
+                          }
+                        }}
+                      >
+                        <div className="flex items-center">
+                          {h.label}
+                          {sortField === h.key && (sortAsc ? <ArrowUp /> : <ArrowDown />)}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingStock ? (
+                    <tr>
+                      <td colSpan={headers.length} className="p-4 text-center">
+                        <Loader2 className="animate-spin" />
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map(u => (
+                      <tr
+                        key={u.id}
+                        className="odd:bg-gray-50 hover:bg-gray-100"
+                      >
+                        <td className="px-4 py-2">{u.proyecto_nombre}</td>
+                        <td className="px-4 py-2">{u.unidad}</td>
+                        <td className="px-4 py-2">{u.tipologia}</td>
+                        <td className="px-4 py-2">{u.piso || '-'}
