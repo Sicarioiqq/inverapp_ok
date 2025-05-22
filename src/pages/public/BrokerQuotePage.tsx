@@ -234,24 +234,22 @@ const BrokerQuotePage: React.FC = () => {
         selectedUnidad.proyecto_nombre
       );
 
-      if (quotationType === 'descuento') {
-        setDiscountAmount((initialAdjustedDiscount ?? 0) * 100); // Usar el descuento ajustado
-        setBonoAmount(0); 
+      if (quotationType === 'descuento' || quotationType === 'mix') {
+        // En estos modos, el descuento se "autocarga" con el descuento disponible del departamento
+        setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); // Redondear a 2 decimales para la visualización
+        setBonoAmount(0); // Restablecer bono en estos modos
       } else if (quotationType === 'bono') {
-        setDiscountAmount(0); 
-        setBonoAmount(0); // El bono en modo 'bono' se ingresa manualmente por ahora
-      } else if (quotationType === 'mix') {
-        setDiscountAmount((initialAdjustedDiscount ?? 0) * 100); // Usar el descuento ajustado
-        setBonoAmount(0); // El bono en mix se calculará automáticamente más tarde (o es 0 inicialmente)
+        setDiscountAmount(0); // Restablecer descuento en modo bono
+        setBonoAmount(0); // El bono en modo 'bono' se ingresa manualmente por ahora, no hay un valor inicial automático
       }
     } else {
+      // Resetear estados si no hay unidad seleccionada
       setProjectSecondaryUnits([]);
       setAddedSecondaryUnits([]);
       setDiscountAmount(0);
       setBonoAmount(0);
     }
-  }, [selectedUnidad, quotationType, brokerCommissions, brokerInfo]); // Agregamos brokerCommissions y brokerInfo como dependencias
-
+  }, [selectedUnidad, quotationType, brokerCommissions, brokerInfo]); // Se re-ejecuta si la unidad seleccionada, el tipo de cotización, o los datos del broker/comisiones cambian
 
   // Efecto para inicializar el pago de reserva (en UF) y para sincronizar el bono pie de configuración con el de cotización
   useEffect(() => {
@@ -696,11 +694,11 @@ const BrokerQuotePage: React.FC = () => {
                                         selectedUnidad.proyecto_nombre
                                       );
                                       if (newQuotationType === 'descuento' || newQuotationType === 'mix') {
-                                        setDiscountAmount((initialAdjustedDiscount ?? 0) * 100);
+                                        setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); // Usar el descuento ajustado del departamento
                                         setBonoAmount(0); // Restablecer bono en estos modos
                                       } else if (newQuotationType === 'bono') {
                                         setDiscountAmount(0); // Restablecer descuento en modo bono
-                                        setBonoAmount(0); // El bono en modo 'bono' se ingresa manualmente por ahora
+                                        setBonoAmount(0); // El bono en modo 'bono' se ingresa manualmente por ahora, no hay un valor inicial automático
                                       }
                                     }
                                   }}
@@ -720,15 +718,15 @@ const BrokerQuotePage: React.FC = () => {
                                       <input
                                           type="number"
                                           id="discountInput"
-                                          value={discountAmount}
+                                          value={parseFloat(discountAmount.toFixed(2))} // Mostrar con 2 decimales
                                           onChange={e => setDiscountAmount(parseFloat(e.target.value) || 0)}
                                           min="0"
                                           max="100"
-                                          step="0.001"
+                                          step="0.01" // Permite input de 2 decimales
                                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm
                                           focus:border-blue-500 focus:ring-blue-500
-                                          "
-                                          readOnly={true} // Ahora el descuento es readOnly en modo 'descuento'
+                                          bg-gray-100 cursor-not-allowed" // Se hace readOnly para que refleje el valor automático
+                                          readOnly={true}
                                       />
                                   </div>
                               )}
@@ -753,13 +751,14 @@ const BrokerQuotePage: React.FC = () => {
                                           <input
                                               type="number"
                                               id="mixDiscountInput"
-                                              value={discountAmount}
+                                              value={parseFloat(discountAmount.toFixed(2))} // Mostrar con 2 decimales
                                               onChange={e => setDiscountAmount(parseFloat(e.target.value) || 0)}
                                               min="0"
                                               max="100"
-                                              step="0.001"
-                                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                              readOnly={true} // El descuento en mix es readOnly
+                                              step="0.01" // Permite input de 2 decimales
+                                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500
+                                              bg-gray-100 cursor-not-allowed" // El descuento en mix es readOnly
+                                              readOnly={true}
                                           />
                                       </div>
                                       <div>
