@@ -228,25 +228,22 @@ const BrokerQuotePage: React.FC = () => {
       };
       fetchProjectUnits();
 
-      // Inicializar discountAmount o bonoAmount según el tipo de configuración
-      // Tomar el descuento del departamento después de aplicar la comisión del broker
+      // Calcular el descuento ajustado inicial
       const initialAdjustedDiscount = calculateAdjustedDiscount(
         selectedUnidad.valor_lista,
         selectedUnidad.descuento,
         selectedUnidad.proyecto_nombre
       );
 
-      if (quotationType === 'descuento') {
+      if (quotationType === 'descuento' || quotationType === 'mix') {
         // En este modo, el descuento se "autocarga" con el descuento disponible del departamento
-        // y se redondea a 2 decimales para la visualización.
         setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2)));  
-        setBonoAmount(0); // Restablecer bono en este modo
+        setBonoAmount(0); // Restablecer bono en estos modos
       } else if (quotationType === 'bono') {
         setDiscountAmount(0); // Restablecer descuento en modo bono
-        setBonoAmount(0); // El bono en modo 'bono' se ingresa manualmente por ahora, no hay un valor inicial automático
-      } else if (quotationType === 'mix') {
-        setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); // El descuento inicial es el de la unidad
-        setBonoAmount(0); // El bono en mix se calculará automáticamente más tarde (o es 0 inicialmente)
+        // CÁLCULO DEL BONO PIE: Valor del departamento * Descuento ajustado
+        const calculatedBono = (selectedUnidad.valor_lista ?? 0) * (initialAdjustedDiscount ?? 0);
+        setBonoAmount(parseFloat(calculatedBono.toFixed(2))); // Redondear a 2 decimales
       }
     } else {
       // Resetear estados si no hay unidad seleccionada
@@ -787,7 +784,9 @@ const BrokerQuotePage: React.FC = () => {
                                               setBonoAmount(0); // Restablecer bono en estos modos
                                           } else if (newQuotationType === 'bono') {
                                               setDiscountAmount(0); // Restablecer descuento en modo bono
-                                              setBonoAmount(0); // El bono en modo 'bono' se ingresa manualmente por ahora, no hay un valor inicial automático
+                                              // CÁLCULO DEL BONO PIE
+                                              const calculatedBono = (selectedUnidad.valor_lista ?? 0) * (initialAdjustedDiscount ?? 0);
+                                              setBonoAmount(parseFloat(calculatedBono.toFixed(2))); // Redondear a 2 decimales
                                           }
                                       }
                                   }}
@@ -826,10 +825,9 @@ const BrokerQuotePage: React.FC = () => {
                                           type="number"
                                           id="bonoInput"
                                           value={parseFloat(bonoAmount.toFixed(2))} // Asegurar 2 decimales para la visualización
-                                          onChange={e => setBonoAmount(parseFloat(e.target.value) || 0)}
-                                          min="0"
+                                          readOnly={true} // Se hace readOnly para que refleje el valor automático
+                                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed"
                                           step="0.01"
-                                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                       />
                                   </div>
                               )}
