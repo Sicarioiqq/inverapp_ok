@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
 // Create a single instance of the Supabase client to avoid multiple connections
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -11,23 +15,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true
   },
   global: {
-    fetch: (...args) => {
-      // Add retry logic for failed requests
-      return fetch(...args).catch(error => {
-        console.error('Supabase fetch error:', error);
-        throw error;
-      });
+    headers: {
+      'x-timezone': 'America/Santiago'
     }
   },
-  // Add reasonable timeouts
-  realtime: {
-    timeout: 30000 // 30 seconds
-  },
-  // Set default headers for all requests
-  headers: {
-    'x-timezone': 'America/Santiago'
-  },
-  // Add request timeout to prevent hanging requests
+  // Add retry logic for failed requests
   db: {
     schema: 'public'
   }
