@@ -24,6 +24,7 @@ interface StockUnidad {
 }
 
 const StockReportPage: React.FC = () => {
+  console.log('[StockReportPage] El componente se está montando/renderizando.');
   const [stockData, setStockData] = useState<StockUnidad[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
