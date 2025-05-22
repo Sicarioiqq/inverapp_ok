@@ -36,9 +36,18 @@ const BrokerCommissionsConfig: React.FC = () => {
       if (bErr) throw bErr;
       setBrokers(brokersData || []);
 
+            // Fetch all distinct project names, overriding default row limit
       const { data: projData, error: pErr } = await supabase
         .from('stock_unidades')
-        .select('proyecto_nombre');
+        .select('proyecto_nombre', { count: 'exact' })
+        .order('proyecto_nombre', { ascending: true })
+        .range(0, 10000); // ajusta según máximo esperado
+      if (pErr) throw pErr;
+      // extraemos y deduplicamos
+      const unique = Array.from(
+        new Set((projData || []).map(r => r.proyecto_nombre).filter(Boolean) as string[])
+      );
+      setProjects(unique);
       if (pErr) throw pErr;
       const unique = Array.from(
         new Set((projData || []).map(r => r.proyecto_nombre).filter(Boolean) as string[])
@@ -190,3 +199,4 @@ const BrokerCommissionsConfig: React.FC = () => {
 };
 
 export default BrokerCommissionsConfig;
+```
