@@ -472,7 +472,7 @@ const BrokerQuotePage: React.FC = () => {
                       >
                         <td className="px-4 py-2">{u.proyecto_nombre}</td>
                         <td className="px-4 py-2">{u.unidad}</td>
-                        {/* Aquí se muestra 'tipo_bien' en lugar de 'tipologia' para la tabla de secundarios */}
+                        {/* Renderizar tipo_bien si la pestaña es 'secundarios', de lo contrario, tipología */}
                         <td className="px-4 py-2">{activeTab === 'secundarios' ? u.tipo_bien : u.tipologia}</td> 
                         <td className="px-4 py-2">{u.piso || '-'}</td>
                         <td className="px-4 py-2 text-right">{u.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -488,239 +488,243 @@ const BrokerQuotePage: React.FC = () => {
           </div>
         )}
 
-        {/* Configuración solo de la unidad seleccionada */}
+        {/* Contenido de la pestaña de Configuración */}
         {activeTab === 'configuracion' && (
-          <div className="bg-white shadow rounded p-6">
-            <h2 className="text-xl font-semibold mb-4">Configuración de Cotización</h2>
-            {!selectedUnidad ? (
-              <p className="text-gray-500">Seleccione un departamento en Principales.</p>
-            ) : (
-              <>
-                {/* Sección Cliente/RUT */}
-                <div className="bg-blue-50 p-4 rounded border-b pb-4 mb-6">
-                  <h3 className="text-lg font-medium mb-2">Datos del Cliente</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <> {/* Fragmento para agrupar las tarjetas */}
+            {/* Tarjeta de Información General y Superficies */}
+            <div className="bg-white shadow rounded p-6 mb-6"> {/* Añadido mb-6 para separar de la siguiente tarjeta */}
+              <h2 className="text-xl font-semibold mb-4">Información de la Unidad Seleccionada</h2>
+              {!selectedUnidad ? (
+                <p className="text-gray-500">Seleccione un departamento en Principales.</p>
+              ) : (
+                <>
+                  {/* Sección Cliente/RUT */}
+                  <div className="bg-blue-50 p-4 rounded border-b pb-4 mb-6">
+                    <h3 className="text-lg font-medium mb-2">Datos del Cliente</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
+                        <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} className="mt-1 w-full border border-gray-300 rounded px-2 py-1" placeholder="Ingrese nombre" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">RUT del Cliente</label>
+                        <input type="text" value={rut} onChange={e => setRut(e.target.value)} className="mt-1 w-full border border-gray-300 rounded px-2 py-1" placeholder="Ingrese RUT" />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Sección Proyecto */}
+                  <section className="mt-6 border-b pb-4">
+                    <h3 className="text-lg font-medium mb-2">Proyecto</h3>
+                    <p><span className="font-semibold">Proyecto:</span> {selectedUnidad.proyecto_nombre}</p>
+                  </section>
+                  {/* Sección Unidad, Estado, Tipología, Piso, Descuento, Valor */}
+                  <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-b pb-4">
+                    <h3 className="text-lg font-medium col-span-full mb-2">Detalles de Unidad</h3>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
-                      <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} className="mt-1 w-full border border-gray-300 rounded px-2 py-1" placeholder="Ingrese nombre" />
+                      <p>
+                        N° Bien: <span className="font-semibold">{selectedUnidad.unidad}</span> <span className="text-sm text-gray-500">({selectedUnidad.estado_unidad})</span>
+                      </p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">RUT del Cliente</label>
-                      <input type="text" value={rut} onChange={e => setRut(e.target.value)} className="mt-1 w-full border border-gray-300 rounded px-2 py-1" placeholder="Ingrese RUT" />
+                      <p>Tipología: <span className="font-semibold">{selectedUnidad.tipologia}</span></p>
                     </div>
-                  </div>
-                </div>
-                {/* Sección Proyecto */}
-                <section className="mt-6 border-b pb-4">
-                  <h3 className="text-lg font-medium mb-2">Proyecto</h3>
-                  <p><span className="font-semibold">Proyecto:</span> {selectedUnidad.proyecto_nombre}</p>
-                </section>
-                {/* Sección Unidad, Estado, Tipología, Piso, Descuento, Valor */}
-                <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-b pb-4">
-                  <h3 className="text-lg font-medium col-span-full mb-2">Detalles de Unidad</h3>
-                  <div>
-                    <p>
-                      N° Bien: <span className="font-semibold">{selectedUnidad.unidad}</span> <span className="text-sm text-gray-500">({selectedUnidad.estado_unidad})</span>
-                    </p>
-                  </div>
-                  <div>
-                    <p>Tipología: <span className="font-semibold">{selectedUnidad.tipologia}</span></p>
-                  </div>
-                  <div>
-                    <p>Piso: <span className="font-semibold">{selectedUnidad.piso || '-'}</span></p>
-                  </div>
-                  <div>
-                    <p>
-                      Descuento: <span className="font-semibold">
-                        {(calculateAdjustedDiscount(
-                          selectedUnidad.valor_lista,
-                          selectedUnidad.descuento,
-                          selectedUnidad.proyecto_nombre
-                        ) !== null ? (calculateAdjustedDiscount(
-                          selectedUnidad.valor_lista,
-                          selectedUnidad.descuento,
-                          selectedUnidad.proyecto_nombre
-                        )! * 100) : (selectedUnidad.descuento ?? 0) * 100).toFixed(2)
-                      }%
-                      </span>
-                    </p>
-                  </div>
-                  <div className="col-span-full">
-                    <p>Valor Lista: <span className="font-semibold">{selectedUnidad.valor_lista?.toLocaleString()} UF</span></p>
-                  </div>
-                </section>
-                {/* Sección Superficies */}
-                <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-b pb-4">
-                  <h3 className="text-lg font-medium col-span-full mb-2">Superficies</h3>
-                  <div>
-                    <p>Sup. Útil: <span className="font-semibold">{selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</span></p>
-                  </div>
-                  {selectedUnidad.sup_terraza != null && (
                     <div>
-                      <p>Sup. Terraza: <span className="font-semibold">{selectedUnidad.sup_terraza} m²</span></p>
+                      <p>Piso: <span className="font-semibold">{selectedUnidad.piso || '-'}</span></p>
                     </div>
-                  )}
-                  {selectedUnidad.sup_total != null && (
                     <div>
-                      <p>Sup. Total: <span className="font-semibold">{selectedUnidad.sup_total} m²</span></p>
+                      <p>
+                        Descuento: <span className="font-semibold">
+                          {(calculateAdjustedDiscount(
+                            selectedUnidad.valor_lista,
+                            selectedUnidad.descuento,
+                            selectedUnidad.proyecto_nombre
+                          ) !== null ? (calculateAdjustedDiscount(
+                            selectedUnidad.valor_lista,
+                            selectedUnidad.descuento,
+                            selectedUnidad.proyecto_nombre
+                          )! * 100) : (selectedUnidad.descuento ?? 0) * 100).toFixed(2)
+                        }%
+                        </span>
+                      </p>
                     </div>
-                  )}
-                </section>
-
-                {/* NUEVA TARJETA/SECCIÓN: Configuración de Cotización */}
-                <section className="mt-6 border-t pt-4">
-                    <h3 className="text-lg font-semibold col-span-full mb-4">Configuración de Cotización</h3>
-
-                    {/* Contenedor principal para las 3 columnas */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> 
-                        {/* Columna 1: Tipo de Configuración y Campos de Ingreso */}
-                        <div>
-                            <div className="mb-4">
-                                <label htmlFor="quotationType" className="block text-sm font-medium text-gray-700">Tipo de Configuración</label>
-                                <select
-                                    id="quotationType"
-                                    name="quotationType"
-                                    value={quotationType}
-                                    onChange={e => setQuotationType(e.target.value as QuotationType)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                >
-                                    <option value="descuento">Descuento</option>
-                                    <option value="bono">Bono Pie</option>
-                                    <option value="mix">Mix (Descuento + Bono)</option>
-                                </select>
-                            </div>
-
-                            {/* Campos de Ingreso Condicionales */}
-                            <div className="space-y-4"> {/* Agrupamos los inputs para mantener el espaciado vertical */}
-                                {quotationType === 'descuento' && (
-                                    <div>
-                                        <label htmlFor="discountInput" className="block text-sm font-medium text-gray-700">Descuento (%)</label>
-                                        <input
-                                            type="number"
-                                            id="discountInput"
-                                            value={discountAmount}
-                                            onChange={e => setDiscountAmount(parseFloat(e.target.value) || 0)}
-                                            min="0"
-                                            max="100"
-                                            step="0.001"
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                        />
-                                    </div>
-                                )}
-                                {quotationType === 'bono' && (
-                                    <div>
-                                        <label htmlFor="bonoInput" className="block text-sm font-medium text-gray-700">Bono Pie (UF)</label>
-                                        <input
-                                            type="number"
-                                            id="bonoInput"
-                                            value={bonoAmount}
-                                            onChange={e => setBonoAmount(parseFloat(e.target.value) || 0)}
-                                            min="0"
-                                            step="0.01"
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                        />
-                                    </div>
-                                )}
-                                {quotationType === 'mix' && (
-                                    <>
-                                        <div>
-                                            <label htmlFor="mixDiscountInput" className="block text-sm font-medium text-gray-700">Descuento (%)</label>
-                                            <input
-                                                type="number"
-                                                id="mixDiscountInput"
-                                                value={discountAmount}
-                                                onChange={e => setDiscountAmount(parseFloat(e.target.value) || 0)}
-                                                min="0"
-                                                max="100"
-                                                step="0.001"
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="mixBonoInput" className="block text-sm font-medium text-gray-700">Bono Pie (UF) (Automático)</label>
-                                            <input
-                                                type="number"
-                                                id="mixBonoInput"
-                                                value={bonoAmount} // Este se calculará automáticamente más tarde
-                                                readOnly
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed"
-                                            />
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Columna 2: Agregar Secundarios a la Cotización */}
-                        <div>
-                            <h4 className="text-lg font-semibold mb-3">Agregar Secundarios</h4>
-                            
-                            <div className="flex items-end gap-2 mb-4"> {/* Contenedor del dropdown y botón */}
-                                <div className="flex-grow">
-                                    <label htmlFor="secondaryUnitSelect" className="sr-only">Seleccionar unidad secundaria</label>
-                                    <select
-                                        id="secondaryUnitSelect"
-                                        value={selectedSecondaryUnitToAdd}
-                                        onChange={e => setSelectedSecondaryUnitToAdd(e.target.value)}
-                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                    >
-                                        <option value="">Seleccione un secundario</option>
-                                        {projectSecondaryUnits.length === 0 ? (
-                                            <option disabled>No hay unidades secundarias disponibles.</option>
-                                        ) : (
-                                            projectSecondaryUnits.map(unit => (
-                                                // Solo mostrar unidades que no han sido añadidas ya
-                                                !addedSecondaryUnits.some(addedUnit => addedUnit.id === unit.id) && (
-                                                    <option key={unit.id} value={unit.id}>
-                                                        {unit.unidad} ({unit.tipo_bien}) - {unit.valor_lista?.toLocaleString()} UF
-                                                    </option>
-                                                )
-                                            ))
-                                        )}
-                                    </select>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={handleAddSecondaryUnit}
-                                    disabled={!selectedSecondaryUnitToAdd}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 flex items-center"
-                                >
-                                    <PlusCircle className="h-5 w-5 mr-1" /> Agregar
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Columna 3: Lista de Secundarios Agregados */}
-                        <div className="border-t lg:border-t-0 lg:border-l lg:pl-6 pt-4 lg:pt-0"> {/* Separación visual y para columnas */}
-                            <h4 className="text-lg font-semibold mb-3">Secundarios Agregados:</h4>
-                            {addedSecondaryUnits.length === 0 ? (
-                                <p className="text-gray-500">Ningún secundario añadido.</p>
-                            ) : (
-                                <ul className="space-y-2">
-                                    {addedSecondaryUnits.map(unit => (
-                                        <li key={unit.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
-                                            <span className="text-sm text-gray-800">
-                                                {unit.unidad} ({unit.tipo_bien}) - {unit.valor_lista?.toLocaleString()} UF
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleRemoveAddedSecondaryUnit(unit.id)}
-                                                className="text-red-600 hover:text-red-800 ml-4 p-1 rounded-full hover:bg-red-100"
-                                                title="Eliminar de la cotización"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
+                    <div className="col-span-full">
+                      <p>Valor Lista: <span className="font-semibold">{selectedUnidad.valor_lista?.toLocaleString()} UF</span></p>
                     </div>
-                </section>
-                {/* FIN NUEVA TARJETA/SECCIÓN */}
-              </>
-            )}
-          </div>
+                  </section>
+                  {/* Sección Superficies */}
+                  <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"> {/* Eliminado border-b pb-4 de aquí para que la separación con la nueva tarjeta sea más clara */}
+                    <h3 className="text-lg font-medium col-span-full mb-2">Superficies</h3>
+                    <div>
+                      <p>Sup. Útil: <span className="font-semibold">{selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</span></p>
+                    </div>
+                    {selectedUnidad.sup_terraza != null && (
+                      <div>
+                        <p>Sup. Terraza: <span className="font-semibold">{selectedUnidad.sup_terraza} m²</span></p>
+                      </div>
+                    )}
+                    {selectedUnidad.sup_total != null && (
+                      <div>
+                        <p>Sup. Total: <span className="font-semibold">{selectedUnidad.sup_total} m²</span></p>
+                      </div>
+                    )}
+                  </section>
+                </>
+              )}
+            </div>
+
+            {/* NUEVA TARJETA: Configuración de Cotización (Separada) */}
+            {selectedUnidad && ( /* Solo mostrar esta tarjeta si hay una unidad seleccionada */
+              <div className="bg-white shadow rounded p-6 mt-6"> {/* Añadido mt-6 para la separación */}
+                  <h3 className="text-xl font-semibold mb-4">Configuración de Cotización</h3>
+
+                  {/* Contenedor principal para las 3 columnas */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> 
+                      {/* Columna 1: Tipo de Configuración y Campos de Ingreso */}
+                      <div>
+                          <div className="mb-4">
+                              <label htmlFor="quotationType" className="block text-sm font-medium text-gray-700">Tipo de Configuración</label>
+                              <select
+                                  id="quotationType"
+                                  name="quotationType"
+                                  value={quotationType}
+                                  onChange={e => setQuotationType(e.target.value as QuotationType)}
+                                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                              >
+                                  <option value="descuento">Descuento</option>
+                                  <option value="bono">Bono Pie</option>
+                                  <option value="mix">Mix (Descuento + Bono)</option>
+                              </select>
+                          </div>
+
+                          {/* Campos de Ingreso Condicionales */}
+                          <div className="space-y-4"> {/* Agrupamos los inputs para mantener el espaciado vertical */}
+                              {quotationType === 'descuento' && (
+                                  <div>
+                                      <label htmlFor="discountInput" className="block text-sm font-medium text-gray-700">Descuento (%)</label>
+                                      <input
+                                          type="number"
+                                          id="discountInput"
+                                          value={discountAmount}
+                                          onChange={e => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                                          min="0"
+                                          max="100"
+                                          step="0.001"
+                                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                      />
+                                  </div>
+                              )}
+                              {quotationType === 'bono' && (
+                                  <div>
+                                      <label htmlFor="bonoInput" className="block text-sm font-medium text-gray-700">Bono Pie (UF)</label>
+                                      <input
+                                          type="number"
+                                          id="bonoInput"
+                                          value={bonoAmount}
+                                          onChange={e => setBonoAmount(parseFloat(e.target.value) || 0)}
+                                          min="0"
+                                          step="0.01"
+                                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                      />
+                                  </div>
+                              )}
+                              {quotationType === 'mix' && (
+                                  <>
+                                      <div>
+                                          <label htmlFor="mixDiscountInput" className="block text-sm font-medium text-gray-700">Descuento (%)</label>
+                                          <input
+                                              type="number"
+                                              id="mixDiscountInput"
+                                              value={discountAmount}
+                                              onChange={e => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                                              min="0"
+                                              max="100"
+                                              step="0.001"
+                                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                          />
+                                      </div>
+                                      <div>
+                                          <label htmlFor="mixBonoInput" className="block text-sm font-medium text-gray-700">Bono Pie (UF) (Automático)</label>
+                                          <input
+                                              type="number"
+                                              id="mixBonoInput"
+                                              value={bonoAmount} // Este se calculará automáticamente más tarde
+                                              readOnly
+                                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed"
+                                          />
+                                      </div>
+                                  </>
+                              )}
+                          </div>
+                      </div>
+
+                      {/* Columna 2: Agregar Secundarios a la Cotización */}
+                      <div>
+                          <h4 className="text-lg font-semibold mb-3">Agregar Secundarios</h4>
+                          
+                          <div className="flex items-end gap-2 mb-4"> {/* Contenedor del dropdown y botón */}
+                              <div className="flex-grow">
+                                  <label htmlFor="secondaryUnitSelect" className="sr-only">Seleccionar unidad secundaria</label>
+                                  <select
+                                      id="secondaryUnitSelect"
+                                      value={selectedSecondaryUnitToAdd}
+                                      onChange={e => setSelectedSecondaryUnitToAdd(e.target.value)}
+                                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                  >
+                                      <option value="">Seleccione un secundario</option>
+                                      {projectSecondaryUnits.length === 0 ? (
+                                          <option disabled>No hay unidades secundarias disponibles.</option>
+                                      ) : (
+                                          projectSecondaryUnits.map(unit => (
+                                              // Solo mostrar unidades que no han sido añadidas ya
+                                              !addedSecondaryUnits.some(addedUnit => addedUnit.id === unit.id) && (
+                                                  <option key={unit.id} value={unit.id}>
+                                                      {unit.unidad} ({unit.tipo_bien}) - {unit.valor_lista?.toLocaleString()} UF
+                                                  </option>
+                                              )
+                                          ))
+                                      )}
+                                  </select>
+                              </div>
+                              <button
+                                  type="button"
+                                  onClick={handleAddSecondaryUnit}
+                                  disabled={!selectedSecondaryUnitToAdd}
+                                  className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 flex items-center"
+                              >
+                                  <PlusCircle className="h-5 w-5 mr-1" /> Agregar
+                              </button>
+                          </div>
+                      </div>
+
+                      {/* Columna 3: Lista de Secundarios Agregados */}
+                      <div className="border-t lg:border-t-0 lg:border-l lg:pl-6 pt-4 lg:pt-0"> {/* Separación visual y para columnas */}
+                          <h4 className="text-lg font-semibold mb-3">Secundarios Agregados:</h4>
+                          {addedSecondaryUnits.length === 0 ? (
+                              <p className="text-gray-500">Ningún secundario añadido.</p>
+                          ) : (
+                              <ul className="space-y-2">
+                                  {addedSecondaryUnits.map(unit => (
+                                      <li key={unit.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
+                                          <span className="text-sm text-gray-800">
+                                              {unit.unidad} ({unit.tipo_bien}) - {unit.valor_lista?.toLocaleString()} UF
+                                          </span>
+                                          <button
+                                              type="button"
+                                              onClick={() => handleRemoveAddedSecondaryUnit(unit.id)}
+                                              className="text-red-600 hover:text-red-800 ml-4 p-1 rounded-full hover:bg-red-100"
+                                              title="Eliminar de la cotización"
+                                          >
+                                              <Trash2 className="h-4 w-4" />
+                                          </button>
+                                      </li>
+                                  ))}
+                              </ul>
+                          )}
+                      </div>
+                  </div>
+              </div>
+            )} {/* FIN NUEVA TARJETA/SECCIÓN */}
+          </>
         )}
       </main>
       <footer className="text-center py-6 text-sm text-gray-500">© {new Date().getFullYear()} InverAPP - Cotizador Brokers</footer>
