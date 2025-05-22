@@ -1,4 +1,3 @@
-```tsx
 // src/pages/settings/components/BrokerCommissionsConfig.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
