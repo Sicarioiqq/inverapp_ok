@@ -25,12 +25,10 @@ const BrokerCommissionsConfig: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Carga inicial de datos
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Brokers
       const { data: brokerData, error: brokerErr } = await supabase
         .from('brokers')
         .select('id,name')
@@ -39,7 +37,6 @@ const BrokerCommissionsConfig: React.FC = () => {
       setBrokers(brokerData || []);
       if (brokerData?.length) setSelectedBroker(brokerData[0].id);
 
-      // Proyectos (paginado completo)
       const BATCH = 1000;
       let all: { proyecto_nombre: string }[] = [];
       for (let from = 0; ; from += BATCH) {
@@ -49,7 +46,7 @@ const BrokerCommissionsConfig: React.FC = () => {
           .order('proyecto_nombre')
           .range(from, from + BATCH - 1);
         if (chunkErr) throw chunkErr;
-        if (!chunk || chunk.length === 0) break;
+        if (!chunk?.length) break;
         all = all.concat(chunk);
         if (chunk.length < BATCH) break;
       }
@@ -58,18 +55,17 @@ const BrokerCommissionsConfig: React.FC = () => {
       ).sort();
       setProjects(distinct);
 
-      // Comisiones existentes
       const { data: commData, error: commErr } = await supabase
         .from('broker_project_commissions')
         .select('id,broker_id,project_name,commission_rate');
       if (commErr) throw commErr;
       setDbCommissions(commData || []);
 
-      // Inputs iniciales
       const inputs: Record<string, Record<string, string>> = {};
       (commData || []).forEach(c => {
         inputs[c.broker_id] ??= {};
-        inputs[c.broker_id][c.project_name] = c.commission_rate != null ? c.commission_rate.toFixed(2) : '';
+        inputs[c.broker_id][c.project_name] =
+          c.commission_rate != null ? c.commission_rate.toFixed(3) : '';
       });
       setCommissionInputs(inputs);
     } catch (e: any) {
@@ -80,11 +76,12 @@ const BrokerCommissionsConfig: React.FC = () => {
       setLoading(false);
     }
   }, []);
+
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Cambio de input (solo permitimos 0-100 con hasta 2 decimales)
   const handleInputChange = (project: string, value: string) => {
-    if (/^(?:100(?:\.[0-9]{1,2})?|\d{1,2}(?:\.[0-9]{1,2})?)?$/.test(value) && selectedBroker) {
+    // Allow up to 3 decimal places
+    if (/^(?:100(?:\.[0-9]{1,3})?|\d{1,2}(?:\.[0-9]{1,3})?)?$/.test(value) && selectedBroker) {
       setCommissionInputs(prev => ({
         ...prev,
         [selectedBroker]: { ...(prev[selectedBroker] || {}), [project]: value }
@@ -92,7 +89,6 @@ const BrokerCommissionsConfig: React.FC = () => {
     }
   };
 
-  // Guardar solo para el broker seleccionado
   const handleSave = async () => {
     if (!selectedBroker) return;
     setSaving(true);
@@ -106,7 +102,11 @@ const BrokerCommissionsConfig: React.FC = () => {
         c => c.broker_id === selectedBroker && c.project_name === project
       );
       if (val.trim() !== '') {
-        upserts.push({ broker_id: selectedBroker, project_name: project, commission_rate: parseFloat(val) });
+        upserts.push({
+          broker_id: selectedBroker,
+          project_name: project,
+          commission_rate: parseFloat(val)
+        });
       } else if (existing?.id) {
         deletes.push(existing.id);
       }
@@ -192,7 +192,7 @@ const BrokerCommissionsConfig: React.FC = () => {
                     type="text"
                     value={commissionInputs[selectedBroker!]?.[project] || ''}
                     onChange={e => handleInputChange(project, e.target.value)}
-                    className="w-20 text-right px-2 py-1 border rounded focus:ring-blue-500 focus:border-blue-500"
+                    className="w-24 text-right px-2 py-1 border rounded focus:ring-blue-500 focus:border-blue-500"
                     placeholder="%"
                   />
                 </td>
