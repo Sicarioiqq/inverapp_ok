@@ -24,8 +24,9 @@ interface Unidad {
   piso: string | null;
   sup_util: number | null;
   valor_lista: number | null;
-  descuento: number | null;       // e.g. 0.15 for 15%
+  descuento: number | null;
   estado_unidad: string | null;
+  tipo_bien: string;
 }
 
 type Tab = 'principales' | 'secundarios' | 'configuracion';
@@ -39,7 +40,7 @@ const BrokerQuotePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('principales');
 
-  // Principales stock state
+  // Shared stock state
   const [stock, setStock] = useState<Unidad[]>([]);
   const [filtered, setFiltered] = useState<Unidad[]>([]);
   const [projects, setProjects] = useState<string[]>([]);
@@ -50,10 +51,9 @@ const BrokerQuotePage: React.FC = () => {
   const [sortAsc, setSortAsc] = useState(true);
   const [loadingStock, setLoadingStock] = useState(false);
 
-  // Commission rates per project for this broker
   const [commissions, setCommissions] = useState<Record<string, number>>({});
 
-  // Validate broker access and fetch commission config
+  // Validate broker and load commissions
   useEffect(() => {
     const validate = async () => {
       if (!brokerSlug || !accessToken) {
@@ -71,20 +71,15 @@ const BrokerQuotePage: React.FC = () => {
         if (fe || !data) throw fe || new Error('No autorizado');
         setBrokerInfo(data as BrokerInfo);
 
-        // Fetch commission rates for this broker
         const { data: commData, error: ce } = await supabase
           .from('broker_project_commissions')
           .select('project_name, commission_rate')
           .eq('broker_id', data.id);
         if (ce) throw ce;
         const map: Record<string, number> = {};
-        commData?.forEach(c => {
-          // treat commission_rate as integer percent
-          map[c.project_name] = c.commission_rate;
-        });
+        commData?.forEach(c => { map[c.project_name] = c.commission_rate; });
         setCommissions(map);
       } catch (e: any) {
-        console.error(e);
         setError(e.message);
       } finally {
         setIsValidating(false);
@@ -93,7 +88,7 @@ const BrokerQuotePage: React.FC = () => {
     validate();
   }, [brokerSlug, accessToken]);
 
-  // Load principales stock
+  // Load full stock for both tabs
   useEffect(() => {
     if (!brokerInfo) return;
     const load = async () => {
@@ -102,9 +97,8 @@ const BrokerQuotePage: React.FC = () => {
         const { data, error: se } = await supabase
           .from<Unidad>('stock_unidades')
           .select(
-            'id, proyecto_nombre, unidad, tipologia, piso, sup_util, valor_lista, descuento, estado_unidad'
-          )
-          .eq('tipo_bien', 'DEPARTAMENTO');
+            'id, proyecto_nombre, unidad, tipologia, piso, sup_util, valor_lista, descuento, estado_unidad, tipo_bien'
+          );
         if (se) throw se;
         if (data) {
           setStock(data);
@@ -119,160 +113,99 @@ const BrokerQuotePage: React.FC = () => {
     load();
   }, [brokerInfo]);
 
-  // Filter and sort when dependencies change
+  // Filter & sort
   useEffect(() => {
     let arr = [...stock];
+    if (activeTab === 'principales') arr = arr.filter(u => u.tipo_bien === 'DEPARTAMENTO');
+    if (activeTab === 'secundarios') arr = arr.filter(u => u.tipo_bien !== 'DEPARTAMENTO');
     if (selectedProject) arr = arr.filter(u => u.proyecto_nombre === selectedProject);
-    // actualizar lista de tipologías según proyecto seleccionado
     const types = Array.from(new Set(arr.map(u => u.tipologia))).sort();
     setTypologies(types);
     if (selectedTip) arr = arr.filter(u => u.tipologia === selectedTip);
-    // ocultar unidades con descuento neto < 0%
-    arr = arr.filter(u => {
-      const basePct = (u.descuento ?? 0) * 100;
-      const comm = commissions[u.proyecto_nombre] ?? 0;
-      return basePct - comm >= 0;
-    });
-    // ordenar
     arr.sort((a, b) => {
       const fa = a[sortField] ?? '';
       const fb = b[sortField] ?? '';
-      if (fa < fb) return sortAsc ? -1 : 1;
-      if (fa > fb) return sortAsc ? 1 : -1;
-      return 0;
+      return fa < fb ? (sortAsc ? -1 : 1) : fa > fb ? (sortAsc ? 1 : -1) : 0;
     });
     setFiltered(arr);
-  }, [stock, selectedProject, selectedTip, sortField, sortAsc, commissions]);
+  }, [stock, activeTab, selectedProject, selectedTip, sortField, sortAsc]);
 
-  const headers: { key: keyof Unidad; label: string }[] = [
-    { key: 'proyecto_nombre', label: 'Proyecto' },
-    { key: 'unidad', label: 'N° Bien' },
-    { key: 'tipologia', label: 'Tipología' },
-    { key: 'piso', label: 'Piso' },
-    { key: 'sup_util', label: 'Sup. Útil' },
-    { key: 'valor_lista', label: 'Valor Lista (UF)' },
-    { key: 'descuento', label: 'Descuento Neto (%)' },
-    { key: 'estado_unidad', label: 'Estado' },
-  ];
+  const headers: { key: keyof Unidad; label: string }[] = activeTab === 'principales'
+    ? [
+      { key: 'proyecto_nombre', label: 'Proyecto' },
+      { key: 'unidad', label: 'N° Bien' },
+      { key: 'tipologia', label: 'Tipología' },
+      { key: 'piso', label: 'Piso' },
+      { key: 'sup_util', label: 'Sup. Útil' },
+      { key: 'valor_lista', label: 'Valor Lista (UF)' },
+      { key: 'descuento', label: 'Descuento Neto (%)' },
+      { key: 'estado_unidad', label: 'Estado' }
+    ]
+    : [
+      { key: 'proyecto_nombre', label: 'Proyecto' },
+      { key: 'unidad', label: 'N° Bien' },
+      { key: 'tipologia', label: 'Tipología' },
+      { key: 'piso', label: 'Piso' },
+      { key: 'sup_util', label: 'Sup. Útil' },
+      { key: 'valor_lista', label: 'Valor Lista (UF)' },
+      { key: 'estado_unidad', label: 'Estado' }
+    ];
 
-  if (isValidating)
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="animate-spin" /> Validando...
-      </div>
-    );
-  if (error || !brokerInfo)
-    return (
-      <div className="p-6 text-center">
-        <ShieldX className="h-16 w-16 text-red-500 mx-auto" />
-        <p className="mt-4 text-red-600">{error}</p>
-      </div>
-    );
+  if (isValidating) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /> Validando...</div>;
+  if (error || !brokerInfo) return <div className="p-6 text-center"><ShieldX className="h-16 w-16 text-red-500 mx-auto" /><p className="mt-4 text-red-600">{error}</p></div>;
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow">
-        <div className="container mx-auto p-4">
-          <h1 className="text-2xl font-bold">Cotizador Broker: {brokerInfo.name}</h1>
-        </div>
-      </header>
+      <header className="bg-white shadow"><div className="container mx-auto p-4"><h1 className="text-2xl font-bold">Cotizador Broker: {brokerInfo.name}</h1></div></header>
       <main className="container mx-auto p-4">
         <nav className="flex space-x-4 border-b mb-4">
-          <button
-            onClick={() => setActiveTab('principales')}
-            className={
-              activeTab === 'principales'
-                ? 'border-b-2 border-blue-600 pb-2'
-                : 'pb-2 text-gray-500'
-            }
-          ><Home className="inline mr-1" />Principales</button>
-          <button
-            onClick={() => setActiveTab('secundarios')}
-            className={
-              activeTab === 'secundarios'
-                ? 'border-b-2 border-blue-600 pb-2'
-                : 'pb-2 text-gray-500'
-            }
-          ><LayoutDashboard className="inline mr-1" />Secundarios</button>
-          <button
-            onClick={() => setActiveTab('configuracion')}
-            className={
-              activeTab === 'configuracion'
-                ? 'border-b-2 border-blue-600 pb-2'
-                : 'pb-2 text-gray-500'
-            }
-          ><SlidersHorizontal className="inline mr-1" />Configuración</button>
+          <button onClick={() => setActiveTab('principales')} className={activeTab==='principales'? 'border-b-2 border-blue-600 pb-2':'pb-2 text-gray-500'}><Home className="inline mr-1"/>Principales</button>
+          <button onClick={() => setActiveTab('secundarios')} className={activeTab==='secundarios'? 'border-b-2 border-blue-600 pb-2':'pb-2 text-gray-500'}><LayoutDashboard className="inline mr-1"/>Secundarios</button>
+          <button onClick={() => setActiveTab('configuracion')} className={activeTab==='configuracion'? 'border-b-2 border-blue-600 pb-2':'pb-2 text-gray-500'}><SlidersHorizontal className="inline mr-1"/>Configuración</button>
         </nav>
 
-        {activeTab === 'principales' && (
-          <>
-            <div className="flex space-x-4 mb-4">
-              <select
-                value={selectedProject}
-                onChange={e => { setSelectedProject(e.target.value); setSelectedTip(''); }}
-                className="border p-2 rounded"
-              >
-                <option value="">Todos Proyectos</option>
-                {projects.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <select
-                value={selectedTip}
-                onChange={e => setSelectedTip(e.target.value)}
-                className="border p-2 rounded"
-              >
-                <option value="">Todas Tipologías</option>
-                {typologies.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div className="overflow-x-auto bg-white shadow rounded">
-              <table className="min-w-full">
-                <thead className="bg-gray-200">
-                  <tr>
-                    {headers.map(h => (
-                      <th
-                        key={h.key}
-                        className="px-4 py-2 text-left cursor-pointer"
-                        onClick={() => sortField === h.key ? setSortAsc(!sortAsc) : (setSortField(h.key), setSortAsc(true))}
-                      >
-                        <div className="flex items-center">
-                          {h.label}
-                          {sortField === h.key && ( sortAsc ? <ArrowUp className="ml-1" /> : <ArrowDown className="ml-1" /> )}
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {loadingStock ? (
-                    <tr><td colSpan={headers.length} className="p-4 text-center"><Loader2 className="animate-spin" /> Cargando...</td></tr>
-                  ) : filtered.length === 0 ? (
-                    <tr><td colSpan={headers.length} className="p-4 text-center text-gray-500">No hay unidades para mostrar.</td></tr>
-                  ) : (
-                    filtered.map(u => {
-                      // compute net discount: unit.descuento*100 - commissionRate
-                      const basePct = (u.descuento ?? 0) * 100;
-                      const comm = commissions[u.proyecto_nombre] ?? 0;
-                      const net = basePct - comm;
-                      return (
-                      <tr key={u.id} className="border-t">
-                        <td className="px-4 py-2">{u.proyecto_nombre}</td>
-                        <td className="px-4 py-2">{u.unidad}</td>
-                        <td className="px-4 py-2">{u.tipologia}</td>
-                        <td className="px-4 py-2">{u.piso ?? '-'}</td>
-                        <td className="px-4 py-2 text-right">{u.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-                        <td className="px-4 py-2 text-right">{u.valor_lista?.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})}</td>
-                        <td className="px-4 py-2 text-right">{net.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}%</td>
-                        <td className="px-4 py-2"><span className={`px-2 py-1 rounded-full text-sm ${u.estado_unidad==='Disponible'?'bg-green-100 text-green-800':'bg-gray-100 text-gray-800'}`}>{u.estado_unidad}</span></td>
-                      </tr>);
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </>
+        {(activeTab==='principales' || activeTab==='secundarios') && (
+          <div className="flex space-x-4 mb-4">
+            <select value={selectedProject} onChange={e=>{setSelectedProject(e.target.value); setSelectedTip('');}} className="border p-2 rounded">
+              <option value="">Todos Proyectos</option>
+              {projects.map(p=> <option key={p} value={p}>{p}</option>)}
+            </select>
+            <select value={selectedTip} onChange={e=>setSelectedTip(e.target.value)} className="border p-2 rounded">
+              <option value="">Todas Tipologías</option>
+              {typologies.map(t=> <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
         )}
-        {activeTab === 'secundarios' && <div>Contenido Secundarios...</div>}
-        {activeTab === 'configuracion' && <div>Contenido Configuración...</div>}
+
+        <div className="overflow-x-auto bg-white shadow rounded">
+          <table className="min-w-full">
+            <thead className="bg-gray-200">
+              <tr>{headers.map(h=><th key={h.key} className="px-4 py-2 text-left cursor-pointer" onClick={()=>sortField===h.key? setSortAsc(!sortAsc):(setSortField(h.key), setSortAsc(true))}>
+                <div className="flex items-center">{h.label}{sortField===h.key && (sortAsc?<ArrowUp className="ml-1"/>:<ArrowDown className="ml-1"/>))}</div></th>)}</tr>
+            </thead>
+            <tbody>
+              {loadingStock ? <tr><td colSpan={headers.length} className="p-4 text-center"><Loader2 className="animate-spin"/> Cargando...</td></tr> :
+               filtered.length===0 ? <tr><td colSpan={headers.length} className="p-4 text-center text-gray-500">No hay unidades.</td></tr> :
+               filtered.map(u=>{
+                const basePct = (u.descuento??0)*100;
+                const comm  = commissions[u.proyecto_nombre]??0;
+                const net   = basePct - comm;
+                return (<tr key={u.id} className="border-t">
+                  <td className="px-4 py-2">{u.proyecto_nombre}</td>
+                  <td className="px-4 py-2">{u.unidad}</td>
+                  <td className="px-4 py-2">{u.tipologia}</td>
+                  <td className="px-4 py-2">{u.piso|| '-'}</td>
+                  <td className="px-4 py-2 text-right">{u.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+                  <td className="px-4 py-2 text-right">{u.valor_lista?.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})}</td>
+                  {activeTab==='principales' && <td className="px-4 py-2 text-right">{net.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}%</td>}
+                  <td className="px-4 py-2"><span className={`px-2 py-1 rounded-full text-sm ${u.estado_unidad==='Disponible'?'bg-green-100 text-green-800':'bg-gray-100 text-gray-800'}`}>{u.estado_unidad}</span></td>
+                </tr>);
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {activeTab==='configuracion' && <div>Contenido Configuración...</div>}
       </main>
     </div>
   );
