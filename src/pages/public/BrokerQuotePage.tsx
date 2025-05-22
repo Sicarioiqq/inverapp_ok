@@ -231,7 +231,7 @@ const BrokerQuotePage: React.FC = () => {
                         <td className="px-4 py-2 text-right">{net.toLocaleString(undefined,{ minimumFractionDigits:2, maximumFractionDigits:2 })}%</td>
                       )}
                       <td className="px-4 py-2">
-                        <span className={`px-2 py-1 rounded-full text-sm ${u.estado_unidad === 'Disponible' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}> {u.estado_unidad} </span>
+                        <span className={`px-2 py-1 rounded-full text-sm ${u.estado_unidad === 'Disponible' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{u.estado_unidad}</span>
                       </td>
                     </tr>
                   );
@@ -241,4 +241,15 @@ const BrokerQuotePage: React.FC = () => {
           </table>
         </div>
 
-        {activeTab === 'configuracion' && <div>Conten
+        {activeTab === 'configuracion' && (
+          <div className="mt-6 p-4 bg-white shadow rounded">
+            <p>Contenido de configuración de cotización.</p>
+          </div>
+        )}
+      </main>
+      <footer className="text-center py-8 text-sm text-gray-500">&copy; {new Date().getFullYear()} InverAPP - Cotizador para Brokers</footer>
+    </div>
+  );
+};
+
+export default BrokerQuotePage;
