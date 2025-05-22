@@ -32,11 +32,6 @@ interface Unidad {
   tipo_bien: string;
 }
 
-interface Commission {
-  project_name: string;
-  commission_rate: number; // porcentaje entero, e.g. 5 === 5%
-}
-
 type Tab = 'principales' | 'secundarios' | 'configuracion';
 
 const BrokerQuotePage: React.FC = () => {
@@ -50,7 +45,6 @@ const BrokerQuotePage: React.FC = () => {
 
   const [stock, setStock] = useState<Unidad[]>([]);
   const [loadingStock, setLoadingStock] = useState(false);
-
   const [sortField, setSortField] = useState<keyof Unidad>('unidad');
   const [sortAsc, setSortAsc] = useState(true);
   const [filterProyecto, setFilterProyecto] = useState<string>('Todos');
@@ -59,9 +53,6 @@ const BrokerQuotePage: React.FC = () => {
   const [selectedUnidad, setSelectedUnidad] = useState<Unidad | null>(null);
   const [cliente, setCliente] = useState('');
   const [rut, setRut] = useState('');
-
-  // Nueva: estado de comisiones
-  const [commissions, setCommissions] = useState<Commission[]>([]);
 
   // Validar broker
   useEffect(() => {
@@ -88,23 +79,6 @@ const BrokerQuotePage: React.FC = () => {
     };
     validate();
   }, [brokerSlug, accessToken]);
-
-  // Cargar comisiones del broker
-  useEffect(() => {
-    if (!brokerInfo) return;
-    const fetchCommissions = async () => {
-      const { data, error } = await supabase
-        .from<Commission>('broker_project_commissions')
-        .select('project_name, commission_rate')
-        .eq('broker_id', brokerInfo.id);
-      if (error) {
-        console.error('Error loading commissions', error);
-      } else {
-        setCommissions(data || []);
-      }
-    };
-    fetchCommissions();
-  }, [brokerInfo]);
 
   // Cargar TODO el stock con paginación de 1000 en 1000
   useEffect(() => {
@@ -183,6 +157,18 @@ const BrokerQuotePage: React.FC = () => {
         <p className="mt-4 text-red-600">{error}</p>
       </div>
     );
+
+  const headersPrincipales = [
+    { key: 'proyecto_nombre', label: 'Proyecto' },
+    { key: 'unidad', label: 'N° Bien' },
+    { key: 'tipologia', label: 'Tipología' },
+    { key: 'piso', label: 'Piso' },
+    { key: 'sup_util', label: 'Sup. Útil' },
+    { key: 'valor_lista', label: 'Valor UF' },
+    { key: 'descuento', label: 'Desc. (%)' },
+    { key: 'estado_unidad', label: 'Estado' }
+  ];
+  const headersSecundarios = headersPrincipales.filter(h => h.key !== 'descuento');
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -297,11 +283,7 @@ const BrokerQuotePage: React.FC = () => {
                   </tr>
                 ) : (
                   filtered.map(u => {
-                    const originalDesc = u.descuento ?? 0;
-                    const entry = commissions.find(c => c.project_name === u.proyecto_nombre);
-                    const commissionFrac = (entry?.commission_rate ?? 0) / 100;
-                    const netDesc = Math.max(originalDesc - commissionFrac, 0);
-                    const descPct = (netDesc * 100).toFixed(2) + '%';
+                    const descPct = ((u.descuento ?? 0) * 100).toFixed(2) + '%';
                     return (
                       <tr
                         key={u.id}
@@ -318,9 +300,7 @@ const BrokerQuotePage: React.FC = () => {
                         <td className="px-4 py-2 text-right">{u.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td className="px-4 py-2 text-right">{u.valor_lista?.toLocaleString()}</td>
                         {activeTab === 'principales' && <td className="px-4 py-2 text-right">{descPct}</td>}
-                        <td className="px-4 py-2">
-                          <span className={`px-2 py-0.5 rounded-full ${u.estado_unidad === 'Disponible' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{u.estado_unidad}</span>
-                        </td>
+                        <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full ${u.estado_unidad === 'Disponible' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{u.estado_unidad}</span></td>
                       </tr>
                     );
                   })
@@ -337,7 +317,7 @@ const BrokerQuotePage: React.FC = () => {
             {!selectedUnidad ? (
               <p className="text-gray-500">Seleccione un departamento en Principales.</p>
             ) : (
-              <>  
+              <>
                 {/* Sección Cliente/RUT */}
                 <div className="mb-6 bg-blue-50 p-4 rounded">
                   <h3 className="text-lg font-medium mb-2">Datos del Cliente</h3>
@@ -365,19 +345,7 @@ const BrokerQuotePage: React.FC = () => {
                   </p>
                   <p>Tipología: {selectedUnidad.tipologia}</p>
                   <p>Piso: {selectedUnidad.piso || '-'}</p>
-                  {/* Cálculo de descuento neto */}
-                  {(() => {
-                    const orig = selectedUnidad.descuento ?? 0;
-                    const entry = commissions.find(c => c.project_name === selectedUnidad.proyecto_nombre);
-                    const commFrac = (entry?.commission_rate ?? 0) / 100;
-                    const net = Math.max(orig - commFrac, 0);
-                    return (
-                      <>
-                        <p>Descuento neto: {(net * 100).toFixed(2)}%</p>
-                        <p>Comisión Broker: {(entry?.commission_rate ?? 0).toFixed(2)}%</p>
-                      </>
-                    );
-                  })()}
+                  <p>Descuento: {((selectedUnidad.descuento ?? 0) * 100).toFixed(2)}%</p>
                   <p>Valor Lista: {selectedUnidad.valor_lista?.toLocaleString()} UF</p>
                 </section>
                 {/* Sección Superficies */}
@@ -397,4 +365,4 @@ const BrokerQuotePage: React.FC = () => {
   );
 };
 
-export default BrokerQuotePage;
+export default BrokerQuotePage;s
