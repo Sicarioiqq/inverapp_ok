@@ -16,6 +16,7 @@ interface BrokerInfo {
   id: string;
   name: string | null;
 }
+
 interface Unidad {
   id: string;
   proyecto_nombre: string;
@@ -40,7 +41,7 @@ const BrokerQuotePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('principales');
 
-  // Shared stock state
+  // Stock and filters state
   const [stock, setStock] = useState<Unidad[]>([]);
   const [filtered, setFiltered] = useState<Unidad[]>([]);
   const [projects, setProjects] = useState<string[]>([]);
@@ -51,6 +52,7 @@ const BrokerQuotePage: React.FC = () => {
   const [sortAsc, setSortAsc] = useState(true);
   const [loadingStock, setLoadingStock] = useState(false);
 
+  // Commissions map by project
   const [commissions, setCommissions] = useState<Record<string, number>>({});
 
   // Validate broker and load commissions
@@ -88,7 +90,7 @@ const BrokerQuotePage: React.FC = () => {
     validate();
   }, [brokerSlug, accessToken]);
 
-  // Load full stock for both tabs (fetch all rows)
+  // Load full stock (beyond 1000 limit)
   useEffect(() => {
     if (!brokerInfo) return;
     const load = async () => {
@@ -99,8 +101,7 @@ const BrokerQuotePage: React.FC = () => {
           .select(
             'id, proyecto_nombre, unidad, tipologia, piso, sup_util, valor_lista, descuento, estado_unidad, tipo_bien'
           )
-          // fetch beyond default 1000 rows limit
-          .range(0, 10000);
+          .range(0, 10000); // fetch up to 10k rows
         if (se) throw se;
         if (data) {
           setStock(data);
@@ -115,15 +116,18 @@ const BrokerQuotePage: React.FC = () => {
     load();
   }, [brokerInfo]);
 
-  // Filter & sort
+  // Filter, cascade typology, sort
   useEffect(() => {
     let arr = [...stock];
     if (activeTab === 'principales') arr = arr.filter(u => u.tipo_bien === 'DEPARTAMENTO');
     if (activeTab === 'secundarios') arr = arr.filter(u => u.tipo_bien !== 'DEPARTAMENTO');
     if (selectedProject) arr = arr.filter(u => u.proyecto_nombre === selectedProject);
+
     const types = Array.from(new Set(arr.map(u => u.tipologia))).sort();
     setTypologies(types);
+
     if (selectedTip) arr = arr.filter(u => u.tipologia === selectedTip);
+
     arr.sort((a, b) => {
       const fa = a[sortField] ?? '';
       const fb = b[sortField] ?? '';
@@ -134,7 +138,7 @@ const BrokerQuotePage: React.FC = () => {
     setFiltered(arr);
   }, [stock, activeTab, selectedProject, selectedTip, sortField, sortAsc]);
 
-  const headers: { key: keyof Unidad; label: string }[] = activeTab === 'principales'
+  const headers = activeTab === 'principales'
     ? [
       { key: 'proyecto_nombre', label: 'Proyecto' },
       { key: 'unidad', label: 'N° Bien' },
@@ -191,10 +195,7 @@ const BrokerQuotePage: React.FC = () => {
                     className="px-4 py-2 text-left cursor-pointer"
                     onClick={() => {
                       if (sortField === h.key) setSortAsc(!sortAsc);
-                      else {
-                        setSortField(h.key);
-                        setSortAsc(true);
-                      }
+                      else { setSortField(h.key); setSortAsc(true); }
                     }}
                   >
                     <div className="flex items-center">
@@ -209,25 +210,33 @@ const BrokerQuotePage: React.FC = () => {
             </thead>
             <tbody>
               {loadingStock ? (
-                <tr>
-                  <td colSpan={headers.length} className="p-4 text-center">
-                    <Loader2 className="animate-spin"/> Cargando...
-                  </td>
-                </tr>
+                <tr><td colSpan={headers.length} className="p-4 text-center"><Loader2 className="animate-spin"/> Cargando...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={headers.length} className="p-4 text-center text-gray-500">No hay unidades.</td>
-                </tr>
-              ) : (
-                filtered.map(u => {
-                  const basePct = (u.descuento ?? 0) * 100;
-                  const comm = commissions[u.proyecto_nombre] ?? 0;
-                  const net = basePct - comm;
-                  return (
-                    <tr key={u.id} className="border-t">
-                      <td className="px-4 py-2">{u.proyecto_nombre}</td>
-                      <td className="px-4 py-2">{u.unidad}</td>
-                      <td className="px-4 py-2">{u.tipologia}</td>
-                      <td className="px-4 py-2">{u.piso || '-'}</td>
-                      <td className="px-4 py-2 text-right">{u.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="px-4 py-2 text-right">{u.valor_lista?.to
+                <tr><td colSpan={headers.length} className="p-4 text-center text-gray-500">No hay unidades.</td></tr>
+              ) : filtered.map(u => {
+                const basePct = (u.descuento ?? 0) * 100;
+                const comm = commissions[u.proyecto_nombre] ?? 0;
+                const netPct = basePct - comm;
+                return (
+                  <tr key={u.id} className="border-t">
+                    <td className="px-4 py-2">{u.proyecto_nombre}</td>
+                    <td className="px-4 py-2">{u.unidad}</td>
+                    <td className="px-4 py-2">{u.tipologia}</td>
+                    <td className="px-4 py-2">{u.piso ?? '-'}</td>
+                    <td className="px-4 py-2 text-right">{u.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-2 text-right">{u.valor_lista?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                    {activeTab==='principales' && <td className="px-4 py-2 text-right">{netPct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</td>}
+                    <td className="px-4 py-2"><span className={`px-2 py-0.5 inline-flex text-xs font-semibold rounded-full ${u.estado_unidad==='Disponible'? 'bg-green-100 text-green-800': u.estado_unidad==='No Disponible'? 'bg-gray-100 text-gray-800':'bg-yellow-100 text-yellow-800'}`}>{u.estado_unidad}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </main>
+      <footer className="text-center py-6 text-sm text-gray-500">© {new Date().getFullYear()} InverAPP - Cotizador Brokers</footer>
+    </div>
+  );
+};
+
+export default BrokerQuotePage;
