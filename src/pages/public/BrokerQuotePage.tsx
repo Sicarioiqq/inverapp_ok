@@ -345,7 +345,6 @@ const BrokerQuotePage: React.FC = () => {
                     <td colSpan={(activeTab === 'principales' ? headersPrincipales : headersSecundarios).length} className="p-4 text-center text-gray-500">
                       No hay unidades.
                     </td>
-                  </td>
                   </tr>
                 ) : (
                   filtered.map(u => {
