@@ -274,6 +274,23 @@ const BrokerQuotePage: React.FC = () => {
     return nuevoDescuentoPorcentaje; // Retornar como decimal
   };
 
+  // Filtrar y ordenar (Definido aquí para que esté disponible en todo el componente)
+  const filtered = stock
+    .filter(u => {
+      if (activeTab === 'principales') return u.tipo_bien === 'DEPARTAMENTO';
+      if (activeTab === 'secundarios') return u.tipo_bien !== 'DEPARTAMENTO';
+      return true;
+    })
+    .filter(u => filterProyecto === 'Todos' || u.proyecto_nombre === filterProyecto)
+    .filter(u => filterTipologia === 'Todos' || u.tipologia === filterTipologia)
+    .sort((a, b) => {
+      const av = a[sortField] ?? '';
+      const bv = b[sortField] ?? '';
+      if (av < bv) return sortAsc ? -1 : 1;
+      if (av > bv) return sortAsc ? 1 : -1;
+      return 0;
+    });
+
   // Cálculos para la nueva sección de Cotización
   const precioBaseDepartamento = selectedUnidad?.valor_lista || 0;
   const precioDescuentoDepartamento = (precioBaseDepartamento * discountAmount) / 100;
@@ -572,23 +589,23 @@ const BrokerQuotePage: React.FC = () => {
                       </p>
                     </div>
                     <div className="col-span-full">
-                      <p>Valor Lista: <span className="font-semibold">{selectedUnidad.valor_lista?.toLocaleString()} UF</span></p>
+                      <p>Valor Lista: <span className="font-semibold">{formatCurrency(selectedUnidad.valor_lista)} UF</span></p>
                     </div>
                   </section>
                   {/* Sección Superficies */}
                   <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"> {/* Eliminado border-b pb-4 de aquí para que la separación con la nueva tarjeta sea más clara */}
                     <h3 className="text-lg font-medium col-span-full mb-2">Superficies</h3>
                     <div>
-                      <p>Sup. Útil: <span className="font-semibold">{selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</span></p>
+                      <p>Sup. Útil: <span className="font-semibold">{formatCurrency(selectedUnidad.sup_util)} m²</span></p>
                     </div>
                     {selectedUnidad.sup_terraza != null && (
                       <div>
-                        <p>Sup. Terraza: <span className="font-semibold">{selectedUnidad.sup_terraza} m²</span></p>
+                        <p>Sup. Terraza: <span className="font-semibold">{formatCurrency(selectedUnidad.sup_terraza)} m²</span></p>
                       </div>
                     )}
                     {selectedUnidad.sup_total != null && (
                       <div>
-                        <p>Sup. Total: <span className="font-semibold">{selectedUnidad.sup_total} m²</span></p>
+                        <p>Sup. Total: <span className="font-semibold">{formatCurrency(selectedUnidad.sup_total)} m²</span></p>
                       </div>
                     )}
                   </section>
@@ -752,18 +769,18 @@ const BrokerQuotePage: React.FC = () => {
             {/* NUEVA TARJETA: Resumen de Cotización */}
             {selectedUnidad && ( /* Solo mostrar esta tarjeta si hay una unidad seleccionada */
                 <div className="bg-white shadow rounded p-6 mt-6">
-                    <h3 className="text-xl font-semibold mb-4">Resumen de Cotización</h3>
+                    <h3 className="text-xl font-semibold mb-4">Cotización</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Columna Izquierda: Precios de Unidades */}
                         <div>
-                            <h4 className="text-lg font-semibold mb-3">Precio Unidades</h4>
+                            <h4 className="text-lg font-semibold mb-3 flex items-center"><DollarSign className="h-5 w-5 mr-2 text-green-600" />Precios de Unidades</h4>
                             <div className="space-y-2 text-gray-700">
                                 <div className="flex justify-between items-center">
                                     <span>Departamento {selectedUnidad.unidad}:</span>
                                     <span className="font-semibold">{formatCurrency(selectedUnidad.valor_lista)} UF</span>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span>Descuento Aplicado:</span>
+                                    <span>Descuento ({discountAmount}%):</span>
                                     <span className="font-semibold text-red-600">- {formatCurrency(precioDescuentoDepartamento)} UF</span>
                                 </div>
                                 {addedSecondaryUnits.map(unit => (
@@ -781,7 +798,7 @@ const BrokerQuotePage: React.FC = () => {
 
                         {/* Columna Derecha: Forma de Pago */}
                         <div>
-                            <h4 className="text-lg font-semibold mb-3">Forma de Pago</h4>
+                            <h4 className="text-lg font-semibold mb-3 flex items-center"><Wallet className="h-5 w-5 mr-2 text-blue-600" />Forma de Pago</h4>
                             <div className="space-y-2 text-gray-700">
                                 {/* Encabezados de tabla para la forma de pago */}
                                 <div className="grid grid-cols-5 text-sm font-medium text-gray-500 pb-1 border-b">
