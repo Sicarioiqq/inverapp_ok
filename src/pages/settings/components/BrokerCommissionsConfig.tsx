@@ -79,9 +79,9 @@ const BrokerCommissionsConfig: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleInputChange = (project: string, value: string) => {
-    // Allow up to 3 decimal places with dot or comma
-    if (/^(?:100(?:[.,][0-9]{1,3})?|\d{1,2}(?:[.,][0-9]{1,3})?)?$/.test(value) && selectedBroker) {
+    const handleInputChange = (project: string, value: string) => {
+    // Allow up to 3 decimal places with dot or comma, including leading separator
+    if (/^[0-9]{0,2}(?:[.,][0-9]{0,3})?$/.test(value) && selectedBroker) {
       setCommissionInputs(prev => ({
         ...prev,
         [selectedBroker]: { ...(prev[selectedBroker] || {}), [project]: value }
