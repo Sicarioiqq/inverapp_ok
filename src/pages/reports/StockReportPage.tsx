@@ -17,7 +17,7 @@ interface StockUnidad {
   sup_util: number | null;    // Coincide con la columna de Supabase
   sup_terraza: number | null;   // Coincide con la columna de Supabase
   sup_total: number | null;   // Coincide con la columna de Supabase
-  precio_uf: number | null;    // Coincide con la columna de Supabase
+  valor_lista: number | null;    // Coincide con la columna de Supabase
   estado_unidad: string | null;
   etapa: string | null;         // Columna del Excel 'Etapa'
 }
@@ -47,7 +47,7 @@ const StockReportPage: React.FC = () => {
           sup_util, 
           sup_terraza, 
           sup_total, 
-          precio_uf, 
+          valor_lista, 
           estado_unidad,
           etapa 
         `;
@@ -158,7 +158,7 @@ const StockReportPage: React.FC = () => {
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.tipologia}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.piso}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{item.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{item.precio_uf?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{item.valor_lista?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm">
                     <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       item.estado_unidad === 'Disponible' ? 'bg-green-100 text-green-800' :
