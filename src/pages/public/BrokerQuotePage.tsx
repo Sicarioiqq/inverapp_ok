@@ -7,7 +7,6 @@ import {
   Home,
   SlidersHorizontal,
   Loader2,
-  AlertTriangle,
   ShieldX,
   ArrowUp,
   ArrowDown
@@ -25,7 +24,7 @@ interface Unidad {
   tipo_bien: string;
   piso: string | null;
   sup_util: number | null;
-  precio_uf: number | null;
+  valor_lista: number | null;
   estado_unidad: string | null;
 }
 
@@ -62,12 +61,12 @@ const BrokerQuotePage: React.FC = () => {
       try {
         const { data, error: fe } = await supabase
           .from('brokers')
-          .select('id, proyecto_nombre, unidad, tipologia, tipo_bien, piso, sup_util, valor_lista, estado_unidad')
+          .select('id, name')
           .eq('slug', brokerSlug)
           .eq('public_access_token', accessToken)
           .single();
         if (fe || !data) throw new Error('Acceso no autorizado.');
-        setBrokerInfo(data);
+        setBrokerInfo(data as BrokerInfo);
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -86,7 +85,7 @@ const BrokerQuotePage: React.FC = () => {
         const { data } = await supabase
           .from<Unidad>('stock_unidades')
           .select(
-            'id, proyecto_nombre, unidad, tipologia, tipo_bien, piso, sup_util, precio_uf, estado_unidad'
+            'id, proyecto_nombre, unidad, tipologia, tipo_bien, piso, sup_util, valor_lista, estado_unidad'
           )
           .eq('tipo_bien', 'DEPARTAMENTO');
         if (data) {
@@ -108,11 +107,9 @@ const BrokerQuotePage: React.FC = () => {
   useEffect(() => {
     let arr = stock;
     if (selectedProject) arr = arr.filter(u => u.proyecto_nombre === selectedProject);
-    // build typologies from project-filtered
     const typs = Array.from(new Set(arr.map(u => u.tipologia))).sort();
     setTypologies(typs);
     if (selectedTip) arr = arr.filter(u => u.tipologia === selectedTip);
-    // sort
     arr = [...arr].sort((a, b) => {
       const fa = a[sortField] ?? '';
       const fb = b[sortField] ?? '';
@@ -129,7 +126,7 @@ const BrokerQuotePage: React.FC = () => {
     { key: 'tipologia', label: 'Tipología' },
     { key: 'piso', label: 'Piso' },
     { key: 'sup_util', label: 'Sup. Útil' },
-    { key: 'precio_uf', label: 'Precio UF' },
+    { key: 'valor_lista', label: 'Valor Lista (UF)' },
     { key: 'estado_unidad', label: 'Estado' },
   ];
 
@@ -154,7 +151,6 @@ const BrokerQuotePage: React.FC = () => {
         </div>
       </header>
       <main className="container mx-auto p-4">
-        {/* Tabs */}
         <nav className="flex space-x-4 border-b mb-4">
           <button onClick={() => setActiveTab('principales')} className={activeTab==='principales'? 'border-b-2 border-blue-600 pb-2':'pb-2 text-gray-500'}>
             <Home className="inline-block mr-1"/>Principales
@@ -166,10 +162,8 @@ const BrokerQuotePage: React.FC = () => {
             <SlidersHorizontal className="inline-block mr-1"/>Configuración
           </button>
         </nav>
-        {/* Content */}
         {activeTab==='principales' && (
           <div>
-            {/* Filters */}
             <div className="flex space-x-4 mb-4">
               <select value={selectedProject} onChange={e=>{setSelectedProject(e.target.value); setSelectedTip('');}} className="border p-2 rounded">
                 <option value="">Todos Proyectos</option>
@@ -180,7 +174,6 @@ const BrokerQuotePage: React.FC = () => {
                 {typologies.map(t=><option key={t} value={t}>{t}</option>)}
               </select>
             </div>
-            {/* Table */}
             <div className="overflow-x-auto">
               <table className="min-w-full bg-white">
                 <thead>
@@ -207,7 +200,7 @@ const BrokerQuotePage: React.FC = () => {
                       <td className="px-4 py-2">{u.tipologia}</td>
                       <td className="px-4 py-2">{u.piso || '-'}</td>
                       <td className="px-4 py-2 text-right">{u.sup_util?.toFixed(2) || '-'}</td>
-                      <td className="px-4 py-2 text-right">{u.precio_uf?.toFixed(0) || '-'}</td>
+                      <td className="px-4 py-2 text-right">{u.valor_lista?.toFixed(0) || '-'}</td>
                       <td className="px-4 py-2">{u.estado_unidad}</td>
                     </tr>
                   ))}
@@ -217,7 +210,7 @@ const BrokerQuotePage: React.FC = () => {
           </div>
         )}
         {activeTab!=='principales' && (
-          <div className="bg-white p-6 rounded shadow text-center text-gray-500">Contenido de la pestaña &quot;{activeTab}&quot; todavía no implementado.</div>
+          <div className="bg-white p-6 rounded shadow text-center text-gray-500">Contenido de la pestaña "{activeTab}" todavía no implementado.</div>
         )}
       </main>
       <footer className="text-center py-6 text-sm text-gray-500">© {new Date().getFullYear()} InverAPP</footer>
