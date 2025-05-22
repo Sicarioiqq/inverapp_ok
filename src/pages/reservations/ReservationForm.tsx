@@ -324,7 +324,7 @@ const ReservationForm = () => {
       }));
     } else if (name === 'column_discount' || name === 'additional_discount' || name === 'other_discount') {
       // Handle percentage inputs (0-100)
-      const numValue = parseInt(value) || 0;
+      const numValue = parseFloat(value);
       setFormData(prev => ({
         ...prev,
         [name]: Math.min(100, Math.max(0, numValue))
