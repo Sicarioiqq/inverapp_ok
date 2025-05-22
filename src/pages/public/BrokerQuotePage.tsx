@@ -79,8 +79,9 @@ const BrokerQuotePage: React.FC = () => {
   const [discountAmount, setDiscountAmount] = useState<number>(0); // El descuento en % del departamento
   const [bonoAmount, setBonoAmount] = useState<number>(0); // El monto de bono en UF para la CONFIGURACION
   const [bonoAmountPct, setBonoAmountPct] = useState<number>(0); // El porcentaje de bono para la CONFIGURACION
-  // NUEVO: Estado temporal para el input del bono pie en modo mix
-  const [tempBonoAmountPctInput, setTempBonoAmountPctInput] = useState<string>('0.00');
+  // Estado temporal para el input del bono pie en modo mix
+  // Este estado solo se usará para el input manual cuando el usuario está escribiendo.
+  const [tempBonoAmountPctInput, setTempBonoAmountPctInput] = useState<string>('');
 
   const [initialTotalAvailableBono, setInitialTotalAvailableBono] = useState<number>(0); // Total disponible en Bono Pie (en UF)
 
@@ -512,7 +513,8 @@ const BrokerQuotePage: React.FC = () => {
     }
   };
 
-  // NUEVO: Función para aplicar los cambios del input temporal
+  // Función para aplicar los cambios del input temporal del Bono Pie (%)
+  // Ahora se invoca en onChange para las flechas y en onBlur/onKeyDown para la entrada manual.
   const applyBonoPieConfigChange = (value: string) => {
     const numValue = parseFloat(value);
     const finalValue = isNaN(numValue) || !isFinite(numValue) ? 0 : numValue;
@@ -963,8 +965,13 @@ const BrokerQuotePage: React.FC = () => {
                                           <input
                                               type="number"
                                               id="mixBonoInput"
-                                              value={tempBonoAmountPctInput} // Ahora usa el estado temporal
-                                              onChange={e => setTempBonoAmountPctInput(e.target.value)} // Actualiza el estado temporal
+                                              value={tempBonoAmountPctInput} // Ahora usa el estado temporal para que el usuario escriba libremente
+                                              // Se actualiza el estado temporal inmediatamente con cada cambio
+                                              onChange={e => {
+                                                setTempBonoAmountPctInput(e.target.value);
+                                                // Y también aplica el cálculo inmediatamente para las flechas
+                                                applyBonoPieConfigChange(e.target.value);
+                                              }}
                                               onBlur={e => applyBonoPieConfigChange(e.target.value)} // Aplica cambios al perder el foco
                                               onKeyDown={e => { // Aplica cambios al presionar Enter
                                                   if (e.key === 'Enter') {
