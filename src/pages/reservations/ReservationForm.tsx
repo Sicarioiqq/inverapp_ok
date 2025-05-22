@@ -206,10 +206,39 @@ const ReservationForm = () => {
   const fetchReservation = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      // First verify the ID is valid
+      if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        throw new Error('ID de reserva inválido');
+      }
+
+      // Split the query into smaller chunks to avoid URL length issues
       const { data: reservationData, error: reservationError } = await supabase
         .from('reservations')
         .select(`
-          *,
+          id,
+          reservation_number,
+          client_id,
+          project_id,
+          seller_id,
+          reservation_date,
+          is_with_broker,
+          broker_id,
+          apartment_number,
+          parking_number,
+          storage_number,
+          apartment_price,
+          parking_price,
+          storage_price,
+          column_discount,
+          additional_discount,
+          other_discount,
+          reservation_payment,
+          promise_payment,
+          down_payment,
+          credit_payment,
+          subsidy_payment,
           client:clients (
             id,
             rut,
@@ -220,19 +249,26 @@ const ReservationForm = () => {
         .eq('id', id)
         .single();
 
-      if (reservationError) throw reservationError;
-
-      if (reservationData) {
-        setFormData({
-          ...reservationData,
-          reservation_date: reservationData.reservation_date.split('T')[0],
-          column_discount: (reservationData.column_discount || 0) * 100,
-          additional_discount: (reservationData.additional_discount || 0) * 100,
-          other_discount: (reservationData.other_discount || 0) * 100
-        });
-        setSelectedClient(reservationData.client);
+      if (reservationError) {
+        console.error('Error fetching reservation:', reservationError);
+        throw new Error('Error al cargar la reserva: ' + reservationError.message);
       }
+
+      if (!reservationData) {
+        throw new Error('No se encontró la reserva');
+      }
+
+      setFormData({
+        ...reservationData,
+        reservation_date: reservationData.reservation_date.split('T')[0],
+        column_discount: (reservationData.column_discount || 0) * 100,
+        additional_discount: (reservationData.additional_discount || 0) * 100,
+        other_discount: (reservationData.other_discount || 0) * 100
+      });
+      
+      setSelectedClient(reservationData.client);
     } catch (err: any) {
+      console.error('Error in fetchReservation:', err);
       setError(err.message);
     } finally {
       setLoading(false);
