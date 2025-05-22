@@ -14,7 +14,7 @@ interface StockUnidad {
   tipologia: string | null;     // Columna del Excel 'Tipo' (ej. 2D+2B)
   piso: string | null;
   orientacion: string | null;
-  m2_utiles: number | null;    // Coincide con la columna de Supabase
+  sup_util: number | null;    // Coincide con la columna de Supabase
   m2_terraza: number | null;   // Coincide con la columna de Supabase
   m2_totales: number | null;   // Coincide con la columna de Supabase
   precio_uf: number | null;    // Coincide con la columna de Supabase
@@ -44,7 +44,7 @@ const StockReportPage: React.FC = () => {
           tipologia, 
           piso, 
           orientacion, 
-          m2_utiles, 
+          sup_util, 
           m2_terraza, 
           m2_totales, 
           precio_uf, 
@@ -157,7 +157,7 @@ const StockReportPage: React.FC = () => {
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.tipo_bien}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.tipologia}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.piso}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{item.m2_utiles?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{item.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{item.precio_uf?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm">
                     <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
