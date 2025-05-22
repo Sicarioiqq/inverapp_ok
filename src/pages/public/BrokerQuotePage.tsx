@@ -62,7 +62,7 @@ const BrokerQuotePage: React.FC = () => {
       try {
         const { data, error: fe } = await supabase
           .from('brokers')
-          .select('id,name')
+          .select('id, proyecto_nombre, unidad, tipologia, tipo_bien, piso, sup_util, valor_lista, estado_unidad')
           .eq('slug', brokerSlug)
           .eq('public_access_token', accessToken)
           .single();
