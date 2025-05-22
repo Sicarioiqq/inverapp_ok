@@ -217,29 +217,8 @@ const ReservationForm = () => {
       const { data: reservationData, error: reservationError } = await supabase
         .from('reservations')
         .select(`
-          id,
-          reservation_number,
-          client_id,
-          project_id,
-          seller_id,
-          reservation_date,
-          is_with_broker,
-          broker_id,
-          apartment_number,
-          parking_number,
-          storage_number,
-          apartment_price,
-          parking_price,
-          storage_price,
-          column_discount,
-          additional_discount,
-          other_discount,
-          reservation_payment,
-          promise_payment,
-          down_payment,
-          credit_payment,
-          subsidy_payment,
-          clients (
+          *,
+          clients:client_id (
             id,
             rut,
             first_name,
