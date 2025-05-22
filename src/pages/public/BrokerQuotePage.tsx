@@ -183,7 +183,9 @@ const BrokerQuotePage: React.FC = () => {
     'Todos',
     ...Array.from(
       new Set(
+        // Filter tipologias based on activeTab and current project filter
         stock
+          .filter(u => activeTab === 'principales' ? u.tipo_bien === 'DEPARTAMENTO' : true) // ONLY show DEPARTAMENTO for 'principales'
           .filter(u => filterProyecto === 'Todos' || u.proyecto_nombre === filterProyecto)
           .map(u => u.tipologia)
       )
