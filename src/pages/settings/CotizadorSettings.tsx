@@ -5,64 +5,77 @@ import { supabase } from '../../lib/supabase';
 
 // Función auxiliar para convertir strings con coma (o sin ella) a números
 const toNumber = (value: any): number | null => {
-  if (value === null || value === undefined) return null;
-  const stringValue = String(value).trim();
-  if (stringValue === '') return null;
-  const normalized = stringValue.replace(',', '.');
-  const num = parseFloat(normalized);
-  return isNaN(num) ? null : num;
+  if (value == null) return null;
+  const s = String(value).trim().replace(',', '.');
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
 };
 
 // Función auxiliar para normalizar strings y manejar 'EMPTY'
 const getSafeString = (value: any): string | null => {
-  if (value === null || value === undefined) return null;
-  const str = String(value).trim();
-  return (str === 'EMPTY' || str === '') ? null : str;
+  if (value == null) return null;
+  const s = String(value).trim();
+  return (s === '' || s.toUpperCase() === 'EMPTY') ? null : s;
+};
+
+// Función para mapear el campo "Bloqueado" a los valores permitidos por el CHECK en la DB
+const normalizeEstado = (raw: string | null): string => {
+  if (!raw) return 'Disponible';
+  const val = raw.trim().toLowerCase();
+  // Ajusta estas reglas según los valores reales de tu Excel:
+  if (['sí', 'si', 'true', '1'].includes(val)) {
+    return 'No Disponible';
+  }
+  // Asumimos que cualquier otra cosa implica Disponible
+  return 'Disponible';
 };
 
 const CotizadorSettings: React.FC = () => {
-  const [isUploadingToSupabase, setIsUploadingToSupabase] = useState<boolean>(false);
-  const [supabaseError, setSupabaseError]           = useState<string | null>(null);
-  const [supabaseSuccess, setSupabaseSuccess]       = useState<string | null>(null);
+  const [isUploading, setIsUploading]     = useState(false);
+  const [supabaseError, setSupabaseError] = useState<string|null>(null);
+  const [supabaseSuccess, setSupabaseSuccess] = useState<string|null>(null);
 
   const handleStockDataUploaded = async (dataFromExcel: any[]) => {
-    console.log('Datos crudos del Excel recibidos:', dataFromExcel);
     setSupabaseError(null);
     setSupabaseSuccess(null);
 
-    if (!dataFromExcel || dataFromExcel.length === 0) {
+    if (!dataFromExcel?.length) {
       setSupabaseError('No hay datos para cargar desde el archivo Excel.');
       return;
     }
-
-    setIsUploadingToSupabase(true);
+    setIsUploading(true);
 
     try {
-      // 1) Mapear columnas
-      const mappedData = dataFromExcel
+      // 1) Mappear filas
+      const mapped = dataFromExcel
         .map(row => {
           const proyecto_nombre = getSafeString(row['Nombre del Proyecto']);
           const unidad          = getSafeString(row['N° Bien']);
           const tipologia       = getSafeString(row['Tipo']);
           const tipo_bien       = getSafeString(row['Tipo Bien']);
+          const etapa           = getSafeString(row['Etapa']);
           const piso            = getSafeString(row['Piso']);
           const orientacion     = getSafeString(row['Orientación']);
-          const etapa           = getSafeString(row['Etapa']);
-          const valor_lista     = toNumber(row['Valor lista']);
-          const descuento       = toNumber(row['Descuento autorizado']);
-          const sup_interior    = toNumber(row['Sup. Interior']);
-          const sup_util        = toNumber(row['Sup. Útil']);
-          const sup_terraza     = toNumber(row['Sup. terraza']);
-          const sup_ponderada   = toNumber(row['Sup. ponderada']);
-          const sup_terreno     = toNumber(row['Sup. terreno']);
-          const sup_jardin      = toNumber(row['Sup. jardín']);
-          const sup_total       = toNumber(row['Sup. total']);
-          const sup_logia       = toNumber(row['Sup. logia']);
-          const estado_unidad   = getSafeString(row['Bloqueado']) || 'Disponible';
 
-          // 2) Validar campos clave
+          // valores numéricos
+          const valor_lista   = toNumber(row['Valor lista']);
+          const descuento     = toNumber(row['Descuento autorizado']);
+          const sup_interior  = toNumber(row['Sup. Interior']);
+          const sup_util      = toNumber(row['Sup. Útil']);
+          const sup_terraza   = toNumber(row['Sup. terraza']);
+          const sup_ponderada = toNumber(row['Sup. ponderada']);
+          const sup_terreno   = toNumber(row['Sup. terreno']);
+          const sup_jardin    = toNumber(row['Sup. jardín']);
+          const sup_total     = toNumber(row['Sup. total']);
+          const sup_logia     = toNumber(row['Sup. logia']);
+
+          // estado unida a partir de Bloqueado
+          const rawBloq       = getSafeString(row['Bloqueado']);
+          const estado_unidad = normalizeEstado(rawBloq);
+
+          // validar campos clave
           if (!proyecto_nombre || !unidad || !tipo_bien) {
-            console.warn('Fila incompleta (Proyecto, Unidad o Tipo Bien faltante):', row);
+            console.warn('Fila incompleta:', row);
             return null;
           }
 
@@ -87,82 +100,77 @@ const CotizadorSettings: React.FC = () => {
             estado_unidad,
           };
         })
-        .filter((item): item is NonNullable<typeof item> =>
-          !!item &&
-          !!item.proyecto_nombre &&
-          !!item.unidad &&
-          !!item.tipo_bien
+        .filter((x): x is NonNullable<typeof x> =>
+          !!x.proyecto_nombre && !!x.unidad && !!x.tipo_bien
         );
 
-      if (mappedData.length === 0) {
+      if (!mapped.length) {
         setSupabaseError(
-          'No se encontraron datos válidos (con "Nombre del Proyecto", "N° Bien" y "Tipo Bien") para cargar.'
+          'No se encontraron filas válidas con Proyecto, N° Bien y Tipo Bien.'
         );
-        setIsUploadingToSupabase(false);
         return;
       }
 
-      console.log('Datos mapeados para Supabase:', mappedData);
+      console.log('Mapped:', mapped);
 
-      // 3) Detectar duplicados en el Excel
-      const uniqueKeys = new Set<string>();
-      const duplicates = mappedData.filter(item => {
+      // 2) Detección de duplicados en el Excel
+      const seen = new Set<string>();
+      const dupes = mapped.filter(item => {
         const key = `${item.proyecto_nombre}:${item.unidad}:${item.tipo_bien}`;
-        if (uniqueKeys.has(key)) return true;
-        uniqueKeys.add(key);
+        if (seen.has(key)) return true;
+        seen.add(key);
         return false;
       });
-
-      if (duplicates.length > 0) {
-        console.warn('Se encontraron duplicados en el Excel:', duplicates);
+      if (dupes.length) {
         setSupabaseError(
-          `Se encontraron ${duplicates.length} registros duplicados en el Excel. Corrija los datos y reintente.`
+          `Hay ${dupes.length} registros duplicados en el Excel. Corrige y reintenta.`
         );
-        setIsUploadingToSupabase(false);
+        console.warn('Duplicados:', dupes);
         return;
       }
 
-      // 4) Upsert en Supabase usando la constraint única (proyecto_nombre, unidad, tipo_bien)
+      // 3) Upsert en Supabase
       const { data, error } = await supabase
         .from('stock_unidades')
-        .upsert(mappedData, {
-          onConflict: 'proyecto_nombre,unidad,tipo_bien',
-          ignoreDuplicates: false,
+        .upsert(mapped, {
+          onConflict: 'proyecto_nombre,unidad,tipo_bien'
         });
 
       if (error) {
-        console.error('Error de Supabase:', error);
+        console.error('Supabase error:', error);
         throw error;
       }
 
       setSupabaseSuccess(
-        `¡Stock procesado! ${mappedData.length} unidades cargadas/actualizadas correctamente.`
+        `¡Carga exitosa! ${mapped.length} unidades procesadas.`
       );
-      console.log('Datos guardados/actualizados en Supabase:', data);
+      console.log('Upsert result:', data);
 
     } catch (err: any) {
-      console.error('Error en el proceso de carga a Supabase:', err);
-      setSupabaseError(`Error en el proceso de carga: ${err.message || 'Error desconocido.'}`);
+      console.error('Error en carga:', err);
+      setSupabaseError(`Error en el proceso de carga: ${err.message}`);
     } finally {
-      setIsUploadingToSupabase(false);
+      setIsUploading(false);
     }
   };
 
   return (
     <div className="p-6 space-y-8">
       <div>
-        <h2 className="text-2xl font-semibold mb-4 text-gray-800">Configuración del Cotizador</h2>
+        <h2 className="text-2xl font-semibold mb-4 text-gray-800">
+          Configuración del Cotizador
+        </h2>
         <p className="text-gray-600">
-          Aquí podrás configurar los parámetros del cotizador, incluyendo la carga inicial de stock de unidades.
+          Carga inicial de stock de unidades.
         </p>
       </div>
 
       <StockUploadCard onDataUpload={handleStockDataUploaded} />
 
-      {isUploadingToSupabase && (
+      {isUploading && (
         <div className="mt-4 p-3 bg-blue-100 text-blue-700 rounded-md flex items-center animate-pulse">
           <svg
-            className="animate-spin h-5 w-5 mr-3 text-blue-700"
+            className="animate-spin h-5 w-5 mr-3"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -174,14 +182,14 @@ const CotizadorSettings: React.FC = () => {
               r="10"
               stroke="currentColor"
               strokeWidth="4"
-            ></circle>
+            />
             <path
               className="opacity-75"
               fill="currentColor"
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
+            />
           </svg>
-          Cargando datos a Supabase...
+          Cargando datos...
         </div>
       )}
 
