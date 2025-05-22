@@ -125,10 +125,7 @@ const ReservationForm = () => {
   const totalListPrice = formData.apartment_price + formData.parking_price + formData.storage_price;
   
   const minimumPrice = (
-    formData.apartment_price * 
-    (1 - formData.column_discount/100) * 
-    (1 - formData.additional_discount/100) * 
-    (1 - formData.other_discount/100)
+    formData.apartment_price * (1 - formData.column_discount/100) * (1 - formData.additional_discount/100) * (1 - formData.other_discount/100)
   ) + formData.parking_price + formData.storage_price;
 
   const totalPayment = 
@@ -266,6 +263,7 @@ const ReservationForm = () => {
       setFormData({
         ...reservationData,
         reservation_date: reservationData.reservation_date.split('T')[0],
+        // Multiplicar por 100 para mostrar como porcentaje en el input (ej: 0.15 -> 15)
         column_discount: (reservationData.column_discount || 0) * 100,
         additional_discount: (reservationData.additional_discount || 0) * 100,
         other_discount: (reservationData.other_discount || 0) * 100
@@ -323,11 +321,11 @@ const ReservationForm = () => {
         broker_id: checked ? prev.broker_id : null
       }));
     } else if (name === 'column_discount' || name === 'additional_discount' || name === 'other_discount') {
-      // Handle percentage inputs (0-100)
-      const numValue = parseFloat(value);
+      // Handle percentage inputs (0-100) allowing up to 3 decimal places
+      const numValue = parseFloat(value); // Use parseFloat instead of parseInt
       setFormData(prev => ({
         ...prev,
-        [name]: isNaN(numValue) ? 0 : Math.min(100, Math.max(0, numValue))
+        [name]: isNaN(numValue) ? 0 : Math.min(100, Math.max(0, numValue)) // Ensure value is between 0 and 100
       }));
     } else {
       setFormData(prev => ({
@@ -977,7 +975,7 @@ const ReservationForm = () => {
                       name="column_discount"
                       min="0"
                       max="100"
-                      step="1"
+                      step="0.001" {/* Changed step to allow 3 decimal places */}
                       value={formData.column_discount}
                       onChange={handleChange}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
@@ -994,7 +992,7 @@ const ReservationForm = () => {
                       name="additional_discount"
                       min="0"
                       max="100"
-                      step="1"
+                      step="0.001" {/* Changed step to allow 3 decimal places */}
                       value={formData.additional_discount}
                       onChange={handleChange}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
@@ -1011,7 +1009,7 @@ const ReservationForm = () => {
                       name="other_discount"
                       min="0"
                       max="100"
-                      step="1"
+                      step="0.001" {/* Changed step to allow 3 decimal places */}
                       value={formData.other_discount}
                       onChange={handleChange}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
