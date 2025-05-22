@@ -88,8 +88,12 @@ const BrokerQuotePage: React.FC = () => {
   const [pagoReserva, setPagoReserva] = useState<number>(0);
   const [pagoPromesa, setPagoPromesa] = useState<number>(0);
   const [pagoPie, setPagoPie] = useState<number>(0);
-  const [pagoCreditoHipotecario, setPagoCreditoHipotecario] = useState<number>(0);
-  const [pagoBonoPie, setPagoBonoPie] = useState<number>(0); // Este será el bono para el total de la cotización, distinto del bono de "configuración de cotización"
+  // pagoCreditoHipotecario se calculará automáticamente
+  const [pagoBonoPie, setPagoBonoPie] = useState<number>(0);
+
+  // Constante para el valor fijo de la reserva en pesos
+  const VALOR_RESERVA_PESOS = 100000;
+
 
   // Validar broker
   useEffect(() => {
@@ -226,6 +230,15 @@ const BrokerQuotePage: React.FC = () => {
     }
   }, [selectedUnidad?.proyecto_nombre]);
 
+  // Efecto para inicializar el pago de reserva y el bono pie de la cotización
+  // y para sincronizar el bono de configuración con el pagoBonoPie
+  useEffect(() => {
+    if (ufValue !== null) {
+      setPagoReserva(VALOR_RESERVA_PESOS / ufValue);
+    }
+    // Sincronizar el bonoAmount de la configuración con el pagoBonoPie
+    setPagoBonoPie(bonoAmount);
+  }, [ufValue, bonoAmount]); // Depende de ufValue y bonoAmount para recalcular
 
   // Opciones de filtro
   const proyectos = ['Todos', ...Array.from(new Set(stock.map(u => u.proyecto_nombre))).sort()];
@@ -293,15 +306,32 @@ const BrokerQuotePage: React.FC = () => {
 
   // Cálculos para la nueva sección de Cotización
   const precioBaseDepartamento = selectedUnidad?.valor_lista || 0;
-  const precioDescuentoDepartamento = (precioBaseDepartamento * discountAmount) / 100;
-  const precioDepartamentoConDescuento = precioBaseDepartamento - precioDescuentoDepartamento;
+  
+  // Ajusta el precio del departamento según el tipo de configuración
+  let precioDescuentoDepartamento = 0;
+  let precioDepartamentoConDescuento = precioBaseDepartamento;
+  let bonoPieAplicado = 0;
+
+  if (quotationType === 'descuento' || quotationType === 'mix') {
+    precioDescuentoDepartamento = (precioBaseDepartamento * discountAmount) / 100;
+    precioDepartamentoConDescuento = precioBaseDepartamento - precioDescuentoDepartamento;
+  }
+
+  if (quotationType === 'bono' || quotationType === 'mix') {
+    bonoPieAplicado = bonoAmount; // El bono de la configuración se usa aquí
+  }
+
 
   const precioTotalSecundarios = addedSecondaryUnits.reduce((sum, unit) => sum + (unit.valor_lista || 0), 0);
 
   // Calcula el "Total Escritura"
   const totalEscritura = precioDepartamentoConDescuento + precioTotalSecundarios;
-  // Este es el "Total" de la forma de pago
-  const totalFormaDePago = pagoReserva + pagoPromesa + pagoPie + pagoCreditoHipotecario + pagoBonoPie;
+  
+  // Calcula el crédito hipotecario ajustado
+  const pagoCreditoHipotecarioCalculado = totalEscritura - (pagoReserva + pagoPromesa + pagoPie + bonoPieAplicado);
+
+  // Este es el "Total" de la forma de pago (sumando el crédito hipotecario calculado)
+  const totalFormaDePago = pagoReserva + pagoPromesa + pagoPie + pagoCreditoHipotecarioCalculado + bonoPieAplicado;
 
 
   // Handler para agregar unidad secundaria a la cotización
@@ -688,9 +718,10 @@ const BrokerQuotePage: React.FC = () => {
                                           <input
                                               type="number"
                                               id="mixBonoInput"
-                                              value={bonoAmount} // Este se calculará automáticamente más tarde
+                                              value={bonoAmount} // Se asume que este bono se establece en 'bonoAmount' a través de la lógica de mix
                                               readOnly
                                               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed"
+                                              step="0.01"
                                           />
                                       </div>
                                   </>
@@ -780,7 +811,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <span className="font-semibold">{formatCurrency(selectedUnidad.valor_lista)} UF</span>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span>Descuento ({discountAmount}%):</span>
+                                    <span>Descuento ({formatCurrency(discountAmount)}%):</span> {/* Mostrar el % del descuento */}
                                     <span className="font-semibold text-red-600">- {formatCurrency(precioDescuentoDepartamento)} UF</span>
                                 </div>
                                 {addedSecondaryUnits.map(unit => (
@@ -860,12 +891,12 @@ const BrokerQuotePage: React.FC = () => {
                                 {/* Fila: Crédito Hipotecario (ajustable automáticamente) */}
                                 <div className="grid grid-cols-5 items-center">
                                     <span className="col-span-2">Crédito Hipotecario:</span>
-                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoCreditoHipotecario / totalEscritura) * 100) : formatCurrency(0)}%</span>
-                                    <span className="text-right">{ufToPesos(pagoCreditoHipotecario)}</span>
+                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoCreditoHipotecarioCalculado / totalEscritura) * 100) : formatCurrency(0)}%</span>
+                                    <span className="text-right">{ufToPesos(pagoCreditoHipotecarioCalculado)}</span>
                                     <div className="flex justify-end">
                                         <input
                                             type="number"
-                                            value={totalEscritura - (pagoReserva + pagoPromesa + pagoPie + pagoBonoPie)} // Cálculo automático
+                                            value={pagoCreditoHipotecarioCalculado} // Cálculo automático
                                             readOnly // Crédito Hipotecario es readOnly
                                             className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed"
                                             step="0.01"
@@ -873,17 +904,17 @@ const BrokerQuotePage: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* Fila: Bono Pie */}
+                                {/* Fila: Bono Pie (ahora se usa bonoPieAplicado del inicio) */}
                                 <div className="grid grid-cols-5 items-center">
                                     <span className="col-span-2">Bono Pie:</span>
-                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoBonoPie / totalEscritura) * 100) : formatCurrency(0)}%</span>
-                                    <span className="text-right">{ufToPesos(pagoBonoPie)}</span>
+                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((bonoPieAplicado / totalEscritura) * 100) : formatCurrency(0)}%</span>
+                                    <span className="text-right">{ufToPesos(bonoPieAplicado)}</span>
                                     <div className="flex justify-end">
                                         <input
                                             type="number"
-                                            value={pagoBonoPie}
-                                            onChange={e => setPagoBonoPie(parseFloat(e.target.value) || 0)}
-                                            className="w-24 text-right border rounded-md px-2 py-1"
+                                            value={bonoPieAplicado} // Utiliza el bono del cálculo de configuración
+                                            readOnly // Este bono se maneja desde la sección de configuración
+                                            className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed"
                                             step="0.01"
                                         />
                                     </div>
@@ -892,6 +923,7 @@ const BrokerQuotePage: React.FC = () => {
                                 {/* Total Forma de Pago */}
                                 <div className="grid grid-cols-5 items-center font-bold border-t pt-2 mt-2">
                                     <span className="col-span-2">Total:</span>
+                                    {/* El porcentaje y pesos deben basarse en totalEscritura */}
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((totalFormaDePago / totalEscritura) * 100) : formatCurrency(0)}%</span>
                                     <span className="text-right">{ufToPesos(totalFormaDePago)}</span>
                                     <span className="text-right">{formatCurrency(totalFormaDePago)} UF</span>
