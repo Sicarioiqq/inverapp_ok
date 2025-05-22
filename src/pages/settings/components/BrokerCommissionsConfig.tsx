@@ -1,13 +1,20 @@
 // src/pages/settings/components/BrokerCommissionsConfig.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../../../lib/supabase'; // Ajusta la ruta si es necesario
+import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { Briefcase, Landmark, Percent, Save, Loader2, AlertCircle, Trash2 } from 'lucide-react';
+import {
+  Briefcase,
+  Landmark,
+  Percent,
+  Save,
+  Loader2,
+  AlertCircle,
+  Trash2
+} from 'lucide-react';
 
 interface Broker {
   id: string;
-  name: string | null; // Asumiendo que la columna en 'brokers' es 'name'
-                      // Si es 'first_name' y 'last_name', ajusta la query y el display
+  name: string | null;
 }
 
 interface BrokerCommission {
@@ -17,14 +24,13 @@ interface BrokerCommission {
   commission_rate: number | null;
 }
 
+const PAGE_SIZE = 1000;
+
 const BrokerCommissionsConfig: React.FC = () => {
   const [brokers, setBrokers] = useState<Broker[]>([]);
   const [projects, setProjects] = useState<string[]>([]);
-  // Estado para los inputs: { brokerId: { projectName: "stringRate" } }
   const [commissionInputs, setCommissionInputs] = useState<Record<string, Record<string, string>>>({});
-  // Estado para las comisiones originales de la DB (para saber si algo es nuevo, existente o se borró)
   const [dbCommissions, setDbCommissions] = useState<BrokerCommission[]>([]);
-  
   const [loadingData, setLoadingData] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,40 +39,58 @@ const BrokerCommissionsConfig: React.FC = () => {
     setLoadingData(true);
     setError(null);
     try {
-      const { data: brokersData, error: brokersError } = await supabase
-        .from('brokers') // Confirma el nombre de tu tabla de brokers
-        .select('id, name') // Confirma la(s) columna(s) para el nombre del broker
+      // 1) Brokers
+      const { data: brokersData, error: be } = await supabase
+        .from('brokers')
+        .select('id, name')
         .order('name', { ascending: true });
-      if (brokersError) throw brokersError;
+      if (be) throw be;
       setBrokers(brokersData || []);
 
-      const { data: projectsData, error: projectsError } = await supabase
-        .from('stock_unidades') // Usa la tabla donde están los nombres de proyecto
-        .select('proyecto_nombre'); // Columna que tiene el nombre del proyecto
-      if (projectsError) throw projectsError;
-      const uniqueProjects = Array.from(new Set(projectsData?.map(item => item.proyecto_nombre).filter(Boolean) as string[] || []));
-      setProjects(uniqueProjects.sort());
-      
-      const { data: commissionsData, error: commissionsError } = await supabase
+      // 2) Projects — paginado para traer TODOS
+      let from = 0;
+      const allRows: { proyecto_nombre: string | null }[] = [];
+      while (true) {
+        const to = from + PAGE_SIZE - 1;
+        const { data, error: pe } = await supabase
+          .from('stock_unidades')
+          .select('proyecto_nombre')
+          .range(from, to);
+        if (pe) throw pe;
+        if (!data || data.length === 0) break;
+        allRows.push(...data);
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+      const uniqueProjects = Array.from(
+        new Set(
+          allRows
+            .map(r => r.proyecto_nombre)
+            .filter((p): p is string => !!p)
+        )
+      ).sort();
+      setProjects(uniqueProjects);
+
+      // 3) Existing commissions
+      const { data: commData, error: ce } = await supabase
         .from('broker_project_commissions')
         .select('id, broker_id, project_name, commission_rate');
-      if (commissionsError) throw commissionsError;
+      if (ce) throw ce;
+      setDbCommissions(commData || []);
 
-      setDbCommissions(commissionsData || []);
+      // Map inputs
       const inputsMap: Record<string, Record<string, string>> = {};
-      (commissionsData || []).forEach(comm => {
-        if (!inputsMap[comm.broker_id]) {
-          inputsMap[comm.broker_id] = {};
-        }
-        inputsMap[comm.broker_id][comm.project_name] = comm.commission_rate !== null ? String(comm.commission_rate) : '';
+      (commData || []).forEach(c => {
+        inputsMap[c.broker_id] ??= {};
+        inputsMap[c.broker_id][c.project_name] =
+          c.commission_rate != null ? String(c.commission_rate) : '';
       });
       setCommissionInputs(inputsMap);
-
     } catch (err: any) {
-      console.error("Error fetching data for commissions config:", err);
-      const errorMsg = `Error al cargar datos: ${err.message}`;
-      setError(errorMsg);
-      toast.error(errorMsg);
+      console.error(err);
+      const msg = err.message || 'Error desconocido';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoadingData(false);
     }
@@ -77,7 +101,6 @@ const BrokerCommissionsConfig: React.FC = () => {
   }, [fetchData]);
 
   const handleCommissionInputChange = (brokerId: string, projectName: string, value: string) => {
-    // Permitir strings vacíos o números válidos (0-100 con hasta 2 decimales)
     if (value === '' || /^(100(\.0{1,2})?|\d{1,2}(\.\d{1,2})?)$/.test(value)) {
       setCommissionInputs(prev => ({
         ...prev,
@@ -88,75 +111,64 @@ const BrokerCommissionsConfig: React.FC = () => {
       }));
     }
   };
-  
+
   const handleSaveCommissions = async () => {
     setIsSaving(true);
     setError(null);
-    const upsertOperations: Omit<BrokerCommission, 'id'>[] = [];
-    const deleteOperationsIds: string[] = [];
+
+    const toUpsert: Omit<BrokerCommission, 'id'>[] = [];
+    const toDeleteIds: string[] = [];
 
     brokers.forEach(broker => {
       projects.forEach(projectName => {
-        const inputValue = commissionInputs[broker.id]?.[projectName]; // String del input
-        const existingDbCommission = dbCommissions.find(
+        const inputValue = commissionInputs[broker.id]?.[projectName] ?? '';
+        const existing = dbCommissions.find(
           c => c.broker_id === broker.id && c.project_name === projectName
         );
 
-        if (inputValue !== undefined && inputValue !== null && inputValue.trim() !== '') {
-          // Hay un valor en el input
+        if (inputValue.trim() !== '') {
           const rate = parseFloat(inputValue);
           if (isNaN(rate) || rate < 0 || rate > 100) {
-            toast.error(`Valor de comisión inválido (${inputValue}) para ${broker.name} en ${projectName}.`);
-            setError(`Valor inválido para ${broker.name} en ${projectName}.`); // Para mostrar en UI
-            setIsSaving(false);
-            throw new Error("Invalid commission rate found during save prep."); // Detiene el proceso
+            const msg = `Valor inválido (${inputValue}) para ${broker.name} en ${projectName}`;
+            toast.error(msg);
+            throw new Error(msg);
           }
-          upsertOperations.push({
-            broker_id: broker.id,
-            project_name: projectName,
-            commission_rate: rate,
-          });
-        } else {
-          // El input está vacío
-          if (existingDbCommission && existingDbCommission.id) {
-            // Si existía en la DB, hay que borrarlo
-            deleteOperationsIds.push(existingDbCommission.id);
-          }
-          // Si no existía en la DB y el input está vacío, no se hace nada.
+          toUpsert.push({ broker_id: broker.id, project_name: projectName, commission_rate: rate });
+        } else if (existing?.id) {
+          toDeleteIds.push(existing.id);
         }
       });
     });
-    
-    if (upsertOperations.length === 0 && deleteOperationsIds.length === 0) {
-      toast.info("No hay cambios en las comisiones para guardar.");
+
+    if (!toUpsert.length && !toDeleteIds.length) {
+      toast.info('No hay cambios para guardar.');
       setIsSaving(false);
       return;
     }
 
     try {
-      if (deleteOperationsIds.length > 0) {
-        const { error: deleteError } = await supabase
+      if (toDeleteIds.length) {
+        const { error: de } = await supabase
           .from('broker_project_commissions')
           .delete()
-          .in('id', deleteOperationsIds);
-        if (deleteError) throw deleteError;
-        toast.success(`${deleteOperationsIds.length} comisión(es) eliminada(s).`);
+          .in('id', toDeleteIds);
+        if (de) throw de;
+        toast.success(`${toDeleteIds.length} comisión(es) eliminada(s).`);
       }
-
-      if (upsertOperations.length > 0) {
-        const { error: upsertError } = await supabase
+      if (toUpsert.length) {
+        const { error: ue } = await supabase
           .from('broker_project_commissions')
-          .upsert(upsertOperations, { onConflict: 'broker_id,project_name' });
-        if (upsertError) throw upsertError;
-        toast.success(`${upsertOperations.length} comisión(es) guardada(s)/actualizada(s).`);
+          .upsert(toUpsert, { onConflict: 'broker_id,project_name' });
+        if (ue) throw ue;
+        toast.success(`${toUpsert.length} comisión(es) guardada(s)/actualizada(s).`);
       }
-      
-      toast.success('Comisiones actualizadas exitosamente!');
-      fetchData(); // Recargar para obtener los IDs actualizados y el estado fresco
+      toast.success('Comisiones actualizadas!');
+      await fetchData();
     } catch (err: any) {
-      console.error("Error saving commissions:", err);
-      setError(`Error al guardar comisiones: ${err.message}`);
-      toast.error(`Error al guardar comisiones: ${err.message}`);
+      console.error(err);
+      const msg = err.message || 'Error al guardar';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsSaving(false);
     }
@@ -166,65 +178,92 @@ const BrokerCommissionsConfig: React.FC = () => {
     return (
       <div className="p-6 flex justify-center items-center min-h-[200px]">
         <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
-        <span className="ml-3 text-lg text-gray-700">Cargando configuración de comisiones...</span>
+        <span className="ml-3 text-lg text-gray-700">
+          Cargando configuración de comisiones...
+        </span>
       </div>
     );
   }
 
-  if (error && !brokers.length && !projects.length) { // Mostrar error principal solo si no se cargó nada
+  if (error && !brokers.length && !projects.length) {
     return (
       <div className="p-6 text-center">
         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
         <p className="text-red-600 bg-red-100 p-4 rounded-md">{error}</p>
-        <button 
-          onClick={fetchData} 
+        <button
+          onClick={() => fetchData()}
           className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
-          Reintentar Carga
+          Reintentar
         </button>
       </div>
     );
   }
-  
-  // Mensaje de error más sutil si los datos principales (brokers/projects) ya están cargados
-  const generalErrorDisplay = error ? (
-     <div className="my-4 p-3 bg-red-50 text-red-600 rounded-md text-sm">
-        {error}
-     </div>
-  ) : null;
 
   return (
     <div className="bg-white shadow-xl rounded-lg p-6">
       <div className="flex items-center mb-6">
         <Percent className="h-7 w-7 text-blue-600 mr-3" />
-        <h3 className="text-2xl font-semibold text-gray-800">Comisiones de Broker por Proyecto</h3>
+        <h3 className="text-2xl font-semibold text-gray-800">
+          Comisiones de Broker por Proyecto
+        </h3>
       </div>
-      {generalErrorDisplay}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-md text-sm">
+          {error}
+        </div>
+      )}
 
-      {brokers.length === 0 && <p className="text-gray-500 italic">No hay brokers registrados en el sistema.</p>}
-      {projects.length === 0 && <p className="text-gray-500 italic">No hay proyectos en el stock para asignar comisiones. Cargue el stock primero.</p>}
+      {brokers.length === 0 && (
+        <p className="text-gray-500 italic">No hay brokers registrados.</p>
+      )}
+      {projects.length === 0 && (
+        <p className="text-gray-500 italic">
+          No hay proyectos en stock. Carga primero el stock.
+        </p>
+      )}
 
       {brokers.length > 0 && projects.length > 0 && (
         <div className="space-y-6">
           {brokers.map(broker => (
-            <div key={broker.id} className="p-4 border border-gray-200 rounded-lg shadow-sm bg-gray-50/50">
+            <div
+              key={broker.id}
+              className="p-4 border border-gray-200 rounded-lg shadow-sm bg-gray-50/50"
+            >
               <div className="flex items-center mb-4">
                 <Briefcase className="h-5 w-5 text-gray-600 mr-2" />
-                <h4 className="text-lg font-medium text-gray-800">{broker.name || `Broker ID: ${broker.id}`}</h4>
+                <h4 className="text-lg font-medium text-gray-800">
+                  {broker.name || `Broker ID: ${broker.id}`}
+                </h4>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {projects.map(projectName => (
                   <div key={projectName} className="flex flex-col">
-                    <label htmlFor={`comm-${broker.id}-${projectName}`} className="text-sm font-medium text-gray-700 mb-1 flex items-center truncate" title={projectName}>
-                      <Landmark size={16} className="mr-1.5 text-gray-400 flex-shrink-0"/> 
+                    <label
+                      htmlFor={`comm-${broker.id}-${projectName}`}
+                      className="text-sm font-medium text-gray-700 mb-1 truncate"
+                      title={projectName}
+                    >
+                      <Landmark
+                        size={16}
+                        className="mr-1.5 text-gray-400 inline-block"
+                      />
                       <span className="truncate">{projectName}</span>
                     </label>
                     <div className="flex items-center">
                       <input
                         type="text"
                         id={`comm-${broker.id}-${projectName}`}
-                        value={commissionInputs[broker.id]?.[projectName] || ''}
-                        onChange={(e) => handleCommissionInputChange(broker.id, projectName, e.target.value)}
+                        value={
+                          commissionInputs[broker.id]?.[projectName] ?? ''
+                        }
+                        onChange={e =>
+                          handleCommissionInputChange(
+                            broker.id,
+                            projectName,
+                            e.target.value
+                          )
+                        }
                         placeholder="Ej: 2.50"
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-right"
                       />
@@ -238,10 +277,14 @@ const BrokerCommissionsConfig: React.FC = () => {
           <div className="mt-8 flex justify-end pt-4 border-t border-gray-200">
             <button
               onClick={handleSaveCommissions}
-              disabled={isSaving || loadingData}
-              className="px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60 flex items-center"
+              disabled={isSaving}
+              className="px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-md shadow-md hover:bg-blue-700 disabled:opacity-60 flex items-center"
             >
-              {isSaving ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <Save className="h-5 w-5 mr-2" />}
+              {isSaving ? (
+                <Loader2 className="animate-spin h-5 w-5 mr-2" />
+              ) : (
+                <Save className="h-5 w-5 mr-2" />
+              )}
               Guardar Todas las Comisiones
             </button>
           </div>
