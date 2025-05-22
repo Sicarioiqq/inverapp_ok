@@ -32,6 +32,13 @@ interface Unidad {
   tipo_bien: string;
 }
 
+// NUEVA INTERFAZ para comisiones de broker por proyecto
+interface BrokerProjectCommission {
+  broker_id: string;
+  project_name: string;
+  commission_rate: number; // Stored as a decimal, e.g., 0.05 for 5%
+}
+
 type Tab = 'principales' | 'secundarios' | 'configuracion';
 
 const BrokerQuotePage: React.FC = () => {
@@ -45,6 +52,11 @@ const BrokerQuotePage: React.FC = () => {
 
   const [stock, setStock] = useState<Unidad[]>([]);
   const [loadingStock, setLoadingStock] = useState(false);
+  // NUEVO ESTADO para las comisiones de broker por proyecto
+  const [brokerCommissions, setBrokerCommissions] = useState<BrokerProjectCommission[]>([]);
+  const [loadingCommissions, setLoadingCommissions] = useState(false);
+
+
   const [sortField, setSortField] = useState<keyof Unidad>('unidad');
   const [sortAsc, setSortAsc] = useState(true);
   const [filterProyecto, setFilterProyecto] = useState<string>('Todos');
@@ -111,7 +123,27 @@ const BrokerQuotePage: React.FC = () => {
         setLoadingStock(false);
       }
     };
+
+    // NUEVA FUNCIÓN para cargar comisiones de broker por proyecto
+    const fetchBrokerCommissions = async () => {
+        setLoadingCommissions(true);
+        try {
+            const { data, error: ce } = await supabase
+                .from<BrokerProjectCommission>('broker_project_commissions')
+                .select('broker_id, project_name, commission_rate')
+                .eq('broker_id', brokerInfo.id); // Filtrar por el ID del broker asignado
+
+            if (ce) throw ce;
+            setBrokerCommissions(data || []);
+        } catch (e) {
+            console.error('Error loading broker commissions:', e);
+        } finally {
+            setLoadingCommissions(false);
+        }
+    };
+
     fetchStock();
+    fetchBrokerCommissions(); // Llamar a la nueva función de fetch
   }, [brokerInfo]);
 
   // Opciones de filtro
@@ -126,6 +158,39 @@ const BrokerQuotePage: React.FC = () => {
       )
     ).sort()
   ];
+
+  // Función para calcular el descuento ajustado por la comisión del broker
+  const calculateAdjustedDiscount = (
+    valorLista: number | null,
+    descuentoActual: number | null,
+    projectName: string
+  ): number | null => {
+    if (valorLista === null || valorLista === 0) return null;
+
+    // Buscar la comisión asociada para este proyecto y broker
+    const projectCommission = brokerCommissions.find(
+      (comm) => comm.broker_id === brokerInfo?.id && comm.project_name === projectName
+    );
+
+    // Si no hay comisión configurada para este proyecto, o no hay un descuento actual,
+    // se devuelve el descuento existente. Se asume que commission_rate es un porcentaje entero.
+    if (!projectCommission || projectCommission.commission_rate === null || descuentoActual === null) {
+      return descuentoActual;
+    }
+
+    const brokerCommissionRate = projectCommission.commission_rate / 100; // Convertir a decimal
+
+    // Fórmula proporcionada por el usuario
+    const precioMinimoVenta = valorLista * (1 - descuentoActual);
+    const comisionBrokerUF = precioMinimoVenta * brokerCommissionRate;
+    const precioMasComision = precioMinimoVenta + comisionBrokerUF;
+    const descuentoDisponibleUF = valorLista - precioMasComision;
+
+    const nuevoDescuentoPorcentaje = descuentoDisponibleUF / valorLista;
+
+    return nuevoDescuentoPorcentaje; // Retornar como decimal
+  };
+
 
   // Filtrar y ordenar
   const filtered = stock
@@ -144,7 +209,7 @@ const BrokerQuotePage: React.FC = () => {
       return 0;
     });
 
-  if (isValidating)
+  if (isValidating || loadingCommissions) // Esperar también a que carguen las comisiones
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="animate-spin" /> Validando...
@@ -283,7 +348,14 @@ const BrokerQuotePage: React.FC = () => {
                   </tr>
                 ) : (
                   filtered.map(u => {
-                    const descPct = ((u.descuento ?? 0) * 100).toFixed(2) + '%';
+                    // Calcular el descuento ajustado
+                    const adjustedDiscount = calculateAdjustedDiscount(
+                      u.valor_lista,
+                      u.descuento,
+                      u.proyecto_nombre
+                    );
+                    const descPct = (adjustedDiscount !== null ? (adjustedDiscount * 100) : (u.descuento ?? 0) * 100).toFixed(2) + '%';
+                    
                     return (
                       <tr
                         key={u.id}
@@ -345,7 +417,18 @@ const BrokerQuotePage: React.FC = () => {
                   </p>
                   <p>Tipología: {selectedUnidad.tipologia}</p>
                   <p>Piso: {selectedUnidad.piso || '-'}</p>
-                  <p>Descuento: {((selectedUnidad.descuento ?? 0) * 100).toFixed(2)}%</p>
+                  {/* Mostrar el descuento ajustado en la sección de configuración también */}
+                  <p>Descuento: {
+                    (calculateAdjustedDiscount(
+                      selectedUnidad.valor_lista,
+                      selectedUnidad.descuento,
+                      selectedUnidad.proyecto_nombre
+                    ) !== null ? (calculateAdjustedDiscount(
+                      selectedUnidad.valor_lista,
+                      selectedUnidad.descuento,
+                      selectedUnidad.proyecto_nombre
+                    )! * 100) : (selectedUnidad.descuento ?? 0) * 100).toFixed(2)
+                  }%</p>
                   <p>Valor Lista: {selectedUnidad.valor_lista?.toLocaleString()} UF</p>
                 </section>
                 {/* Sección Superficies */}
