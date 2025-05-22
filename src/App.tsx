@@ -30,6 +30,7 @@ import BrokerPaymentsApproval from './pages/reports/BrokerPaymentsApproval';
 import BrokerPaymentApprovalDetail from './pages/reports/BrokerPaymentApprovalDetail';
 import ConsolidadoBrokers from './pages/reports/ConsolidadoBrokers';
 import StockReportPage from './pages/reports/StockReportPage';
+import BrokerQuotePage from './pages/public/BrokerQuotePage';
 
 function App() {
   const { session, initialize } = useAuthStore();
