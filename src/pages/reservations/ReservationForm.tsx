@@ -339,12 +339,17 @@ const ReservationForm = () => {
 
   const checkReservationNumberExists = async (reservationNumber: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase
+      const query = supabase
         .from('reservations')
         .select('id')
-        .eq('reservation_number', reservationNumber)
-        .neq('id', id || '') // Exclude current reservation when editing
-        .maybeSingle();
+        .eq('reservation_number', reservationNumber);
+      
+      // Only add the not equals condition when editing an existing reservation
+      if (id) {
+        query.neq('id', id);
+      }
+
+      const { data, error } = await query.maybeSingle();
 
       if (error) throw error;
       return !!data;
@@ -384,19 +389,31 @@ const ReservationForm = () => {
 
       // Si es una venta con broker, primero mostrar el popup
       if (formData.is_with_broker && formData.broker_id) {
-        const { data, error } = await supabase
-          .from('reservations')
-          .insert([{ ...reservationData, created_by: session?.user.id }])
-          .select('id')
-          .single();
+        if (id) {
+          // Update existing reservation
+          const { error: updateError } = await supabase
+            .from('reservations')
+            .update(reservationData)
+            .eq('id', id);
 
-        if (error) throw error;
-        if (!data) throw new Error('No se pudo crear la reserva');
-        
-        newReservationId = data.id;
+          if (updateError) throw updateError;
+          newReservationId = id;
+        } else {
+          // Create new reservation
+          const { data, error } = await supabase
+            .from('reservations')
+            .insert([{ ...reservationData, created_by: session?.user.id }])
+            .select('id')
+            .single();
 
-        // Crear el flujo de reserva
-        await createReservationFlow(newReservationId, formData.seller_id);
+          if (error) throw error;
+          if (!data) throw new Error('No se pudo crear la reserva');
+          
+          newReservationId = data.id;
+
+          // Crear el flujo de reserva
+          await createReservationFlow(newReservationId, formData.seller_id);
+        }
 
         setLoading(false);
 
@@ -406,11 +423,13 @@ const ReservationForm = () => {
             brokerId={formData.broker_id}
             onSave={() => navigate('/reservas')}
             onClose={async () => {
-              // Si se cancela, eliminar la reserva recién creada
-              await supabase
-                .from('reservations')
-                .delete()
-                .eq('id', newReservationId);
+              // Si se cancela y es una nueva reserva, eliminar la reserva recién creada
+              if (!id) {
+                await supabase
+                  .from('reservations')
+                  .delete()
+                  .eq('id', newReservationId);
+              }
               navigate('/reservas');
             }}
           />,
