@@ -384,15 +384,15 @@ const BrokerQuotePage: React.FC = () => {
 
         {/* Configuración solo de la unidad seleccionada */}
         {activeTab === 'configuracion' && (
-          <div className="bg-white shadow rounded p-6 space-y-6"> {/* Added space-y-6 for separation */}
+          <div className="bg-white shadow rounded p-6"> {/* Removed space-y-6 here, individual section margins will handle spacing */}
             <h2 className="text-xl font-semibold mb-4">Configuración de Cotización</h2>
             {!selectedUnidad ? (
               <p className="text-gray-500">Seleccione un departamento en Principales.</p>
             ) : (
               <>
                 {/* Sección Cliente/RUT */}
-                {/* Kept its original styling as it already has mb-6 */}
-                <div className="mb-6 bg-blue-50 p-4 rounded">
+                {/* Added 'border-b pb-4 mb-4' for visual separation and padding */}
+                <div className="bg-blue-50 p-4 rounded border-b pb-4 mb-4">
                   <h3 className="text-lg font-medium mb-2">Datos del Cliente</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -406,30 +406,30 @@ const BrokerQuotePage: React.FC = () => {
                   </div>
                 </div>
                 {/* Sección Proyecto */}
-                {/* Added mt-6 for separation from previous section */}
-                <section className="mt-6 mb-4">
+                {/* Added 'border-b pb-4' and 'mt-6' for visual separation and padding */}
+                <section className="mt-6 border-b pb-4">
                   <h3 className="text-lg font-medium">Proyecto</h3>
-                  <p>{selectedUnidad.proyecto_nombre}</p>
+                  <p><strong>Proyecto:</strong> {selectedUnidad.proyecto_nombre}</p>
                 </section>
                 {/* Sección Unidad, Estado, Tipología, Piso, Descuento, Valor */}
-                {/* Modified to use grid, removed bold tags, added mt-6 for separation */}
-                <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <h3 className="text-lg font-medium col-span-full">Unidad</h3>
+                {/* Modified to use grid, added bold tags, added 'border-b pb-4' and 'mt-6' for separation */}
+                <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-b pb-4">
+                  <h3 className="text-lg font-medium col-span-full">Detalles de Unidad</h3> {/* Changed title for clarity */}
                   <div>
                     <p>
-                      N° Bien: {selectedUnidad.unidad} <span className="text-sm text-gray-500">({selectedUnidad.estado_unidad})</span>
+                      <strong>N° Bien:</strong> {selectedUnidad.unidad} <span className="text-sm text-gray-500">({selectedUnidad.estado_unidad})</span>
                     </p>
                   </div>
                   <div>
-                    <p>Tipología: {selectedUnidad.tipologia}</p>
+                    <p><strong>Tipología:</strong> {selectedUnidad.tipologia}</p>
                   </div>
                   <div>
-                    <p>Piso: {selectedUnidad.piso || '-'}</p>
+                    <p><strong>Piso:</strong> {selectedUnidad.piso || '-'}</p>
                   </div>
                   <div>
                     {/* Mostrar el descuento ajustado en la sección de configuración también */}
                     <p>
-                      Descuento: {
+                      <strong>Descuento:</strong> {
                         (calculateAdjustedDiscount(
                           selectedUnidad.valor_lista,
                           selectedUnidad.descuento,
@@ -443,24 +443,24 @@ const BrokerQuotePage: React.FC = () => {
                     </p>
                   </div>
                   <div className="col-span-full">
-                    <p>Valor Lista: {selectedUnidad.valor_lista?.toLocaleString()} UF</p>
+                    <p><strong>Valor Lista:</strong> {selectedUnidad.valor_lista?.toLocaleString()} UF</p>
                   </div>
                 </section>
                 {/* Sección Superficies */}
-                {/* Modified to use grid, removed bold tags, added mt-6 for separation */}
+                {/* Modified to use grid, added bold tags, added 'mt-6' for separation */}
                 <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <h3 className="text-lg font-medium col-span-full">Superficies</h3>
                   <div>
-                    <p>Sup. Útil: {selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</p>
+                    <p><strong>Sup. Útil:</strong> {selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</p>
                   </div>
                   {selectedUnidad.sup_terraza != null && (
                     <div>
-                      <p>Sup. Terraza: {selectedUnidad.sup_terraza} m²</p>
+                      <p><strong>Sup. Terraza:</strong> {selectedUnidad.sup_terraza} m²</p>
                     </div>
                   )}
                   {selectedUnidad.sup_total != null && (
                     <div>
-                      <p>Sup. Total: {selectedUnidad.sup_total} m²</p>
+                      <p><strong>Sup. Total:</strong> {selectedUnidad.sup_total} m²</p>
                     </div>
                   )}
                 </section>
