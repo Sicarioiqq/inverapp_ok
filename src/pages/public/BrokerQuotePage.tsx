@@ -24,7 +24,7 @@ interface Unidad {
   piso: string | null;
   sup_util: number | null;
   valor_lista: number | null;
-  descuento: number | null;
+  descuento: number | null;       // e.g. 0.15 for 15%
   estado_unidad: string | null;
 }
 
@@ -50,7 +50,10 @@ const BrokerQuotePage: React.FC = () => {
   const [sortAsc, setSortAsc] = useState(true);
   const [loadingStock, setLoadingStock] = useState(false);
 
-  // Validate broker access
+  // Commission rates per project for this broker
+  const [commissions, setCommissions] = useState<Record<string, number>>({});
+
+  // Validate broker access and fetch commission config
   useEffect(() => {
     const validate = async () => {
       if (!brokerSlug || !accessToken) {
@@ -67,7 +70,21 @@ const BrokerQuotePage: React.FC = () => {
           .single();
         if (fe || !data) throw fe || new Error('No autorizado');
         setBrokerInfo(data as BrokerInfo);
+
+        // Fetch commission rates for this broker
+        const { data: commData, error: ce } = await supabase
+          .from('broker_project_commissions')
+          .select('project_name, commission_rate')
+          .eq('broker_id', data.id);
+        if (ce) throw ce;
+        const map: Record<string, number> = {};
+        commData?.forEach(c => {
+          // treat commission_rate as integer percent
+          map[c.project_name] = c.commission_rate;
+        });
+        setCommissions(map);
       } catch (e: any) {
+        console.error(e);
         setError(e.message);
       } finally {
         setIsValidating(false);
@@ -126,7 +143,7 @@ const BrokerQuotePage: React.FC = () => {
     { key: 'piso', label: 'Piso' },
     { key: 'sup_util', label: 'Sup. Útil' },
     { key: 'valor_lista', label: 'Valor Lista (UF)' },
-    { key: 'descuento', label: 'Descuento (%)' },
+    { key: 'descuento', label: 'Descuento Neto (%)' },
     { key: 'estado_unidad', label: 'Estado' },
   ];
 
@@ -160,9 +177,7 @@ const BrokerQuotePage: React.FC = () => {
                 ? 'border-b-2 border-blue-600 pb-2'
                 : 'pb-2 text-gray-500'
             }
-          >
-            <Home className="inline mr-1" />Principales
-          </button>
+          ><Home className="inline mr-1" />Principales</button>
           <button
             onClick={() => setActiveTab('secundarios')}
             className={
@@ -170,9 +185,7 @@ const BrokerQuotePage: React.FC = () => {
                 ? 'border-b-2 border-blue-600 pb-2'
                 : 'pb-2 text-gray-500'
             }
-          >
-            <LayoutDashboard className="inline mr-1" />Secundarios
-          </button>
+          ><LayoutDashboard className="inline mr-1" />Secundarios</button>
           <button
             onClick={() => setActiveTab('configuracion')}
             className={
@@ -180,9 +193,7 @@ const BrokerQuotePage: React.FC = () => {
                 ? 'border-b-2 border-blue-600 pb-2'
                 : 'pb-2 text-gray-500'
             }
-          >
-            <SlidersHorizontal className="inline mr-1" />Configuración
-          </button>
+          ><SlidersHorizontal className="inline mr-1" />Configuración</button>
         </nav>
 
         {activeTab === 'principales' && (
@@ -190,18 +201,11 @@ const BrokerQuotePage: React.FC = () => {
             <div className="flex space-x-4 mb-4">
               <select
                 value={selectedProject}
-                onChange={e => {
-                  setSelectedProject(e.target.value);
-                  setSelectedTip('');
-                }}
+                onChange={e => { setSelectedProject(e.target.value); setSelectedTip(''); }}
                 className="border p-2 rounded"
               >
                 <option value="">Todos Proyectos</option>
-                {projects.map(p => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
+                {projects.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
               <select
                 value={selectedTip}
@@ -209,11 +213,7 @@ const BrokerQuotePage: React.FC = () => {
                 className="border p-2 rounded"
               >
                 <option value="">Todas Tipologías</option>
-                {typologies.map(t => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
+                {typologies.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div className="overflow-x-auto bg-white shadow rounded">
@@ -224,19 +224,11 @@ const BrokerQuotePage: React.FC = () => {
                       <th
                         key={h.key}
                         className="px-4 py-2 text-left cursor-pointer"
-                        onClick={() => {
-                          if (sortField === h.key) setSortAsc(!sortAsc);
-                          else {
-                            setSortField(h.key);
-                            setSortAsc(true);
-                          }
-                        }}
+                        onClick={() => sortField === h.key ? setSortAsc(!sortAsc) : (setSortField(h.key), setSortAsc(true))}
                       >
                         <div className="flex items-center">
                           {h.label}
-                          {sortField === h.key && (
-                            sortAsc ? <ArrowUp className="ml-1" /> : <ArrowDown className="ml-1" />
-                          )}
+                          {sortField === h.key && ( sortAsc ? <ArrowUp className="ml-1" /> : <ArrowDown className="ml-1" /> )}
                         </div>
                       </th>
                     ))}
@@ -244,45 +236,27 @@ const BrokerQuotePage: React.FC = () => {
                 </thead>
                 <tbody>
                   {loadingStock ? (
-                    <tr>
-                      <td colSpan={headers.length} className="p-4 text-center">
-                        <Loader2 className="animate-spin" /> Cargando...
-                      </td>
-                    </tr>
+                    <tr><td colSpan={headers.length} className="p-4 text-center"><Loader2 className="animate-spin" /> Cargando...</td></tr>
                   ) : filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={headers.length} className="p-4 text-center text-gray-500">
-                        No hay unidades para mostrar.
-                      </td>
-                    </tr>
+                    <tr><td colSpan={headers.length} className="p-4 text-center text-gray-500">No hay unidades para mostrar.</td></tr>
                   ) : (
-                    filtered.map(u => (
+                    filtered.map(u => {
+                      // compute net discount: unit.descuento*100 - commissionRate
+                      const basePct = (u.descuento ?? 0) * 100;
+                      const comm = commissions[u.proyecto_nombre] ?? 0;
+                      const net = basePct - comm;
+                      return (
                       <tr key={u.id} className="border-t">
                         <td className="px-4 py-2">{u.proyecto_nombre}</td>
                         <td className="px-4 py-2">{u.unidad}</td>
                         <td className="px-4 py-2">{u.tipologia}</td>
                         <td className="px-4 py-2">{u.piso ?? '-'}</td>
-                        <td className="px-4 py-2 text-right">
-                          {u.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          {u.valor_lista?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          {u.descuento != null
-                            ? `${(u.descuento * 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
-                            : '-'}
-                        </td>
-                        <td className="px-4 py-2">
-                          <span className={`px-2 py-1 rounded-full text-sm ${
-                            u.estado_unidad === 'Disponible' ? 'bg-green-100 text-green-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {u.estado_unidad}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
+                        <td className="px-4 py-2 text-right">{u.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+                        <td className="px-4 py-2 text-right">{u.valor_lista?.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})}</td>
+                        <td className="px-4 py-2 text-right">{net.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}%</td>
+                        <td className="px-4 py-2"><span className={`px-2 py-1 rounded-full text-sm ${u.estado_unidad==='Disponible'?'bg-green-100 text-green-800':'bg-gray-100 text-gray-800'}`}>{u.estado_unidad}</span></td>
+                      </tr>);
+                    })
                   )}
                 </tbody>
               </table>
