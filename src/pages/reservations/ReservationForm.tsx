@@ -647,18 +647,12 @@ const ReservationForm = () => {
       }));
 
     } else if (name === 'column_discount' || name === 'additional_discount' || name === 'other_discount') {
-
-      // Handle percentage inputs (0-100)
-
-      const numValue = parseInt(value) || 0;
-
-      setFormData(prev => ({
-
-        ...prev,
-
-        [name]: Math.min(100, Math.max(0, numValue))
-
-      }));
+  // Handle percentage inputs (0-100) allowing up to 3 decimal places
+  const numValue = parseFloat(value); // Use parseFloat instead of parseInt
+  setFormData(prev => ({
+    ...prev,
+    [name]: isNaN(numValue) ? 0 : Math.min(100, Math.max(0, numValue)) // Ensure value is between 0 and 100
+  }));
 
     } else {
 
