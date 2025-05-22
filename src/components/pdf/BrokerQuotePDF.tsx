@@ -1,11 +1,6 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
 
-// Register a font if you want something other than the default Helvetica
-// For example, if you want Times New Roman which often looks more formal:
-// Font.register({ family: 'Times-Roman', src: 'http://fonts.gstatic.com/s/timesnewroman/v13/timesnewroman.ttf' });
-// For simplicity, we'll stick to default or a basic serif if needed.
-
 // Helper function for formatting
 const formatCurrency = (amount: number | null): string => {
   if (amount === null || isNaN(amount) || !isFinite(amount)) return '0.00';
@@ -63,8 +58,15 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
   },
+  // Generic column style
+  tableCol: {
+    borderStyle: 'solid',
+    borderColor: '#bfbfbf',
+    borderWidth: 1,
+    padding: 5,
+    // Add flexGrow to allow content to dictate initial width, or specific width if needed
+  },
   tableColHeader: {
-    width: 'auto',
     borderStyle: 'solid',
     borderColor: '#bfbfbf',
     borderBottomColor: '#000',
@@ -74,45 +76,64 @@ const styles = StyleSheet.create({
     padding: 5,
     fontFamily: 'Helvetica-Bold',
   },
-  tableCol: {
-    width: 'auto',
+  
+  // Specific column widths for Unit Characteristics table
+  unitTableColHeader: {
+    width: '14.28%', // 100% / 7 columns
+    borderStyle: 'solid',
+    borderColor: '#bfbfbf',
+    borderBottomColor: '#000',
+    borderWidth: 1,
+    backgroundColor: '#f2f2f2',
+    textAlign: 'center',
+    padding: 5,
+    fontFamily: 'Helvetica-Bold',
+  },
+  unitTableCol: {
+    width: '14.28%', // 100% / 7 columns
     borderStyle: 'solid',
     borderColor: '#bfbfbf',
     borderWidth: 1,
     padding: 5,
   },
-  tableColLeft: {
-    flexGrow: 1, // Allow first column to take available space
-    width: 'auto',
+
+  // Specific column widths for Prices table
+  pricesColItem: { width: '25%', ...Styles.tableCol }, // ÍTEM
+  pricesColListPrice: { width: '15%', ...Styles.tableColRight }, // PRECIO LISTA (UF)
+  pricesColDiscountPct: { width: '10%', ...Styles.tableColSmallRight }, // DSCTO. %
+  pricesColDiscountUF: { width: '15%', ...Styles.tableColRight }, // DSCTO. (UF)
+  pricesColNetPriceUF: { width: '15%', ...Styles.tableColRight }, // PRECIO NETO (UF)
+  pricesColNetPriceCLP: { width: '20%', ...Styles.tableColRight }, // PRECIO NETO ($)
+
+  // Specific column widths for Payment Method table
+  paymentColGlosa: { width: '35%', ...Styles.tableCol }, // GLOSA
+  paymentColPct: { width: '10%', ...Styles.tableColSmallRight }, // %
+  paymentColPesos: { width: '25%', ...Styles.tableColRight }, // PESOS
+  paymentColUF: { width: '30%', ...Styles.tableColRight }, // UF
+
+
+  tableColLeft: { // For glosa type columns
+    flexGrow: 1,
     borderStyle: 'solid',
     borderColor: '#bfbfbf',
     borderWidth: 1,
     padding: 5,
   },
-  tableColRight: {
-    width: '18%', // Adjust width for numerical columns
+  tableColRight: { // For generic right-aligned number columns
     borderStyle: 'solid',
     borderColor: '#bfbfbf',
     borderWidth: 1,
     textAlign: 'right',
     padding: 5,
   },
-  tableColSmallRight: {
-    width: '10%', // Adjust width for percentage columns
+  tableColSmallRight: { // For percentages
     borderStyle: 'solid',
     borderColor: '#bfbfbf',
     borderWidth: 1,
     textAlign: 'right',
     padding: 5,
   },
-  tableColTinyRight: {
-    width: '15%', // Adjust width for small numerical columns
-    borderStyle: 'solid',
-    borderColor: '#bfbfbf',
-    borderWidth: 1,
-    textAlign: 'right',
-    padding: 5,
-  },
+
   totalRow: {
     flexDirection: 'row',
     borderTopWidth: 1,
@@ -143,6 +164,9 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   }
 });
+
+// Alias for easier use in JSX
+const Styles = styles; // This is a common pattern to avoid `styles.` repetition
 
 interface BrokerQuotePDFProps {
   cliente: string;
@@ -208,157 +232,156 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size="A4" style={Styles.page}>
         {/* Header Section */}
         <View style={{ marginBottom: 20 }}>
           {/* You can add an <Image /> component here for logos later */}
           {/* <Image src="path/to/your/logo.png" style={{ width: 100, height: 50 }} /> */}
-          <Text style={[styles.header, { marginTop: 10 }]}>COTIZACIÓN DE PROPIEDAD</Text>
-          <Text style={styles.dateInfo}>{currentDate}</Text>
-          <Text style={styles.quotationNumber}>COTIZACIÓN Nº: [PENDIENTE]</Text>
-          <Text style={styles.dateInfo}>UF: $ {ufValue ? ufValue.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}</Text>
+          <Text style={[Styles.header, { marginTop: 10 }]}>COTIZACIÓN DE PROPIEDAD</Text>
+          <Text style={Styles.dateInfo}>Fecha: {currentDate}</Text> {/* Added "Fecha:" */}
+          <Text style={Styles.quotationNumber}>COTIZACIÓN Nº: [PENDIENTE]</Text>
+          <Text style={Styles.dateInfo}>UF: $ {ufValue ? ufValue.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}</Text>
         </View>
 
         {/* Client Information */}
-        <View style={styles.section}>
-          <Text style={styles.subHeader}>I. INFORMACIÓN DEL CLIENTE</Text>
-          <Text style={styles.text}><Text style={styles.boldText}>SEÑOR(A):</Text> {cliente || 'N/A'}</Text>
-          <Text style={styles.text}><Text style={styles.boldText}>RUT:</Text> {rut || 'N/A'}</Text>
+        <View style={Styles.section}>
+          <Text style={Styles.subHeader}>I. INFORMACIÓN DEL CLIENTE</Text>
+          <Text style={Styles.text}><Text style={Styles.boldText}>SEÑOR(A):</Text> {cliente || 'N/A'}</Text>
+          <Text style={Styles.text}><Text style={Styles.boldText}>RUT:</Text> {rut || 'N/A'}</Text>
         </View>
 
         {/* Unit Characteristics */}
         {selectedUnidad && (
-          <View style={styles.section}>
-            <Text style={styles.subHeader}>II. CARACTERÍSTICAS DE LA PROPIEDAD</Text>
-            <View style={styles.table}>
-                <View style={styles.tableRow}>
-                    <View style={styles.tableColHeader}><Text>PROYECTO</Text></View>
-                    <View style={styles.tableColHeader}><Text>N° BIEN</Text></View>
-                    <View style={styles.tableColHeader}><Text>TIPOLOGÍA</Text></View>
-                    <View style={styles.tableColHeader}><Text>PISO</Text></View>
-                    <View style={styles.tableColHeader}><Text>SUP. ÚTIL</Text></View>
-                    <View style={styles.tableColHeader}><Text>SUP. TERRAZA</Text></View>
-                    <View style={styles.tableColHeader}><Text>SUP. TOTAL</Text></View>
+          <View style={Styles.section}>
+            <Text style={Styles.subHeader}>II. CARACTERÍSTICAS DE LA PROPIEDAD</Text>
+            <View style={Styles.table}>
+                <View style={Styles.tableRow}>
+                    <View style={Styles.unitTableColHeader}><Text>PROYECTO</Text></View>
+                    <View style={Styles.unitTableColHeader}><Text>N° BIEN</Text></View>
+                    <View style={Styles.unitTableColHeader}><Text>TIPOLOGÍA</Text></View>
+                    <View style={Styles.unitTableColHeader}><Text>PISO</Text></View>
+                    <View style={Styles.unitTableColHeader}><Text>SUP. ÚTIL</Text></View>
+                    <View style={Styles.unitTableColHeader}><Text>SUP. TERRAZA</Text></View>
+                    <View style={Styles.unitTableColHeader}><Text>SUP. TOTAL</Text></View>
                 </View>
-                <View style={styles.tableRow}>
-                    <View style={styles.tableCol}><Text>{selectedUnidad.proyecto_nombre || 'N/A'}</Text></View>
-                    <View style={styles.tableCol}><Text>{selectedUnidad.unidad || 'N/A'}</Text></View>
-                    <View style={styles.tableCol}><Text>{selectedUnidad.tipologia || 'N/A'}</Text></View>
-                    <View style={styles.tableCol}><Text>{selectedUnidad.piso || '-'}</Text></View>
-                    <View style={styles.tableCol}><Text>{formatCurrency(selectedUnidad.sup_util)} m²</Text></View>
-                    <View style={styles.tableCol}><Text>{formatCurrency(selectedUnidad.sup_terraza)} m²</Text></View>
-                    <View style={styles.tableCol}><Text>{formatCurrency(selectedUnidad.sup_total)} m²</Text></View>
+                <View style={Styles.tableRow}>
+                    <View style={Styles.unitTableCol}><Text>{selectedUnidad.proyecto_nombre || 'N/A'}</Text></View>
+                    <View style={Styles.unitTableCol}><Text>{selectedUnidad.unidad || 'N/A'}</Text></View>
+                    <View style={Styles.unitTableCol}><Text>{selectedUnidad.tipologia || 'N/A'}</Text></View>
+                    <View style={Styles.unitTableCol}><Text>{selectedUnidad.piso || '-'}</Text></View>
+                    <View style={Styles.unitTableCol}><Text>{formatCurrency(selectedUnidad.sup_util)} m²</Text></View>
+                    <View style={Styles.unitTableCol}><Text>{formatCurrency(selectedUnidad.sup_terraza)} m²</Text></View>
+                    <View style={Styles.unitTableCol}><Text>{formatCurrency(selectedUnidad.sup_total)} m²</Text></View>
                 </View>
             </View>
           </View>
         )}
 
         {/* Prices Section */}
-        <View style={styles.section}>
-          <Text style={styles.subHeader}>III. PRECIOS</Text>
-          <View style={styles.table}>
-            <View style={styles.tableRow}>
-              <View style={styles.tableColHeader}><Text>ÍTEM</Text></View>
-              <View style={styles.tableColHeader}><Text>PRECIO LISTA (UF)</Text></View>
-              <View style={styles.tableColHeader}><Text>DSCTO. %</Text></View>
-              <View style={styles.tableColHeader}><Text>DSCTO. (UF)</Text></View>
-              <View style={styles.tableColHeader}><Text>PRECIO NETO (UF)</Text></View>
-              <View style={styles.tableColHeader}><Text>PRECIO NETO ($)</Text></View>
+        <View style={Styles.section}>
+          <Text style={Styles.subHeader}>III. PRECIOS</Text>
+          <View style={Styles.table}>
+            <View style={Styles.tableRow}>
+              <View style={Styles.tableColHeader}><Text style={Styles.pricesColItem}>ÍTEM</Text></View>
+              <View style={Styles.tableColHeader}><Text style={Styles.pricesColListPrice}>PRECIO LISTA (UF)</Text></View>
+              <View style={Styles.tableColHeader}><Text style={Styles.pricesColDiscountPct}>DSCTO. %</Text></View>
+              <View style={Styles.tableColHeader}><Text style={Styles.pricesColDiscountUF}>DSCTO. (UF)</Text></View>
+              <View style={Styles.tableColHeader}><Text style={Styles.pricesColNetPriceUF}>PRECIO NETO (UF)</Text></View>
+              <View style={Styles.tableColHeader}><Text style={Styles.pricesColNetPriceCLP}>PRECIO NETO ($)</Text></View>
             </View>
             {selectedUnidad && (
-              <View style={styles.tableRow}>
-                <View style={styles.tableCol}><Text>Departamento {selectedUnidad.unidad}</Text></View>
-                <View style={styles.tableColRight}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
-                <View style={styles.tableColSmallRight}><Text>{formatCurrency(effectiveDeptDiscountPct)}%</Text></View>
-                <View style={styles.tableColRight}><Text>{formatCurrency(actualDeptDiscountUF)}</Text></View>
-                <View style={styles.tableColRight}><Text>{formatCurrency(precioDepartamentoConDescuento)}</Text></View>
-                <View style={styles.tableColRight}><Text>{ufToPesos(precioDepartamentoConDescuento, ufValue)}</Text></View>
+              <View style={Styles.tableRow}>
+                <View style={Styles.pricesColItem}><Text>Departamento {selectedUnidad.unidad}</Text></View>
+                <View style={Styles.pricesColListPrice}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
+                <View style={Styles.pricesColDiscountPct}><Text>{formatCurrency(effectiveDeptDiscountPct)}%</Text></View>
+                <View style={Styles.pricesColDiscountUF}><Text>{formatCurrency(actualDeptDiscountUF)}</Text></View>
+                <View style={Styles.pricesColNetPriceUF}><Text>{formatCurrency(precioDepartamentoConDescuento)}</Text></View>
+                <View style={Styles.pricesColNetPriceCLP}><Text>{ufToPesos(precioDepartamentoConDescuento, ufValue)}</Text></View>
               </View>
             )}
             {addedSecondaryUnits.map(unit => (
-              <View style={styles.tableRow} key={unit.id}>
-                <View style={styles.tableCol}><Text>{unit.tipo_bien} {unit.unidad}</Text></View>
-                <View style={styles.tableColRight}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
-                <View style={styles.tableColSmallRight}><Text>0.00%</Text></View> {/* Secundarios no tienen descuento en este contexto */}
-                <View style={styles.tableColRight}><Text>0.00</Text></View>
-                <View style={styles.tableColRight}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
-                <View style={styles.tableColRight}><Text>{ufToPesos(unit.valor_lista, ufValue)}</Text></View>
+              <View style={Styles.tableRow} key={unit.id}>
+                <View style={Styles.pricesColItem}><Text>{unit.tipo_bien} {unit.unidad}</Text></View>
+                <View style={Styles.pricesColListPrice}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
+                <View style={Styles.pricesColDiscountPct}><Text>0.00%</Text></View> {/* Secundarios no tienen descuento en este contexto */}
+                <View style={Styles.pricesColDiscountUF}><Text>0.00</Text></View>
+                <View style={Styles.pricesColNetPriceUF}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
+                <View style={Styles.pricesColNetPriceCLP}><Text>{ufToPesos(unit.valor_lista, ufValue)}</Text></View>
               </View>
             ))}
-            <View style={styles.tableRow}>
-                <View style={styles.tableCol}><Text style={styles.boldText}>TOTAL ESCRITURA</Text></View>
-                <View style={styles.tableColRight}><Text></Text></View>
-                <View style={styles.tableColSmallRight}><Text></Text></View>
-                <View style={styles.tableColRight}><Text></Text></View>
-                <View style={styles.tableColRight}><Text style={styles.boldText}>{formatCurrency(totalEscritura)}</Text></View>
-                <View style={styles.tableColRight}><Text style={styles.boldText}>{ufToPesos(totalEscritura, ufValue)}</Text></View>
+            <View style={Styles.tableRow}>
+                <View style={Styles.pricesColItem}><Text style={Styles.boldText}>TOTAL ESCRITURA</Text></View>
+                <View style={Styles.pricesColListPrice}><Text></Text></View> {/* Empty cells for non-total columns */}
+                <View style={Styles.pricesColDiscountPct}><Text></Text></View>
+                <View style={Styles.pricesColDiscountUF}><Text></Text></View>
+                <View style={Styles.pricesColNetPriceUF}><Text style={Styles.boldText}>{formatCurrency(totalEscritura)}</Text></View>
+                <View style={Styles.pricesColNetPriceCLP}><Text style={Styles.boldText}>{ufToPesos(totalEscritura, ufValue)}</Text></View>
             </View>
           </View>
         </View>
 
         {/* Payment Method Section */}
-        <View style={styles.section}>
-          <Text style={styles.subHeader}>IV. FORMA DE PAGO</Text>
-          <View style={styles.table}>
-            <View style={styles.tableRow}>
-              <View style={styles.tableColHeader}><Text>GLOSA</Text></View>
-              <View style={styles.tableColHeader}><Text>%</Text></View>
-              <View style={styles.tableColHeader}><Text>PESOS</Text></View>
-              <View style={styles.tableColHeader}><Text>UF</Text></View>
+        <View style={Styles.section}>
+          <Text style={Styles.subHeader}>IV. FORMA DE PAGO</Text>
+          <View style={Styles.table}>
+            <View style={Styles.tableRow}>
+              <View style={Styles.tableColHeader}><Text style={Styles.paymentColGlosa}>GLOSA</Text></View>
+              <View style={Styles.tableColHeader}><Text style={Styles.paymentColPct}>%</Text></View>
+              <View style={Styles.tableColHeader}><Text style={Styles.paymentColPesos}>PESOS</Text></View>
+              <View style={Styles.tableColHeader}><Text style={Styles.paymentColUF}>UF</Text></View>
             </View>
-            <View style={styles.tableRow}>
-              <View style={styles.tableColLeft}><Text>Reserva</Text></View>
-              <View style={styles.tableColTinyRight}><Text>{totalEscritura > 0 ? formatCurrency((pagoReserva / totalEscritura) * 100) : '0.00'}%</Text></View>
-              <View style={styles.tableColRight}><Text>{ufToPesos(pagoReserva, ufValue)}</Text></View>
-              <View style={styles.tableColRight}><Text>{formatCurrency(pagoReserva)}</Text></View>
+            <View style={Styles.tableRow}>
+              <View style={Styles.paymentColGlosa}><Text>Reserva</Text></View>
+              <View style={Styles.paymentColPct}><Text>{totalEscritura > 0 ? formatCurrency((pagoReserva / totalEscritura) * 100) : '0.00'}%</Text></View>
+              <View style={Styles.paymentColPesos}><Text>{ufToPesos(pagoReserva, ufValue)}</Text></View>
+              <View style={Styles.paymentColUF}><Text>{formatCurrency(pagoReserva)}</Text></View>
             </View>
-            <View style={styles.tableRow}>
-              <View style={styles.tableColLeft}><Text>Promesa</Text></View>
-              <View style={styles.tableColTinyRight}><Text>{formatCurrency(pagoPromesaPct)}%</Text></View>
-              <View style={styles.tableColRight}><Text>{ufToPesos(pagoPromesa, ufValue)}</Text></View>
-              <View style={styles.tableColRight}><Text>{formatCurrency(pagoPromesa)}</Text></View>
+            <View style={Styles.tableRow}>
+              <View style={Styles.paymentColGlosa}><Text>Promesa</Text></View>
+              <View style={Styles.paymentColPct}><Text>{formatCurrency(pagoPromesaPct)}%</Text></View>
+              <View style={Styles.paymentColPesos}><Text>{ufToPesos(pagoPromesa, ufValue)}</Text></View>
+              <View style={Styles.paymentColUF}><Text>{formatCurrency(pagoPromesa)}</Text></View>
             </View>
-            <View style={styles.tableRow}>
-              <View style={styles.tableColLeft}><Text>Pie</Text></View>
-              <View style={styles.tableColTinyRight}><Text>{formatCurrency(pagoPiePct)}%</Text></View>
-              <View style={styles.tableColRight}><Text>{ufToPesos(pagoPie, ufValue)}</Text></View>
-              <View style={styles.tableColRight}><Text>{formatCurrency(pagoPie)}</Text></View>
+            <View style={Styles.tableRow}>
+              <View style={Styles.paymentColGlosa}><Text>Pie</Text></View>
+              <View style={Styles.paymentColPct}><Text>{formatCurrency(pagoPiePct)}%</Text></View>
+              <View style={Styles.paymentColPesos}><Text>{ufToPesos(pagoPie, ufValue)}</Text></View>
+              <View style={Styles.paymentColUF}><Text>{formatCurrency(pagoPie)}</Text></View>
             </View>
-            <View style={styles.tableRow}>
-              <View style={styles.tableColLeft}><Text>Crédito Hipotecario</Text></View>
-              <View style={styles.tableColTinyRight}><Text>{totalEscritura > 0 ? formatCurrency((pagoCreditoHipotecarioCalculado / totalEscritura) * 100) : '0.00'}%</Text></View>
-              <View style={styles.tableColRight}><Text>{ufToPesos(pagoCreditoHipotecarioCalculado, ufValue)}</Text></View>
-              <View style={styles.tableColRight}><Text>{formatCurrency(pagoCreditoHipotecarioCalculado)}</Text></View>
+            <View style={Styles.tableRow}>
+              <View style={Styles.paymentColGlosa}><Text>Crédito Hipotecario</Text></View>
+              <View style={Styles.paymentColPct}><Text>{totalEscritura > 0 ? formatCurrency((pagoCreditoHipotecarioCalculado / totalEscritura) * 100) : '0.00'}%</Text></View>
+              <View style={Styles.paymentColPesos}><Text>{ufToPesos(pagoCreditoHipotecarioCalculado, ufValue)}</Text></View>
+              <View style={Styles.paymentColUF}><Text>{formatCurrency(pagoCreditoHipotecarioCalculado)}</Text></View>
             </View>
             {pagoBonoPieCotizacion > 0 && (
-              <View style={styles.tableRow}>
-                <View style={styles.tableColLeft}><Text>Bono Pie</Text></View>
-                <View style={styles.tableColTinyRight}><Text>{totalEscritura > 0 ? formatCurrency((pagoBonoPieCotizacion / totalEscritura) * 100) : '0.00'}%</Text></View>
-                <View style={styles.tableColRight}><Text>{ufToPesos(pagoBonoPieCotizacion, ufValue)}</Text></View>
-                <View style={styles.tableColRight}><Text>{formatCurrency(pagoBonoPieCotizacion)}</Text></View>
+              <View style={Styles.tableRow}>
+                <View style={Styles.paymentColGlosa}><Text>Bono Pie</Text></View>
+                <View style={Styles.paymentColPct}><Text>{totalEscritura > 0 ? formatCurrency((pagoBonoPieCotizacion / totalEscritura) * 100) : '0.00'}%</Text></View>
+                <View style={Styles.paymentColPesos}><Text>{ufToPesos(pagoBonoPieCotizacion, ufValue)}</Text></View>
+                <View style={Styles.paymentColUF}><Text>{formatCurrency(pagoBonoPieCotizacion)}</Text></View>
               </View>
             )}
-            <View style={styles.tableRow}>
-                <View style={styles.tableColLeft}><Text style={styles.boldText}>TOTAL</Text></View>
-                <View style={styles.tableColTinyRight}><Text style={styles.boldText}>{totalEscritura > 0 ? formatCurrency((totalFormaDePago / totalEscritura) * 100) : '0.00'}%</Text></View>
-                <View style={styles.tableColRight}><Text style={styles.boldText}>{ufToPesos(totalFormaDePago, ufValue)}</Text></View>
-                <View style={styles.tableColRight}><Text style={styles.boldText}>{formatCurrency(totalFormaDePago)}</Text></View>
+            <View style={Styles.tableRow}>
+                <View style={Styles.paymentColGlosa}><Text style={Styles.boldText}>TOTAL</Text></View>
+                <View style={Styles.paymentColPct}><Text style={Styles.boldText}>{totalEscritura > 0 ? formatCurrency((totalFormaDePago / totalEscritura) * 100) : '0.00'}%</Text></View>
+                <View style={Styles.paymentColPesos}><Text style={Styles.boldText}>{ufToPesos(totalFormaDePago, ufValue)}</Text></View>
+                <View style={Styles.paymentColUF}><Text style={Styles.boldText}>{formatCurrency(totalFormaDePago)}</Text></View>
             </View>
           </View>
         </View>
 
         {/* Notes Section */}
-        <View style={styles.section}>
-          <Text style={styles.subHeader}>V. NOTAS</Text>
-          <Text style={styles.text}>1.- Validez cotización 7 días corridos a contar de esta fecha y no constituye reserva de compra.</Text>
-          <Text style={styles.text}>2.- El valor cancelado por concepto Reserva, será abonado a Pie.</Text>
-          <Text style={styles.text}>3.- Serán de cargo exclusivo del comprador los gastos por concepto de estudio de títulos y redacción de escritura.</Text>
-          <Text style={styles.text}>4.- La Promotora se reserva el derecho de modificar los precios y condiciones sin previo aviso.</Text>
-          <Text style={styles.text}>5.- El pie financiado o abonado con Bono Pie será de responsabilidad exclusiva del Cliente.</Text>
+        <View style={Styles.section}>
+          <Text style={Styles.subHeader}>V. NOTAS</Text>
+          <Text style={Styles.text}>1.- Cotización provisoria, información debe ser validada con cotización formal emitida por la inmobiliaria.</Text>
+          <Text style={Styles.text}>2.- El valor cancelado por concepto Reserva, será abonado a Pie.</Text>
+          <Text style={Styles.text}>3.- Serán de cargo exclusivo del comprador, los gastos que genere esta operación, tales como: tasación; estudio de títulos; confección de escritura; gastos notariales y conservador de bienes raíces.</Text>
+          <Text style={Styles.text}>4.- Por no ser una cotización formal, los precios y condiciones pueden variar sin previo aviso.</Text>
         </View>
 
         {/* Footer */}
-        <Text style={styles.footer} fixed>
+        <Text style={Styles.footer} fixed>
           Generated by InverAPP - {currentDate}
         </Text>
       </Page>
