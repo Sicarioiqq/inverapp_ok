@@ -54,7 +54,10 @@ const BrokerQuotePage: React.FC = () => {
   const [cliente, setCliente] = useState('');
   const [rut, setRut] = useState('');
 
-  // Validar broker
+  // Carga de comisiones por proyecto
+  const [commissions, setCommissions] = useState<Record<string, number>>({});
+
+  // Validar broker y cargar comisiones
   useEffect(() => {
     const validate = async () => {
       if (!brokerSlug || !accessToken) {
@@ -71,6 +74,15 @@ const BrokerQuotePage: React.FC = () => {
           .single();
         if (fe || !data) throw new Error('No autorizado');
         setBrokerInfo(data as BrokerInfo);
+
+        const { data: commData, error: ce } = await supabase
+          .from('broker_project_commissions')
+          .select('project_name, commission_rate')
+          .eq('broker_id', data.id);
+        if (ce) throw ce;
+        const map: Record<string, number> = {};
+        commData?.forEach(c => { map[c.project_name] = c.commission_rate; });
+        setCommissions(map);
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -165,7 +177,7 @@ const BrokerQuotePage: React.FC = () => {
     { key: 'piso', label: 'Piso' },
     { key: 'sup_util', label: 'Sup. Útil' },
     { key: 'valor_lista', label: 'Valor UF' },
-    { key: 'descuento', label: 'Desc. (%)' },
+    { key: 'descuento', label: 'Desc. Neto (%)' },
     { key: 'estado_unidad', label: 'Estado' }
   ];
   const headersSecundarios = headersPrincipales.filter(h => h.key !== 'descuento');
@@ -283,7 +295,10 @@ const BrokerQuotePage: React.FC = () => {
                   </tr>
                 ) : (
                   filtered.map(u => {
-                    const descPct = ((u.descuento ?? 0) * 100).toFixed(2) + '%';
+                    const basePct = (u.descuento ?? 0) * 100;
+                    const comm = commissions[u.proyecto_nombre] ?? 0;
+                    const netPct = basePct - comm;
+                    const descPct = netPct.toFixed(2) + '%';
                     return (
                       <tr
                         key={u.id}
@@ -337,7 +352,7 @@ const BrokerQuotePage: React.FC = () => {
                   <h3 className="text-lg font-medium">Proyecto</h3>
                   <p>{selectedUnidad.proyecto_nombre}</p>
                 </section>
-                {/* Sección Unidad, Estado, Tipología, Piso, Descuento, Valor */}
+                {/* Sección Unidad */}
                 <section className="mb-4">
                   <h3 className="text-lg font-medium">Unidad</h3>
                   <p>
@@ -345,24 +360,9 @@ const BrokerQuotePage: React.FC = () => {
                   </p>
                   <p>Tipología: {selectedUnidad.tipologia}</p>
                   <p>Piso: {selectedUnidad.piso || '-'}</p>
-                  <p>Descuento: {((selectedUnidad.descuento ?? 0) * 100).toFixed(2)}%</p>
+                  <p>Descuento Neto: {((selectedUnidad.descuento ?? 0) * 100 - (commissions[selectedUnidad.proyecto_nombre] ?? 0)).toFixed(2)}%</p>
                   <p>Valor Lista: {selectedUnidad.valor_lista?.toLocaleString()} UF</p>
                 </section>
                 {/* Sección Superficies */}
                 <section>
-                  <h3 className="text-lg font-medium">Superficies</h3>
-                  <p>Sup. Útil: {selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</p>
-                  {selectedUnidad.sup_terraza != null && <p>Sup. Terraza: {selectedUnidad.sup_terraza} m²</p>}
-                  {selectedUnidad.sup_total != null && <p>Sup. Total: {selectedUnidad.sup_total} m²</p>}
-                </section>
-              </>
-            )}
-          </div>
-        )}
-      </main>
-      <footer className="text-center py-6 text-sm text-gray-500">© {new Date().getFullYear()} InverAPP - Cotizador Brokers</footer>
-    </div>
-  );
-};
-
-export default BrokerQuotePage;
+                  <h3 className="text-lg font-medium">Superficies</n```
