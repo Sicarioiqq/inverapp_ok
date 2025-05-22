@@ -206,23 +206,31 @@ const ReservationForm = () => {
   const fetchReservation = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data: reservationData, error: reservationError } = await supabase
         .from('reservations')
-        .select('*, client:clients(*)')
+        .select(`
+          *,
+          client:clients (
+            id,
+            rut,
+            first_name,
+            last_name
+          )
+        `)
         .eq('id', id)
         .single();
 
-      if (error) throw error;
+      if (reservationError) throw reservationError;
 
-      if (data) {
+      if (reservationData) {
         setFormData({
-          ...data,
-          reservation_date: data.reservation_date.split('T')[0],
-          column_discount: data.column_discount * 100,
-          additional_discount: data.additional_discount * 100,
-          other_discount: data.other_discount * 100
+          ...reservationData,
+          reservation_date: reservationData.reservation_date.split('T')[0],
+          column_discount: (reservationData.column_discount || 0) * 100,
+          additional_discount: (reservationData.additional_discount || 0) * 100,
+          other_discount: (reservationData.other_discount || 0) * 100
         });
-        setSelectedClient(data.client);
+        setSelectedClient(reservationData.client);
       }
     } catch (err: any) {
       setError(err.message);
