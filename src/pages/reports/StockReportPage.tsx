@@ -39,7 +39,7 @@ const StockReportPage: React.FC = () => {
           id, 
           created_at,
           proyecto_nombre, 
-          unidad_codigo, 
+          unidad, 
           tipo_bien, 
           tipologia, 
           piso, 
