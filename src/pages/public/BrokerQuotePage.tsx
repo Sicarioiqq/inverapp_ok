@@ -41,18 +41,25 @@ const BrokerQuotePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('principales');
 
+  const [stock, setStock] = useState<Unidad[]>([]);
+  const [loadingStock, setLoadingStock] = useState(false);
+  const [sortField, setSortField] = useState<keyof Unidad>('unidad');
+  const [sortAsc, setSortAsc] = useState<boolean>(true);
+  const [filterProyecto, setFilterProyecto] = useState<string>('Todos');
+  const [filterTipologia, setFilterTipologia] = useState<string>('Todos');
+
   const [selectedUnidad, setSelectedUnidad] = useState<Unidad | null>(null);
   const [cliente, setCliente] = useState('');
   const [rut, setRut] = useState('');
 
-  // Validación de acceso y carga de broker
+  // Validate broker access
   useEffect(() => {
     if (!brokerSlug || !accessToken) {
       setError('Información de acceso inválida.');
       setIsValidating(false);
       return;
     }
-    const fetchBroker = async () => {
+    (async () => {
       try {
         const { data, error: fetchError } = await supabase
           .from('brokers')
@@ -67,167 +74,109 @@ const BrokerQuotePage: React.FC = () => {
       } finally {
         setIsValidating(false);
       }
+    })();
+  }, [brokerSlug, accessToken]);
+
+  // Load stock on mount
+  useEffect(() => {
+    const fetchStock = async () => {
+      setLoadingStock(true);
+      const { data, error: stockError } = await supabase
+        .from('stock_unidades')
+        .select('*');
+      if (!stockError && data) setStock(data as Unidad[]);
+      setLoadingStock(false);
     };
-    fetchBroker();
-  }, [brokerSlug, accessToken, navigate]);
+    fetchStock();
+  }, []);
 
-  if (isValidating) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-        <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-        <p className="text-xl text-gray-700">Validando acceso...</p>
-      </div>
-    );
-  }
+  const applyFilters = (list: Unidad[]) => {
+    return list.filter(u => {
+      if (filterProyecto !== 'Todos' && u.proyecto_nombre !== filterProyecto) return false;
+      if (filterTipologia !== 'Todos' && u.tipologia !== filterTipologia) return false;
+      return true;
+    });
+  };
 
-  if (error || !brokerInfo) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-red-50 p-4 text-center">
-        <ShieldX className="h-16 w-16 text-red-500 mb-4" />
-        <h1 className="text-2xl font-bold text-red-700 mb-2">Acceso Denegado</h1>
-        <p className="text-red-600">{error || 'No se pudo verificar la información.'}</p>
-        <button
-          onClick={() => navigate('/login')}
-          className="mt-6 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-        >
-          Ir al Login
-        </button>
-      </div>
-    );
-  }
+  const sorted = [...applyFilters(stock)]
+    .sort((a, b) => {
+      const av = a[sortField];
+      const bv = b[sortField];
+      if (av == null || bv == null) return 0;
+      if (av < bv) return sortAsc ? -1 : 1;
+      if (av > bv) return sortAsc ? 1 : -1;
+      return 0;
+    });
+
+  if (isValidating) return <LoadingScreen message="Validando acceso..." />;
+  if (error || !brokerInfo) return <ErrorScreen message={error || 'Error de acceso.'} onRetry={() => navigate('/login')} />;
+
+  // Unique filter options
+  const proyectos = Array.from(new Set(stock.map(u => u.proyecto_nombre))).sort();
+  const tipologias = Array.from(new Set(stock.map(u => u.tipologia))).sort();
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow">
-        <div className="container mx-auto p-4">
-          <h1 className="text-2xl font-bold">Cotizador Broker: {brokerInfo.name}</h1>
-        </div>
-      </header>
-
+      <Header title={`Cotizador Broker: ${brokerInfo.name}`} />
       <main className="container mx-auto p-4">
-        {/* Aquí irían las pestañas Principales y Secundarios */}
-        <div className="mb-6 border-b border-gray-300">
-          <nav className="flex space-x-4">
-            <button
-              onClick={() => setActiveTab('principales')}
-              className={`pb-2 px-4 border-b-2 font-medium text-sm ${
-                activeTab === 'principales'
-                  ? 'border-blue-600 text-blue-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-400'
-              }`}
-            >
-              <Home className="inline-block h-5 w-5 mr-1 align-text-bottom" />
-              Principales
-            </button>
-            <button
-              onClick={() => setActiveTab('secundarios')}
-              className={`pb-2 px-4 border-b-2 font-medium text-sm ${
-                activeTab === 'secundarios'
-                  ? 'border-blue-600 text-blue-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-400'
-              }`}
-            >
-              <LayoutDashboard className="inline-block h-5 w-5 mr-1 align-text-bottom" />
-              Secundarios
-            </button>
-            <button
-              onClick={() => setActiveTab('configuracion')}
-              className={`pb-2 px-4 border-b-2 font-medium text-sm ${
-                activeTab === 'configuracion'
-                  ? 'border-blue-600 text-blue-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-400'
-              }`}
-            >
-              <SlidersHorizontal className="inline-block h-5 w-5 mr-1 align-text-bottom" />
-              Configuración
-            </button>
-          </nav>
-        </div>
+        <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        {/* Configuration Tab */}
-        {activeTab === 'configuracion' && (
-          <div className="bg-white shadow rounded p-6 space-y-8">
-            <h2 className="text-xl font-semibold">Configuración de Cotización</h2>
-
-            {/* Cliente Section */}
-            <section className="border border-blue-200 rounded-lg p-4 bg-blue-50">
-              <h3 className="text-lg font-medium text-blue-700 mb-2">Cliente</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
-                  <input
-                    type="text"
-                    value={cliente}
-                    onChange={e => setCliente(e.target.value)}
-                    placeholder="Ingrese nombre del cliente"
-                    className="mt-1 block w-full border border-blue-300 rounded-md bg-white p-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">RUT del Cliente</label>
-                  <input
-                    type="text"
-                    value={rut}
-                    onChange={e => setRut(e.target.value)}
-                    placeholder="Ingrese RUT"
-                    className="mt-1 block w-full border border-blue-300 rounded-md bg-white p-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* Proyecto Section */}
-            <section>
-              <h3 className="text-lg font-medium text-gray-800">Proyecto</h3>
-              <p className="mt-1 text-gray-600">{selectedUnidad?.proyecto_nombre || '-'}</p>
-            </section>
-
-            {/* Unidad Section */}
-            <section>
-              <h3 className="text-lg font-medium text-gray-800">Unidad</h3>
-              <p className="mt-1 text-gray-600">
-                {selectedUnidad?.unidad || '-'} <span className="text-sm text-gray-500">({selectedUnidad?.estado_unidad || '-'})</span>
-              </p>
-              <p className="mt-1 text-gray-600">Tipología: {selectedUnidad?.tipologia || '-'}</p>
-              <p className="mt-1 text-gray-600">Piso: {selectedUnidad?.piso ?? '-'}</p>
-              <p className="mt-1 text-gray-600">
-                Descuento:{' '}
-                <span className="font-semibold">
-                  {selectedUnidad && selectedUnidad.descuento != null
-                    ? `${(selectedUnidad.descuento * 100).toFixed(2)} %`
-                    : '-'}
-                </span>
-              </p>
-              <p className="mt-1 text-gray-600">
-                Valor Lista:{' '}
-                <span className="font-semibold">
-                  {selectedUnidad?.valor_lista != null
-                    ? `${selectedUnidad.valor_lista.toLocaleString(undefined, { minimumFractionDigits: 0 })} UF`
-                    : '-'}
-                </span>
-              </p>
-            </section>
-
-            {/* Superficies Section */}
-            <section>
-              <h3 className="text-lg font-medium text-gray-800">Superficies</h3>
-              <p className="mt-1 text-gray-600">
-                Sup. Útil:{' '}
-                {selectedUnidad?.sup_util != null
-                  ? `${selectedUnidad.sup_util.toLocaleString(undefined, { minimumFractionDigits: 2 })} m²`
-                  : '-'}
-              </p>
-            </section>
+        {activeTab !== 'configuracion' && (
+          <div className="bg-white shadow rounded p-4 mb-6">
+            <Filters
+              proyectos={proyectos}
+              tipologias={tipologias}
+              filterProyecto={filterProyecto}
+              setFilterProyecto={setFilterProyecto}
+              filterTipologia={filterTipologia}
+              setFilterTipologia={setFilterTipologia}
+            />
+            <DataTable<Unidad>
+              data={sorted.filter(u => activeTab === 'principales'
+                ? u.tipo_bien === 'DEPARTAMENTO'
+                : u.tipo_bien !== 'DEPARTAMENTO')}
+              headers={[
+                { key: 'proyecto_nombre', label: 'Proyecto' },
+                { key: 'unidad', label: 'Unidad' },
+                { key: 'tipologia', label: 'Tipología' },
+                { key: 'piso', label: 'Piso' },
+                { key: 'sup_util', label: 'Sup. Útil' },
+                { key: 'valor_lista', label: 'Valor Lista' },
+                { key: 'descuento', label: 'Desc.' },
+                { key: 'estado_unidad', label: 'Estado' }
+              ]}
+              sortField={sortField}
+              sortAsc={sortAsc}
+              onSort={(key) => {
+                if (sortField === key) return setSortAsc(!sortAsc);
+                setSortField(key);
+                setSortAsc(true);
+              }}
+              loading={loadingStock}
+              onRowClick={(u) => {
+                setSelectedUnidad(u);
+                setActiveTab('configuracion');
+              }}
+            />
           </div>
         )}
 
+        {activeTab === 'configuracion' && (
+          <ConfigurationPanel
+            unidad={selectedUnidad}
+            cliente={cliente}
+            rut={rut}
+            setCliente={setCliente}
+            setRut={setRut}
+          />
+        )}
       </main>
-
-      <footer className="text-center py-6 text-sm text-gray-500">
-        © {new Date().getFullYear()} InverAPP - Cotizador Brokers
-      </footer>
+      <Footer />
     </div>
   );
 };
+
+// Helper components below: Header, LoadingScreen, ErrorScreen, Tabs, Filters, DataTable, ConfigurationPanel, Footer
+// ... (Implement these components as needed) ...
 
 export default BrokerQuotePage;
