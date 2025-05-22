@@ -80,7 +80,6 @@ const BrokerQuotePage: React.FC = () => {
   const [bonoAmount, setBonoAmount] = useState<number>(0); // El monto de bono en UF para la CONFIGURACION
   const [bonoAmountPct, setBonoAmountPct] = useState<number>(0); // El porcentaje de bono para la CONFIGURACION
   // Estado temporal para el input del bono pie en modo mix
-  // Este estado solo se usará para el input manual cuando el usuario está escribiendo.
   const [tempBonoAmountPctInput, setTempBonoAmountPctInput] = useState<string>('');
 
   const [initialTotalAvailableBono, setInitialTotalAvailableBono] = useState<number>(0); // Total disponible en Bono Pie (en UF)
@@ -526,7 +525,7 @@ const BrokerQuotePage: React.FC = () => {
         setBonoAmount(0);
         setPagoBonoPieCotizacion(0);
         setDiscountAmount(0);
-        setTempBonoAmountPctInput(parseFloat(limitedBonoPct.toFixed(2)).toString());
+        // setTempBonoAmountPctInput(parseFloat(limitedBonoPct.toFixed(2)).toString()); // No actualizar aquí para no interferir con la escritura
         return;
     }
 
@@ -541,7 +540,7 @@ const BrokerQuotePage: React.FC = () => {
     setBonoAmountPct(parseFloat(limitedBonoPct.toFixed(2)));
     setBonoAmount(parseFloat(finalBonoUF.toFixed(2)));
     setPagoBonoPieCotizacion(parseFloat(finalBonoUF.toFixed(2)));
-    setTempBonoAmountPctInput(parseFloat(limitedBonoPct.toFixed(2)).toString()); // Actualizar también el input temporal
+    // setTempBonoAmountPctInput(parseFloat(limitedBonoPct.toFixed(2)).toString()); // No actualizar aquí para no interferir con la escritura
 
     const remainingBonoForDiscount = Math.max(0, initialTotalAvailableBono - finalBonoUF);
     let newDiscountPercentage = 0;
@@ -965,12 +964,13 @@ const BrokerQuotePage: React.FC = () => {
                                           <input
                                               type="number"
                                               id="mixBonoInput"
-                                              value={tempBonoAmountPctInput} // Ahora usa el estado temporal para que el usuario escriba libremente
-                                              // Se actualiza el estado temporal inmediatamente con cada cambio
+                                              value={tempBonoAmountPctInput} // Usa el estado temporal
                                               onChange={e => {
-                                                setTempBonoAmountPctInput(e.target.value);
-                                                // Y también aplica el cálculo inmediatamente para las flechas
-                                                applyBonoPieConfigChange(e.target.value);
+                                                  setTempBonoAmountPctInput(e.target.value); // Siempre actualiza el estado temporal
+                                                  // Intenta aplicar el cálculo si el valor es numérico y no es una entrada parcial como "1." o "12."
+                                                  if (!isNaN(parseFloat(e.target.value)) && e.target.value !== '' && e.target.value.slice(-1) !== '.') {
+                                                      applyBonoPieConfigChange(e.target.value);
+                                                  }
                                               }}
                                               onBlur={e => applyBonoPieConfigChange(e.target.value)} // Aplica cambios al perder el foco
                                               onKeyDown={e => { // Aplica cambios al presionar Enter
@@ -1169,7 +1169,7 @@ const BrokerQuotePage: React.FC = () => {
                                             value={formatCurrency(pagoPie)} // Usar formatCurrency para la visualización
                                             onChange={e => handlePieChange('uf', e.target.value)}
                                             className="w-24 text-right border rounded-md px-2 py-1"
-                                            // No usar step con type="text", el formateo lo maneja formatCurrency
+                                            // No usar step con type="text", el formateo lo maneja great
                                         />
                                     </div>
                                 </div>
@@ -1206,7 +1206,7 @@ const BrokerQuotePage: React.FC = () => {
                                             // El onChange de este input ya no es necesario si se controla desde la configuración en 'mix'
                                             // Si `quotationType === 'bono'`, este input sí es editable y no necesita un handler para afectar otros campos.
                                             // Si `quotationType === 'descuento'`, el valor es 0 y es readOnly.
-                                            // La sincronización en 'mix' se maneja desde el `useEffect` y `handleBonoPieConfigChange`.
+                                            // La sincronización en 'mix' se maneja desde el `useEffect` y `applyBonoPieConfigChange`.
                                         />
                                     </div>
                                 </div>
