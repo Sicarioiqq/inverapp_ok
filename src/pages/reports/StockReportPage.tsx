@@ -25,7 +25,7 @@ const StockReportPage: React.FC = () => {
   const [stockData, setStockData]                 = useState<StockUnidad[]>([]);
   const [loading, setLoading]                     = useState<boolean>(true);
   const [error, setError]                         = useState<string | null>(null);
-  const [activeTab, setActiveTab]                 = useState<'principales' | 'secundarios'>('principales');
+  const [activeTab, setActiveTab]                 = useState<'todos' | 'principales' | 'secundarios'>('todos');
   const [selectedProject, setSelectedProject]     = useState<string>('');
   const [selectedTipologia, setSelectedTipologia] = useState<string>('');
 
@@ -125,49 +125,23 @@ const StockReportPage: React.FC = () => {
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {rows.map(item => (
-            <tr
-              key={item.id}
-              className="hover:bg-gray-50 transition-colors duration-150"
-            >
-              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                {item.proyecto_nombre}
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                {item.unidad}
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                {item.tipo_bien}
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                {item.tipologia}
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                {item.piso}
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">
-                {item.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">
-                {item.valor_lista?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </td>
+            <tr key={item.id} className="hover:bg-gray-50 transition-colors duration-150">
+              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{item.proyecto_nombre}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.unidad}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.tipo_bien}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.tipologia}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.piso}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{item.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{item.valor_lista?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
               <td className="px-4 py-3 whitespace-nowrap text-sm">
-                <span
-                  className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    item.estado_unidad === 'Disponible'
-                      ? 'bg-green-100 text-green-800'
-                      : item.estado_unidad === 'Reservado'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : item.estado_unidad === 'Vendido'
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {item.estado_unidad}
-                </span>
+                <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                  item.estado_unidad === 'Disponible' ? 'bg-green-100 text-green-800' :
+                  item.estado_unidad === 'Reservado'   ? 'bg-yellow-100 text-yellow-800' :
+                  item.estado_unidad === 'Vendido'     ? 'bg-red-100 text-red-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>{item.estado_unidad}</span>
               </td>
-              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                {item.etapa}
-              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.etapa}</td>
             </tr>
           ))}
         </tbody>
@@ -189,31 +163,23 @@ const StockReportPage: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">Proyecto</label>
             <select
               value={selectedProject}
-              onChange={e => { setSelectedProject(e.target.value); setSelectedTipologia(''); }}
+              onChange={e => { setSelectedProject(e.target.value); setSelectedTipologia(''); setActiveTab('todos'); }}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
             >
               <option value="">Todos</option>
-              {proyectos.map(proj => (
-                <option key={proj} value={proj}>
-                  {proj}
-                </option>
-              ))}
+              {proyectos.map(proj => <option key={proj} value={proj}>{proj}</option>)}
             </select>
           </div>
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tipología</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tipología (solo Deptos)</label>
             <select
               value={selectedTipologia}
-              onChange={e => setSelectedTipologia(e.target.value)}
+              onChange={e => { setSelectedTipologia(e.target.value); setActiveTab('principales'); }}
               disabled={!selectedProject}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
             >
               <option value="">Todos</option>
-              {tipologias.map(tip => (
-                <option key={tip} value={tip}>
-                  {tip}
-                </option>
-              ))}
+              {tipologias.map(tip => <option key={tip} value={tip}>{tip}</option>)}
             </select>
           </div>
         </div>
@@ -221,26 +187,19 @@ const StockReportPage: React.FC = () => {
         {/* Pestañas */}
         <div className="border-b border-gray-200 mb-4">
           <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('principales')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'principales'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Principales
-            </button>
-            <button
-              onClick={() => setActiveTab('secundarios')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'secundarios'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Secundarios
-            </button>
+            {['todos','principales','secundarios'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab as any)}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab===tab
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {tab==='todos'? 'Todos' : tab==='principales'? 'Principales' : 'Secundarios'}
+              </button>
+            ))}
           </nav>
         </div>
 
@@ -258,7 +217,9 @@ const StockReportPage: React.FC = () => {
             </div>
             <p className="text-red-700 bg-red-100 p-4 rounded-md">{error}</p>
           </div>
-        ) : activeTab === 'principales' ? (
+        ) : activeTab==='todos' ? (
+          renderTable(filtered)
+        ) : activeTab==='principales' ? (
           renderTable(principales)
         ) : (
           renderTable(secundarios)
