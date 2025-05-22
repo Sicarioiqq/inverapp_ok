@@ -337,6 +337,23 @@ const ReservationForm = () => {
     }
   };
 
+  const checkReservationNumberExists = async (reservationNumber: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('id')
+        .eq('reservation_number', reservationNumber)
+        .neq('id', id || '') // Exclude current reservation when editing
+        .maybeSingle();
+
+      if (error) throw error;
+      return !!data;
+    } catch (err) {
+      console.error('Error checking reservation number:', err);
+      throw err;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -346,6 +363,12 @@ const ReservationForm = () => {
 
       if (!formData.reservation_number.trim()) {
         throw new Error('El número de reserva es obligatorio');
+      }
+
+      // Check if reservation number already exists
+      const exists = await checkReservationNumberExists(formData.reservation_number);
+      if (exists) {
+        throw new Error('El número de reserva ya existe. Por favor, ingrese un número único.');
       }
 
       // Convert percentage values to decimals for storage
