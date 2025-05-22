@@ -236,7 +236,8 @@ const BrokerQuotePage: React.FC = () => {
 
       if (quotationType === 'descuento' || quotationType === 'mix') {
         // En estos modos, el descuento se "autocarga" con el descuento disponible del departamento
-        setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); // Redondear a 2 decimales para la visualización
+        // y se redondea a 2 decimales para la visualización.
+        setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); 
         setBonoAmount(0); // Restablecer bono en estos modos
       } else if (quotationType === 'bono') {
         setDiscountAmount(0); // Restablecer descuento en modo bono
@@ -915,7 +916,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <div className="flex justify-end">
                                         <input
                                             type="number"
-                                            value={formatCurrency(pagoPromesa)} // Usar formatCurrency para 2 decimales
+                                            value={pagoPromesa} // Mantener como number para edición directa
                                             onChange={e => setPagoPromesa(parseFloat(e.target.value) || 0)}
                                             className="w-24 text-right border rounded-md px-2 py-1"
                                             step="0.01"
@@ -931,7 +932,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <div className="flex justify-end">
                                         <input
                                             type="number"
-                                            value={formatCurrency(pagoPie)} // Usar formatCurrency para 2 decimales
+                                            value={pagoPie} // Mantener como number para edición directa
                                             onChange={e => setPagoPie(parseFloat(e.target.value) || 0)}
                                             className="w-24 text-right border rounded-md px-2 py-1"
                                             step="0.01"
