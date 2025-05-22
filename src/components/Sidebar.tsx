@@ -10,6 +10,7 @@ import {
   LogOut,
   ClipboardList,
   BarChart3,
+  PackageSearch,
   CreditCard,
   CheckSquare,
   ShieldCheck
