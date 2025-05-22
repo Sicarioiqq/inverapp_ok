@@ -20,8 +20,42 @@ const ufToPesos = (uf: number | null, ufValue: number | null): string => {
   }).format(uf * ufValue);
 };
 
-// Create styles
-// IMPORTANT: Define base styles first if they are to be merged into others
+// Define base styles as separate objects/constants BEFORE StyleSheet.create
+const baseStyles = {
+  tableCol: { // A general base style for merging
+    borderStyle: 'solid',
+    borderColor: '#bfbfbf',
+    borderWidth: 1,
+    padding: 5,
+  },
+  tableColHeader: { // A general base header style for merging
+    borderStyle: 'solid',
+    borderColor: '#bfbfbf',
+    borderBottomColor: '#000',
+    borderWidth: 1,
+    backgroundColor: '#f2f2f2',
+    textAlign: 'center',
+    padding: 5,
+    fontFamily: 'Helvetica-Bold',
+  },
+  tableColRight: { // A general base right-aligned style for merging
+    borderStyle: 'solid',
+    borderColor: '#bfbfbf',
+    borderWidth: 1,
+    padding: 5,
+    textAlign: 'right',
+  },
+  tableColSmallRight: { // A general base small right-aligned style for merging
+    borderStyle: 'solid',
+    borderColor: '#bfbfbf',
+    borderWidth: 1,
+    padding: 5,
+    textAlign: 'right',
+  },
+};
+
+
+// Create styles using the baseStyles
 const styles = StyleSheet.create({
   page: {
     padding: 30,
@@ -59,68 +93,36 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
   },
-  // Generic column base styles - these must be defined before specific ones that merge them
-  baseTableCol: { // A general base style for merging
-    borderStyle: 'solid',
-    borderColor: '#bfbfbf',
-    borderWidth: 1,
-    padding: 5,
-  },
-  baseTableColHeader: { // A general base header style for merging
-    borderStyle: 'solid',
-    borderColor: '#bfbfbf',
-    borderBottomColor: '#000',
-    borderWidth: 1,
-    backgroundColor: '#f2f2f2',
-    textAlign: 'center',
-    padding: 5,
-    fontFamily: 'Helvetica-Bold',
-  },
-  baseTableColRight: { // A general base right-aligned style for merging
-    borderStyle: 'solid',
-    borderColor: '#bfbfbf',
-    borderWidth: 1,
-    padding: 5,
-    textAlign: 'right',
-  },
-  baseTableColSmallRight: { // A general base small right-aligned style for merging
-    borderStyle: 'solid',
-    borderColor: '#bfbfbf',
-    borderWidth: 1,
-    padding: 5,
-    textAlign: 'right',
-  },
-
-
+  
   // Specific column widths for Unit Characteristics table
   unitTableColHeader: {
     width: '14.28%', // 100% / 7 columns
-    ...this.baseTableColHeader, // Merge base header properties
+    ...baseStyles.tableColHeader, // Merge base header properties
   },
   unitTableCol: {
     width: '14.28%', // 100% / 7 columns
-    ...this.baseTableCol, // Merge base column properties
+    ...baseStyles.tableCol, // Merge base column properties
   },
 
   // Specific column widths for Prices table
   pricesColHeader: {
-    ...this.baseTableColHeader, // Merge base header properties
+    ...baseStyles.tableColHeader, // Merge base header properties
   },
-  pricesColItem: { width: '25%', ...this.baseTableCol }, // ÍTEM
-  pricesColListPrice: { width: '15%', ...this.baseTableColRight }, // PRECIO LISTA (UF)
-  pricesColDiscountPct: { width: '10%', ...this.baseTableColSmallRight }, // DSCTO. %
-  pricesColDiscountUF: { width: '15%', ...this.baseTableColRight }, // DSCTO. (UF)
-  pricesColNetPriceUF: { width: '15%', ...this.baseTableColRight }, // PRECIO NETO (UF)
-  pricesColNetPriceCLP: { width: '20%', ...this.baseTableColRight }, // PRECIO NETO ($)
+  pricesColItem: { width: '25%', ...baseStyles.tableCol }, // ÍTEM
+  pricesColListPrice: { width: '15%', ...baseStyles.tableColRight }, // PRECIO LISTA (UF)
+  pricesColDiscountPct: { width: '10%', ...baseStyles.tableColSmallRight }, // DSCTO. %
+  pricesColDiscountUF: { width: '15%', ...baseStyles.tableColRight }, // DSCTO. (UF)
+  pricesColNetPriceUF: { width: '15%', ...baseStyles.tableColRight }, // PRECIO NETO (UF)
+  pricesColNetPriceCLP: { width: '20%', ...baseStyles.tableColRight }, // PRECIO NETO ($)
 
   // Specific column widths for Payment Method table
   paymentColHeader: {
-    ...this.baseTableColHeader, // Merge base header properties
+    ...baseStyles.tableColHeader, // Merge base header properties
   },
-  paymentColGlosa: { width: '35%', ...this.baseTableCol }, // GLOSA
-  paymentColPct: { width: '10%', ...this.baseTableColSmallRight }, // %
-  paymentColPesos: { width: '25%', ...this.baseTableColRight }, // PESOS
-  paymentColUF: { width: '30%', ...this.baseTableColRight }, // UF
+  paymentColGlosa: { width: '35%', ...baseStyles.tableCol }, // GLOSA
+  paymentColPct: { width: '10%', ...baseStyles.tableColSmallRight }, // %
+  paymentColPesos: { width: '25%', ...baseStyles.tableColRight }, // PESOS
+  paymentColUF: { width: '30%', ...baseStyles.tableColRight }, // UF
 
 
   totalRow: {
