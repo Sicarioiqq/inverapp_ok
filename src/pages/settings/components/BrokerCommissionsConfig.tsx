@@ -29,46 +29,54 @@ const BrokerCommissionsConfig: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch brokers
-      const { data: brokersData, error: brokerErr } = await supabase
+      // 1) Fetch brokers
+      const { data: brokerData, error: brokerErr } = await supabase
         .from('brokers')
         .select('id, name')
         .order('name', { ascending: true });
       if (brokerErr) throw brokerErr;
-      setBrokers(brokersData || []);
+      setBrokers(brokerData || []);
 
-      // Fetch all distinct project names (override default limit)
-      const { data: projData, error: projErr } = await supabase
-        .from('stock_unidades')
-        .select('proyecto_nombre', { count: 'exact' })
-        .order('proyecto_nombre', { ascending: true })
-        .range(0, 10000);
-      if (projErr) throw projErr;
-      const names = Array.from(
-        new Set((projData || []).map(r => r.proyecto_nombre).filter(Boolean) as string[])
+      // 2) Paginate through all stock_unidades to collect distinct project names
+      const BATCH = 1000;
+      let from = 0;
+      let all: { proyecto_nombre: string }[] = [];
+      while (true) {
+        const { data: chunk, error: chunkErr } = await supabase
+          .from('stock_unidades')
+          .select('proyecto_nombre')
+          .order('proyecto_nombre', { ascending: true })
+          .range(from, from + BATCH - 1);
+        if (chunkErr) throw chunkErr;
+        if (!chunk || chunk.length === 0) break;
+        all = all.concat(chunk);
+        if (chunk.length < BATCH) break;
+        from += BATCH;
+      }
+      const distinct = Array.from(
+        new Set(all.map(r => r.proyecto_nombre).filter(Boolean) as string[])
       ).sort();
-      setProjects(names);
+      setProjects(distinct);
 
-      // Fetch existing commission records
+      // 3) Fetch existing commission records
       const { data: commData, error: commErr } = await supabase
         .from('broker_project_commissions')
         .select('id, broker_id, project_name, commission_rate');
       if (commErr) throw commErr;
       setDbCommissions(commData || []);
 
-      // Initialize inputs map
-      const inputsMap: Record<string, Record<string, string>> = {};
+      // 4) Initialize inputs
+      const inputs: Record<string, Record<string, string>> = {};
       (commData || []).forEach(c => {
-        if (!inputsMap[c.broker_id]) inputsMap[c.broker_id] = {};
-        inputsMap[c.broker_id][c.project_name] =
+        if (!inputs[c.broker_id]) inputs[c.broker_id] = {};
+        inputs[c.broker_id][c.project_name] =
           c.commission_rate != null ? c.commission_rate.toFixed(2) : '';
       });
-      setCommissionInputs(inputsMap);
+      setCommissionInputs(inputs);
     } catch (e: any) {
       console.error(e);
-      const message = e.message || 'Error al cargar datos';
-      setError(message);
-      toast.error(message);
+      setError(e.message || 'Error cargando datos');
+      toast.error(e.message || 'Error cargando datos');
     } finally {
       setLoading(false);
     }
@@ -77,8 +85,7 @@ const BrokerCommissionsConfig: React.FC = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleInputChange = (brokerId: string, project: string, value: string) => {
-    // Allow empty or percentage up to two decimals
-    if (/^(?:100(?:\.\d{1,2})?|\d{1,2}(?:\.\d{1,2})?)?$/.test(value)) {
+    if (/^(?:100(?:\.[0-9]{1,2})?|\d{1,2}(?:\.[0-9]{1,2})?)?$/.test(value)) {
       setCommissionInputs(prev => ({
         ...prev,
         [brokerId]: { ...(prev[brokerId] || {}), [project]: value }
@@ -145,12 +152,7 @@ const BrokerCommissionsConfig: React.FC = () => {
       <div className="p-6 text-center">
         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
         <p className="text-red-600 mb-4">{error}</p>
-        <button
-          onClick={fetchData}
-          className="px-4 py-2 bg-blue-600 text-white rounded"
-        >
-          Reintentar
-        </button>
+        <button onClick={fetchData} className="px-4 py-2 bg-blue-600 text-white rounded">Reintentar</button>
       </div>
     );
   }
@@ -161,7 +163,6 @@ const BrokerCommissionsConfig: React.FC = () => {
         <Percent className="h-6 w-6 text-blue-600 mr-2" />
         <h3 className="text-xl font-semibold text-gray-800">Comisiones por Proyecto × Broker</h3>
       </div>
-
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50">
@@ -192,7 +193,6 @@ const BrokerCommissionsConfig: React.FC = () => {
           </tbody>
         </table>
       </div>
-
       <div className="mt-4 flex justify-end">
         <button
           onClick={handleSave}
