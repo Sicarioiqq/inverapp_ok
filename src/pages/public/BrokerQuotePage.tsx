@@ -33,7 +33,8 @@ interface Unidad {
 type Tab = 'principales' | 'secundarios' | 'configuracion';
 
 const BrokerQuotePage: React.FC = () => {
-  const { brokerSlug, accessToken } = useParams<{ brokerSlug: string; accessToken: string }>();
+  const { brokerSlug, accessToken } =
+    useParams<{ brokerSlug: string; accessToken: string }>();
   const navigate = useNavigate();
 
   const [brokerInfo, setBrokerInfo] = useState<BrokerInfo | null>(null);
@@ -52,7 +53,7 @@ const BrokerQuotePage: React.FC = () => {
   const [cliente, setCliente] = useState('');
   const [rut, setRut] = useState('');
 
-  // Validate broker
+  // 1) Valida broker
   useEffect(() => {
     const validate = async () => {
       if (!brokerSlug || !accessToken) {
@@ -78,7 +79,7 @@ const BrokerQuotePage: React.FC = () => {
     validate();
   }, [brokerSlug, accessToken]);
 
-  // Load full stock (all rows)
+  // 2) Carga **todo** el stock sin límite de 1000
   useEffect(() => {
     if (!brokerInfo) return;
     const fetchStock = async () => {
@@ -89,7 +90,7 @@ const BrokerQuotePage: React.FC = () => {
           .select('*');
         if (!se && data) setStock(data);
       } catch (e) {
-        console.error('Error loading stock:', e);
+        console.error('Error fetching stock:', e);
       } finally {
         setLoadingStock(false);
       }
@@ -97,24 +98,41 @@ const BrokerQuotePage: React.FC = () => {
     fetchStock();
   }, [brokerInfo]);
 
-  // Derive filters
-  const proyectos = Array.from(new Set(stock.map(u => u.proyecto_nombre))).sort();
-  const tipologias = Array.from(new Set(
-    stock
-      .filter(u => filterProyecto === 'Todos' || u.proyecto_nombre === filterProyecto)
-      .map(u => u.tipologia)
-  )).sort();
+  // Derivar filtros
+  const proyectos = Array.from(
+    new Set(stock.map(u => u.proyecto_nombre))
+  ).sort();
+  const tipologias = Array.from(
+    new Set(
+      stock
+        .filter(
+          u =>
+            filterProyecto === 'Todos' ||
+            u.proyecto_nombre === filterProyecto
+        )
+        .map(u => u.tipologia)
+    )
+  ).sort();
 
-  // Apply filters & sort
+  // Aplicar filtros y orden
   const filtered = stock
-    .filter(u => activeTab === 'principales'
-      ? u.tipo_bien === 'DEPARTAMENTO'
-      : activeTab === 'secundarios'
+    .filter(u =>
+      activeTab === 'principales'
+        ? u.tipo_bien === 'DEPARTAMENTO'
+        : activeTab === 'secundarios'
         ? u.tipo_bien !== 'DEPARTAMENTO'
         : true
     )
-    .filter(u => filterProyecto === 'Todos' || u.proyecto_nombre === filterProyecto)
-    .filter(u => filterTipologia === 'Todos' || u.tipologia === filterTipologia)
+    .filter(
+      u =>
+        filterProyecto === 'Todos' ||
+        u.proyecto_nombre === filterProyecto
+    )
+    .filter(
+      u =>
+        filterTipologia === 'Todos' ||
+        u.tipologia === filterTipologia
+    )
     .sort((a, b) => {
       const av = a[sortField] ?? '';
       const bv = b[sortField] ?? '';
@@ -124,9 +142,18 @@ const BrokerQuotePage: React.FC = () => {
     });
 
   if (isValidating)
-    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin"/> Validando...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="animate-spin" /> Validando...
+      </div>
+    );
   if (error || !brokerInfo)
-    return <div className="p-6 text-center"><ShieldX className="h-16 w-16 text-red-500 mx-auto"/><p className="mt-4 text-red-600">{error}</p></div>;
+    return (
+      <div className="p-6 text-center">
+        <ShieldX className="h-16 w-16 text-red-500 mx-auto" />
+        <p className="mt-4 text-red-600">{error}</p>
+      </div>
+    );
 
   const headersPrincipales = [
     { key: 'proyecto_nombre', label: 'Proyecto' },
@@ -138,117 +165,211 @@ const BrokerQuotePage: React.FC = () => {
     { key: 'descuento', label: 'Desc. (%)' },
     { key: 'estado_unidad', label: 'Estado' }
   ];
-  const headersSecundarios = headersPrincipales.filter(h => h.key !== 'descuento');
+  const headersSecundarios = headersPrincipales.filter(
+    h => h.key !== 'descuento'
+  );
 
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow">
         <div className="container mx-auto p-4">
-          <h1 className="text-2xl font-bold">Cotizador Broker: {brokerInfo.name}</h1>
+          <h1 className="text-2xl font-bold">
+            Cotizador Broker: {brokerInfo.name}
+          </h1>
         </div>
       </header>
+
       <main className="container mx-auto p-4">
+        {/* Pestañas */}
         <nav className="flex space-x-4 border-b mb-4">
           <button
             onClick={() => setActiveTab('principales')}
-            className={activeTab==='principales' ? 'border-b-2 border-blue-600 pb-2' : 'pb-2 text-gray-500'}
+            className={
+              activeTab === 'principales'
+                ? 'border-b-2 border-blue-600 pb-2'
+                : 'pb-2 text-gray-500'
+            }
           >
-            <Home className="inline mr-1"/> Principales
+            <Home className="inline mr-1" /> Principales
           </button>
           <button
             onClick={() => setActiveTab('secundarios')}
-            className={activeTab==='secundarios' ? 'border-b-2 border-blue-600 pb-2' : 'pb-2 text-gray-500'}
+            className={
+              activeTab === 'secundarios'
+                ? 'border-b-2 border-blue-600 pb-2'
+                : 'pb-2 text-gray-500'
+            }
           >
-            <LayoutDashboard className="inline mr-1"/> Secundarios
+            <LayoutDashboard className="inline mr-1" /> Secundarios
           </button>
           <button
             onClick={() => setActiveTab('configuracion')}
-            className={activeTab==='configuracion' ? 'border-b-2 border-blue-600 pb-2' : 'pb-2 text-gray-500'}
+            className={
+              activeTab === 'configuracion'
+                ? 'border-b-2 border-blue-600 pb-2'
+                : 'pb-2 text-gray-500'
+            }
           >
-            <SlidersHorizontal className="inline mr-1"/> Configuración
+            <SlidersHorizontal className="inline mr-1" /> Configuración
           </button>
         </nav>
 
-        {(activeTab === 'principales' || activeTab === 'secundarios') && (
+        {/* Filtros */}
+        {(activeTab === 'principales' ||
+          activeTab === 'secundarios') && (
           <div className="flex space-x-4 mb-4">
             <select
               value={filterProyecto}
-              onChange={e => { setFilterProyecto(e.target.value); setFilterTipologia('Todos'); }}
+              onChange={e => {
+                setFilterProyecto(e.target.value);
+                setFilterTipologia('Todos');
+              }}
               className="border p-2 rounded"
             >
               <option>Todos</option>
-              {proyectos.map(p => <option key={p}>{p}</option>)}
+              {proyectos.map(p => (
+                <option key={p}>{p}</option>
+              ))}
             </select>
+
             <select
               value={filterTipologia}
               onChange={e => setFilterTipologia(e.target.value)}
               className="border p-2 rounded"
             >
               <option>Todos</option>
-              {tipologias.map(t => <option key={t}>{t}</option>)}
+              {tipologias.map(t => (
+                <option key={t}>{t}</option>
+              ))}
             </select>
           </div>
         )}
 
+        {/* Tabla */}
         {activeTab !== 'configuracion' && (
           <div className="overflow-x-auto bg-white shadow rounded">
             <table className="min-w-full">
               <thead className="bg-gray-200">
                 <tr>
-                  {(activeTab==='principales' ? headersPrincipales : headersSecundarios).map(h => (
+                  {(activeTab === 'principales'
+                    ? headersPrincipales
+                    : headersSecundarios
+                  ).map(h => (
                     <th
                       key={h.key}
                       className="px-4 py-2 text-left cursor-pointer"
                       onClick={() => {
                         if (sortField === h.key) setSortAsc(!sortAsc);
-                        else { setSortField(h.key); setSortAsc(true); }
+                        else {
+                          setSortField(h.key);
+                          setSortAsc(true);
+                        }
                       }}
                     >
                       <div className="flex items-center">
                         {h.label}
-                        {sortField===h.key && (sortAsc ? <ArrowUp className="ml-1"/> : <ArrowDown className="ml-1"/>)}
+                        {sortField === h.key && (
+                          sortAsc ? (
+                            <ArrowUp className="ml-1" />
+                          ) : (
+                            <ArrowDown className="ml-1" />
+                          )
+                        )}
                       </div>
                     </th>
                   ))}
                 </tr>
               </thead>
+
               <tbody>
                 {loadingStock ? (
-                  <tr><td colSpan={(activeTab==='principales'? headersPrincipales.length : headersSecundarios.length)} className="p-4 text-center"><Loader2 className="animate-spin"/> Cargando...</td></tr>
-                ) : filtered.length===0 ? (
-                  <tr><td colSpan={(activeTab==='principales'? headersPrincipales.length : headersSecundarios.length)} className="p-4 text-center text-gray-500">No hay unidades.</td></tr>
-                ) : filtered.map(u => {
-                  const netDesc = ((u.descuento ?? 0) * 100).toFixed(2);
-                  return (
-                    <tr
-                      key={u.id}
-                      className="border-t hover:bg-gray-50 cursor-pointer"
-                      onClick={() => { setSelectedUnidad(u); setActiveTab('configuracion'); }}
+                  <tr>
+                    <td
+                      colSpan={
+                        activeTab === 'principales'
+                          ? headersPrincipales.length
+                          : headersSecundarios.length
+                      }
+                      className="p-4 text-center"
                     >
-                      <td className="px-4 py-2">{u.proyecto_nombre}</td>
-                      <td className="px-4 py-2">{u.unidad}</td>
-                      <td className="px-4 py-2">{u.tipologia}</td>
-                      <td className="px-4 py-2">{u.piso||'-'}</td>
-                      <td className="px-4 py-2 text-right">{u.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
-                      <td className="px-4 py-2 text-right">{u.valor_lista?.toLocaleString(undefined,{minimumFractionDigits:0})}</td>
-                      {activeTab==='principales' && <td className="px-4 py-2 text-right">{netDesc}%</td>}
-                      <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs ${u.estado_unidad==='Disponible'? 'bg-green-100 text-green-800': 'bg-gray-100 text-gray-800'}`}>{u.estado_unidad}</span></td>
-                    </tr>
-                  );
-                })}
+                      <Loader2 className="animate-spin" /> Cargando...
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={
+                        activeTab === 'principales'
+                          ? headersPrincipales.length
+                          : headersSecundarios.length
+                      }
+                      className="p-4 text-center text-gray-500"
+                    >
+                      No hay unidades.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map(u => {
+                    const netDesc = ((u.descuento ?? 0) * 100).toFixed(2);
+                    return (
+                      <tr
+                        key={u.id}
+                        className="border-t hover:bg-gray-50 cursor-pointer"
+                        onClick={() => {
+                          setSelectedUnidad(u);
+                          setActiveTab('configuracion');
+                        }}
+                      >
+                        <td className="px-4 py-2">
+                          {u.proyecto_nombre}
+                        </td>
+                        <td className="px-4 py-2">{u.unidad}</td>
+                        <td className="px-4 py-2">{u.tipologia}</td>
+                        <td className="px-4 py-2">{u.piso || '-'}</td>
+                        <td className="px-4 py-2 text-right">
+                          {u.sup_util?.toLocaleString( undefined, { minimumFractionDigits: 2 })} m²
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          {u.valor_lista?.toLocaleString( undefined, { minimumFractionDigits: 0 })} UF
+                        </td>
+                        {activeTab === 'principales' && (
+                          <td className="px-4 py-2 text-right">
+                            {netDesc}%
+                          </td>
+                        )}
+                        <td className="px-4 py-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs ${
+                              u.estado_unidad === 'Disponible'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            {u.estado_unidad}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
         )}
 
+        {/* Configuración (SIN tabla) */}
         {activeTab === 'configuracion' && (
           <div className="bg-white shadow rounded p-6 mt-6 space-y-8">
-            <h2 className="text-xl font-semibold">Configuración de Cotización</h2>
+            <h2 className="text-xl font-semibold">
+              Configuración de Cotización
+            </h2>
 
-            {/* Cliente */}
+            {/* Cliente y RUT */}
             <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Cliente</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Nombre del Cliente
+                </label>
                 <input
                   type="text"
                   value={cliente}
@@ -258,7 +379,9 @@ const BrokerQuotePage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">RUT</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  RUT del Cliente
+                </label>
                 <input
                   type="text"
                   value={rut}
@@ -271,22 +394,73 @@ const BrokerQuotePage: React.FC = () => {
 
             {/* Proyecto */}
             <section>
-              <h3 className="text-lg font-medium text-gray-800">Proyecto</h3>
-              <p className="mt-1 text-gray-600">{selectedUnidad?.proyecto_nombre || '-'}</p>
+              <h3 className="text-lg font-medium text-gray-800">
+                Proyecto
+              </h3>
+              <p className="mt-1 text-gray-600">
+                {selectedUnidad?.proyecto_nombre || '-'}
+              </p>
             </section>
 
             {/* Unidad */}
             <section>
-              <h3 className="text-lg font-medium text-gray-800">Unidad</h3>
+              <h3 className="text-lg font-medium text-gray-800">
+                Unidad
+              </h3>
               <p className="mt-1 text-gray-600">
-                {selectedUnidad?.unidad || '-'} <span className="text-sm text-gray-500">({selectedUnidad?.estado_unidad || '-'})</span>
+                {selectedUnidad?.unidad || '-'}{' '}
+                <span className="text-sm text-gray-500">
+                  ({selectedUnidad?.estado_unidad || '-'})
+                </span>
               </p>
-              <p className="mt-1 text-gray-600">Tipología: {selectedUnidad?.tipologia || '-'}</p>
-              <p className="mt-1 text-gray-600">Piso: {selectedUnidad?.piso || '-'}</p>
-              <p className="mt-1 text-gray-600">Descuento: <span className="font-semibold">{selectedUnidad ? ((selectedUnidad.descuento || 0)*100).toFixed(2) + ' %' : '-'}</span></p>
-              <p className="mt-1 text-gray-600">Valor Lista: <span className="font-semibold">{selectedUnidad?.valor_lista != null ? selectedUnidad.valor_lista + ' UF' : '-'}</span></p>
+              <p className="mt-1 text-gray-600">
+                Tipología: {selectedUnidad?.tipologia || '-'}
+              </p>
+              <p className="mt-1 text-gray-600">
+                Piso: {selectedUnidad?.piso || '-'}
+              </p>
+              <p className="mt-1 text-gray-600">
+                Descuento:{' '}
+                <span className="font-semibold">
+                  {selectedUnidad
+                    ? ((selectedUnidad.descuento || 0) * 100).toFixed(2) + '%'
+                    : '-'}
+                </span>
+              </p>
+              <p className="mt-1 text-gray-600">
+                Valor Lista:{' '}
+                <span className="font-semibold">
+                  {selectedUnidad?.valor_lista != null
+                    ? selectedUnidad.valor_lista + ' UF'
+                    : '-'}
+                </span>
+              </p>
             </section>
 
             {/* Superficies */}
             <section>
-              <h3 className="text-lg font-medium text
+              <h3 className="text-lg font-medium text-gray-800">
+                Superficies
+              </h3>
+              <p className="mt-1 text-gray-600">
+                Sup. Útil:{' '}
+                <span className="font-semibold">
+                  {selectedUnidad?.sup_util
+                    ?.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                    }) || '-'} m²
+                </span>
+              </p>
+            </section>
+          </div>
+        )}
+      </main>
+
+      <footer className="text-center py-6 text-sm text-gray-500">
+        © {new Date().getFullYear()} InverAPP – Cotizador Brokers
+      </footer>
+    </div>
+  );
+};
+
+export default BrokerQuotePage;
