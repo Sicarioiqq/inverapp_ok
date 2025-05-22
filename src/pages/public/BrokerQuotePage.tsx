@@ -1,3 +1,4 @@
+```typescript
 // src/pages/public/BrokerQuotePage.tsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -90,25 +91,34 @@ const BrokerQuotePage: React.FC = () => {
     validate();
   }, [brokerSlug, accessToken]);
 
-  // Load full stock (beyond 1000 limit)
+  // Load full stock with pagination (beyond 1000 limit)
   useEffect(() => {
     if (!brokerInfo) return;
     const load = async () => {
       setLoadingStock(true);
       try {
-        const { data, error: se } = await supabase
-          .from<Unidad>('stock_unidades')
-          .select(
-            'id, proyecto_nombre, unidad, tipologia, piso, sup_util, valor_lista, descuento, estado_unidad, tipo_bien'
-          )
-          .range(0, 10000); // fetch up to 10k rows
-        if (se) throw se;
-        if (data) {
-          setStock(data);
-          setProjects(Array.from(new Set(data.map(u => u.proyecto_nombre))).sort());
+        const pageSize = 1000;
+        let from = 0;
+        const all: Unidad[] = [];
+        while (true) {
+          const to = from + pageSize - 1;
+          const { data, error: se } = await supabase
+            .from<Unidad>('stock_unidades')
+            .select(
+              'id, proyecto_nombre, unidad, tipologia, piso, sup_util, valor_lista, descuento, estado_unidad, tipo_bien'
+            )
+            .range(from, to);
+          if (se) throw se;
+          if (data?.length) {
+            all.push(...data);
+            if (data.length < pageSize) break;
+            from += pageSize;
+          } else break;
         }
+        setStock(all);
+        setProjects(Array.from(new Set(all.map(u => u.proyecto_nombre))).sort());
       } catch (e) {
-        console.error(e);
+        console.error('Error loading stock:', e);
       } finally {
         setLoadingStock(false);
       }
@@ -129,11 +139,9 @@ const BrokerQuotePage: React.FC = () => {
     if (selectedTip) arr = arr.filter(u => u.tipologia === selectedTip);
 
     arr.sort((a, b) => {
-      const fa = a[sortField] ?? '';
-      const fb = b[sortField] ?? '';
-      if (fa < fb) return sortAsc ? -1 : 1;
-      if (fa > fb) return sortAsc ? 1 : -1;
-      return 0;
+      const fa = (a[sortField] ?? '') as string | number;
+      const fb = (b[sortField] ?? '') as string | number;
+      return fa < fb ? (sortAsc ? -1 : 1) : fa > fb ? (sortAsc ? 1 : -1) : 0;
     });
     setFiltered(arr);
   }, [stock, activeTab, selectedProject, selectedTip, sortField, sortAsc]);
@@ -240,3 +248,4 @@ const BrokerQuotePage: React.FC = () => {
 };
 
 export default BrokerQuotePage;
+```
