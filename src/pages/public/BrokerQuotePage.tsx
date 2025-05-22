@@ -75,7 +75,7 @@ const BrokerQuotePage: React.FC = () => {
   // NUEVOS ESTADOS para la configuración de cotización
   const [quotationType, setQuotationType] = useState<QuotationType>('descuento');
   const [discountAmount, setDiscountAmount] = useState<number>(0);
-  const [bonoAmount, setBonoAmount] = useState<number>(0);
+  const [bonoAmount, setBonoAmount] = useState<number>(0); // Renamed from bonusAmount to bonoAmount for clarity
 
   // NUEVOS ESTADOS para unidades secundarias del proyecto
   const [projectSecondaryUnits, setProjectSecondaryUnits] = useState<Unidad[]>([]);
@@ -490,7 +490,6 @@ const BrokerQuotePage: React.FC = () => {
             ) : (
               <>
                 {/* Sección Cliente/RUT */}
-                {/* Changed from 'mb-6' to 'pb-4 mb-4' and added 'border-b' for visual separation and padding */}
                 <div className="bg-blue-50 p-4 rounded border-b pb-4 mb-6">
                   <h3 className="text-lg font-medium mb-2">Datos del Cliente</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -505,13 +504,11 @@ const BrokerQuotePage: React.FC = () => {
                   </div>
                 </div>
                 {/* Sección Proyecto */}
-                {/* Added 'mt-6' for separation and 'border-b pb-4' */}
                 <section className="mt-6 border-b pb-4">
                   <h3 className="text-lg font-medium mb-2">Proyecto</h3>
                   <p><span className="font-semibold">Proyecto:</span> {selectedUnidad.proyecto_nombre}</p>
                 </section>
                 {/* Sección Unidad, Estado, Tipología, Piso, Descuento, Valor */}
-                {/* Modified to use grid, added bold tags to values, added 'border-b pb-4' and 'mt-6' */}
                 <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-b pb-4">
                   <h3 className="text-lg font-medium col-span-full mb-2">Detalles de Unidad</h3>
                   <div>
@@ -546,8 +543,7 @@ const BrokerQuotePage: React.FC = () => {
                   </div>
                 </section>
                 {/* Sección Superficies */}
-                {/* Modified to use grid, added bold tags to values, added 'mt-6' */}
-                <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-b pb-4"> {/* Added border-b pb-4 for separation */}
+                <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-b pb-4">
                   <h3 className="text-lg font-medium col-span-full mb-2">Superficies</h3>
                   <div>
                     <p>Sup. Útil: <span className="font-semibold">{selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</span></p>
@@ -565,127 +561,134 @@ const BrokerQuotePage: React.FC = () => {
                 </section>
 
                 {/* NUEVA TARJETA/SECCIÓN: Configuración de Cotización */}
-                <section className="mt-6 border-t pt-4"> {/* Added border-t and pt-4 for separation */}
+                <section className="mt-6 border-t pt-4">
                     <h3 className="text-lg font-semibold col-span-full mb-4">Configuración de Cotización</h3>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4"> {/* Columnas para la configuración */}
-                        {/* Columna 1: Tipo de Configuración */}
+                    {/* Contenedor principal para las 3 columnas */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> 
+                        {/* Columna 1: Tipo de Configuración y Campos de Ingreso */}
                         <div>
-                            <label htmlFor="quotationType" className="block text-sm font-medium text-gray-700">Tipo de Configuración</label>
-                            <select
-                                id="quotationType"
-                                name="quotationType"
-                                value={quotationType}
-                                onChange={e => setQuotationType(e.target.value as QuotationType)}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                            >
-                                <option value="descuento">Descuento</option>
-                                <option value="bono">Bono Pie</option>
-                                <option value="mix">Mix (Descuento + Bono)</option>
-                            </select>
-                        </div>
-
-                        {/* Columna 2 y 3: Campos de Ingreso Condicionales */}
-                        {quotationType === 'descuento' && (
-                            <div className="md:col-span-2"> {/* Ocupa 2 columnas en md y arriba */}
-                                <label htmlFor="discountInput" className="block text-sm font-medium text-gray-700">Descuento (%)</label>
-                                <input
-                                    type="number"
-                                    id="discountInput"
-                                    value={discountAmount}
-                                    onChange={e => setDiscountAmount(parseFloat(e.target.value) || 0)}
-                                    min="0"
-                                    max="100"
-                                    step="0.001"
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                />
-                            </div>
-                        )}
-                        {quotationType === 'bono' && (
-                            <div className="md:col-span-2"> {/* Ocupa 2 columnas en md y arriba */}
-                                <label htmlFor="bonoInput" className="block text-sm font-medium text-gray-700">Bono Pie (UF)</label>
-                                <input
-                                    type="number"
-                                    id="bonoInput"
-                                    value={bonoAmount}
-                                    onChange={e => setBonoAmount(parseFloat(e.target.value) || 0)}
-                                    min="0"
-                                    step="0.01"
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                />
-                            </div>
-                        )}
-                        {quotationType === 'mix' && (
-                            <>
-                                <div> {/* Columna 2 para el descuento */}
-                                    <label htmlFor="mixDiscountInput" className="block text-sm font-medium text-gray-700">Descuento (%)</label>
-                                    <input
-                                        type="number"
-                                        id="mixDiscountInput"
-                                        value={discountAmount}
-                                        onChange={e => setDiscountAmount(parseFloat(e.target.value) || 0)}
-                                        min="0"
-                                        max="100"
-                                        step="0.001"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                    />
-                                </div>
-                                <div> {/* Columna 3 para el bono automático */}
-                                    <label htmlFor="mixBonoInput" className="block text-sm font-medium text-gray-700">Bono Pie (UF) (Automático)</label>
-                                    <input
-                                        type="number"
-                                        id="mixBonoInput"
-                                        value={bonoAmount} // Este se calculará automáticamente más tarde
-                                        readOnly
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed"
-                                    />
-                                </div>
-                            </>
-                        )}
-                    </div>
-
-                    {/* Listado de Secundarios para agregar a la cotización */}
-                    <div className="border-t pt-4 mt-6"> {/* Separación visual */}
-                        <h4 className="text-lg font-semibold mb-3">Agregar Secundarios a la Cotización</h4>
-                        
-                        <div className="flex items-end gap-2 mb-4"> {/* Contenedor del dropdown y botón */}
-                            <div className="flex-grow">
-                                <label htmlFor="secondaryUnitSelect" className="sr-only">Seleccionar unidad secundaria</label>
+                            <div className="mb-4">
+                                <label htmlFor="quotationType" className="block text-sm font-medium text-gray-700">Tipo de Configuración</label>
                                 <select
-                                    id="secondaryUnitSelect"
-                                    value={selectedSecondaryUnitToAdd}
-                                    onChange={e => setSelectedSecondaryUnitToAdd(e.target.value)}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    id="quotationType"
+                                    name="quotationType"
+                                    value={quotationType}
+                                    onChange={e => setQuotationType(e.target.value as QuotationType)}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                 >
-                                    <option value="">Seleccione un secundario</option>
-                                    {projectSecondaryUnits.length === 0 ? (
-                                        <option disabled>No hay unidades secundarias disponibles para este proyecto.</option>
-                                    ) : (
-                                        projectSecondaryUnits.map(unit => (
-                                            // Solo mostrar unidades que no han sido añadidas ya
-                                            !addedSecondaryUnits.some(addedUnit => addedUnit.id === unit.id) && (
-                                                <option key={unit.id} value={unit.id}>
-                                                    {unit.unidad} ({unit.tipologia}) - {unit.valor_lista?.toLocaleString()} UF
-                                                </option>
-                                            )
-                                        ))
-                                    )}
+                                    <option value="descuento">Descuento</option>
+                                    <option value="bono">Bono Pie</option>
+                                    <option value="mix">Mix (Descuento + Bono)</option>
                                 </select>
                             </div>
-                            <button
-                                type="button"
-                                onClick={handleAddSecondaryUnit}
-                                disabled={!selectedSecondaryUnitToAdd}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 flex items-center"
-                            >
-                                <PlusCircle className="h-5 w-5 mr-1" /> Agregar
-                            </button>
+
+                            {/* Campos de Ingreso Condicionales */}
+                            <div className="space-y-4"> {/* Agrupamos los inputs para mantener el espaciado vertical */}
+                                {quotationType === 'descuento' && (
+                                    <div>
+                                        <label htmlFor="discountInput" className="block text-sm font-medium text-gray-700">Descuento (%)</label>
+                                        <input
+                                            type="number"
+                                            id="discountInput"
+                                            value={discountAmount}
+                                            onChange={e => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                                            min="0"
+                                            max="100"
+                                            step="0.001"
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                )}
+                                {quotationType === 'bono' && (
+                                    <div>
+                                        <label htmlFor="bonoInput" className="block text-sm font-medium text-gray-700">Bono Pie (UF)</label>
+                                        <input
+                                            type="number"
+                                            id="bonoInput"
+                                            value={bonoAmount}
+                                            onChange={e => setBonoAmount(parseFloat(e.target.value) || 0)}
+                                            min="0"
+                                            step="0.01"
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                )}
+                                {quotationType === 'mix' && (
+                                    <>
+                                        <div>
+                                            <label htmlFor="mixDiscountInput" className="block text-sm font-medium text-gray-700">Descuento (%)</label>
+                                            <input
+                                                type="number"
+                                                id="mixDiscountInput"
+                                                value={discountAmount}
+                                                onChange={e => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                                                min="0"
+                                                max="100"
+                                                step="0.001"
+                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="mixBonoInput" className="block text-sm font-medium text-gray-700">Bono Pie (UF) (Automático)</label>
+                                            <input
+                                                type="number"
+                                                id="mixBonoInput"
+                                                value={bonoAmount} // Este se calculará automáticamente más tarde
+                                                readOnly
+                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed"
+                                            />
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         </div>
 
-                        {/* Lista de Secundarios Agregados */}
-                        {addedSecondaryUnits.length > 0 && (
-                            <div className="mt-4 border-t pt-4"> {/* Separación visual */}
-                                <h5 className="text-md font-medium mb-2">Secundarios Agregados a la Cotización:</h5>
+                        {/* Columna 2: Agregar Secundarios a la Cotización */}
+                        <div>
+                            <h4 className="text-lg font-semibold mb-3">Agregar Secundarios</h4>
+                            
+                            <div className="flex items-end gap-2 mb-4"> {/* Contenedor del dropdown y botón */}
+                                <div className="flex-grow">
+                                    <label htmlFor="secondaryUnitSelect" className="sr-only">Seleccionar unidad secundaria</label>
+                                    <select
+                                        id="secondaryUnitSelect"
+                                        value={selectedSecondaryUnitToAdd}
+                                        onChange={e => setSelectedSecondaryUnitToAdd(e.target.value)}
+                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    >
+                                        <option value="">Seleccione un secundario</option>
+                                        {projectSecondaryUnits.length === 0 ? (
+                                            <option disabled>No hay unidades secundarias disponibles.</option>
+                                        ) : (
+                                            projectSecondaryUnits.map(unit => (
+                                                // Solo mostrar unidades que no han sido añadidas ya
+                                                !addedSecondaryUnits.some(addedUnit => addedUnit.id === unit.id) && (
+                                                    <option key={unit.id} value={unit.id}>
+                                                        {unit.unidad} ({unit.tipologia}) - {unit.valor_lista?.toLocaleString()} UF
+                                                    </option>
+                                                )
+                                            ))
+                                        )}
+                                    </select>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleAddSecondaryUnit}
+                                    disabled={!selectedSecondaryUnitToAdd}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 flex items-center"
+                                >
+                                    <PlusCircle className="h-5 w-5 mr-1" /> Agregar
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Columna 3: Lista de Secundarios Agregados */}
+                        <div className="border-t lg:border-t-0 lg:border-l lg:pl-6 pt-4 lg:pt-0"> {/* Separación visual y para columnas */}
+                            <h4 className="text-lg font-semibold mb-3">Secundarios Agregados:</h4>
+                            {addedSecondaryUnits.length === 0 ? (
+                                <p className="text-gray-500">Ningún secundario añadido.</p>
+                            ) : (
                                 <ul className="space-y-2">
                                     {addedSecondaryUnits.map(unit => (
                                         <li key={unit.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
@@ -703,8 +706,8 @@ const BrokerQuotePage: React.FC = () => {
                                         </li>
                                     ))}
                                 </ul>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </section>
                 {/* FIN NUEVA TARJETA/SECCIÓN */}
