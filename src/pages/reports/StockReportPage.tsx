@@ -1,33 +1,26 @@
 // src/pages/reports/StockReportPage.tsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase'; // Usando la ruta relativa que te funcionó
-import { PackageSearch } from 'lucide-react'; // Ícono para la página de stock
+import { PackageSearch, AlertCircle, Loader2 } from 'lucide-react';
 
-// Define una interfaz para la estructura de tus datos de stock
-// Asegúrate que coincida con las columnas de tu tabla 'stock_unidades'
-// y los datos que insertaste desde CotizadorSettings.tsx
+// Interfaz ajustada a las columnas probables de tu tabla 'stock_unidades'
+// y las que son más relevantes para un informe de stock.
 interface StockUnidad {
-  id: string; // O el tipo de tu ID, usualmente uuid
+  id: string;
   created_at: string;
   proyecto_nombre: string | null;
-  unidad_codigo: string | null; // Cambiado de 'unidad' a 'unidad_codigo' para coincidir con la tabla
-  tipo_bien: string | null; // Añadido, basado en tu último CotizadorSettings.tsx
-  tipologia: string | null;
-  etapa: string | null; // Añadido
+  unidad_codigo: string | null; // Asumiendo que 'unidad' en tu mapeo se guarda como 'unidad_codigo'
+  tipo_bien: string | null;     // Columna del Excel 'Tipo Bien'
+  tipologia: string | null;     // Columna del Excel 'Tipo' (ej. 2D+2B)
   piso: string | null;
   orientacion: string | null;
-  valor_lista: number | null; // Añadido
-  descuento: number | null; // Añadido
-  sup_interior: number | null; // Añadido
-  sup_util: number | null; // Cambiado de 'm2_utiles' a 'sup_util'
-  sup_terraza: number | null; // Cambiado de 'm2_terraza' a 'sup_terraza'
-  sup_ponderada: number | null; // Añadido
-  sup_terreno: number | null; // Añadido
-  sup_jardin: number | null; // Añadido
-  sup_total: number | null; // Cambiado de 'm2_totales' a 'sup_total'
-  sup_logia: number | null; // Añadido
+  m2_utiles: number | null;    // Corresponde a 'Sup. Útil'
+  m2_terraza: number | null;   // Corresponde a 'Sup. terraza'
+  m2_totales: number | null;   // Corresponde a 'Sup. total'
+  precio_uf: number | null;    // Corresponde a 'Valor lista'
   estado_unidad: string | null;
-  // ... puedes añadir más columnas que quieras mostrar o usar
+  etapa: string | null;         // Columna del Excel 'Etapa'
+  // Añade más columnas si las tienes en la tabla y quieres mostrarlas
 }
 
 const StockReportPage: React.FC = () => {
@@ -40,27 +33,25 @@ const StockReportPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        // Selecciona las columnas que realmente necesitas mostrar.
-        // El nombre de columna 'unidad' en tu CotizadorSettings.tsx se llamaba unidad_codigo en la tabla.
-        // Asegúrate de que los nombres de columna aquí coincidan con tu tabla 'stock_unidades'.
+        // Asegúrate de que los nombres de columna en .select() coincidan con tu tabla 'stock_unidades'
         const { data, error: fetchError } = await supabase
-          .from('stock_unidades') // Nombre exacto de tu tabla
+          .from('stock_unidades')
           .select(`
-            id,
+            id, 
             created_at,
-            proyecto_nombre,
+            proyecto_nombre, 
             unidad_codigo, 
             tipo_bien, 
-            tipologia,
-            etapa,
-            piso,
-            orientacion,
-            sup_util,    
-            sup_terraza, 
-            sup_total,   
-            valor_lista, 
-            estado_unidad
-          `) // Lista las columnas que quieres obtener
+            tipologia, 
+            piso, 
+            orientacion, 
+            m2_utiles, 
+            m2_terraza, 
+            m2_totales, 
+            precio_uf, 
+            estado_unidad,
+            etapa 
+          `) // Columnas a seleccionar
           .order('proyecto_nombre', { ascending: true })
           .order('unidad_codigo', { ascending: true });
 
@@ -83,10 +74,7 @@ const StockReportPage: React.FC = () => {
   if (loading) {
     return (
       <div className="p-6 flex justify-center items-center h-64">
-        <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
+        <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
         <span className="ml-3 text-lg text-gray-700">Cargando stock...</span>
       </div>
     );
@@ -95,8 +83,11 @@ const StockReportPage: React.FC = () => {
   if (error) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-semibold text-red-600 mb-4">Error al Cargar Stock</h1>
-        <p className="text-red-500 bg-red-100 p-4 rounded-md">{error}</p>
+        <div className="flex items-center text-red-600 mb-4">
+          <AlertCircle className="h-8 w-8 mr-3" />
+          <h1 className="text-2xl font-semibold">Error al Cargar Stock</h1>
+        </div>
+        <p className="text-red-700 bg-red-100 p-4 rounded-md">{error}</p>
       </div>
     );
   }
@@ -109,44 +100,45 @@ const StockReportPage: React.FC = () => {
       </div>
 
       {stockData.length === 0 ? (
-        <p className="text-gray-600 text-lg">No hay unidades de stock disponibles.</p>
+        <p className="text-gray-600 text-lg">No hay unidades de stock disponibles para mostrar.</p>
       ) : (
         <div className="overflow-x-auto bg-white shadow-md rounded-lg">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-100">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proyecto</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad (N° Bien)</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo Bien</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipología</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Piso</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sup. Útil</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sup. Terraza</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio UF</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                {/* Define las cabeceras de tu tabla */}
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Proyecto</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">N° Bien</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipo Bien</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipología</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Piso</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Sup. Útil</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Precio UF</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Etapa</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {stockData.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.proyecto_nombre}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.unidad_codigo}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.tipo_bien}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.tipologia}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.piso}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">{item.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">{item.sup_terraza?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">{item.valor_lista?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                <tr key={item.id} className="hover:bg-gray-50 transition-colors duration-150">
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{item.proyecto_nombre}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.unidad_codigo}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.tipo_bien}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.tipologia}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.piso}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{item.m2_utiles?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">{item.precio_uf?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm">
+                    <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       item.estado_unidad === 'Disponible' ? 'bg-green-100 text-green-800' :
                       item.estado_unidad === 'Reservado' ? 'bg-yellow-100 text-yellow-800' :
                       item.estado_unidad === 'Vendido' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800' // Para 'No Disponible' u otros
+                      'bg-gray-100 text-gray-800'
                     }`}>
                       {item.estado_unidad}
                     </span>
                   </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.etapa}</td>
                 </tr>
               ))}
             </tbody>
