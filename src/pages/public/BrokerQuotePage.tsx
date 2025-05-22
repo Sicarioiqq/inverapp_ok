@@ -273,7 +273,7 @@ const BrokerQuotePage: React.FC = () => {
           <h1 className="text-2xl font-bold">Cotizador Broker: {brokerInfo.name}</h1>
           <div className="text-lg font-semibold text-gray-700">
             {ufValue ? (
-              <span>UF: $ {ufValue.toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+              <span>UF: $ {ufValue.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             ) : (
               <span className="text-sm text-gray-500">Cargando UF...</span>
             )}
