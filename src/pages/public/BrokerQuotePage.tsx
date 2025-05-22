@@ -56,6 +56,10 @@ const BrokerQuotePage: React.FC = () => {
   const [brokerCommissions, setBrokerCommissions] = useState<BrokerProjectCommission[]>([]);
   const [loadingCommissions, setLoadingCommissions] = useState(false);
 
+  // NUEVOS ESTADOS para el valor de la UF
+  const [ufValue, setUfValue] = useState<number | null>(null);
+  const [loadingUf, setLoadingUf] = useState(true);
+
 
   const [sortField, setSortField] = useState<keyof Unidad>('unidad');
   const [sortAsc, setSortAsc] = useState(true);
@@ -146,6 +150,33 @@ const BrokerQuotePage: React.FC = () => {
     fetchBrokerCommissions(); // Llamar a la nueva función de fetch
   }, [brokerInfo]);
 
+  // NUEVO: Fetch UF value
+  useEffect(() => {
+    const fetchUf = async () => {
+      setLoadingUf(true);
+      try {
+        // Using mindicador.cl API for UF value
+        const response = await fetch('https://mindicador.cl/api');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        // Assuming UF value is available at data.uf.valor
+        if (data && data.uf && data.uf.valor) {
+          setUfValue(data.uf.valor);
+        } else {
+          throw new Error('UF value not found in API response.');
+        }
+      } catch (e) {
+        console.error('Error fetching UF value:', e);
+        // Optionally, set an error state for UF fetch as well
+      } finally {
+        setLoadingUf(false);
+      }
+    };
+    fetchUf();
+  }, []); // Empty dependency array means this runs once on mount
+
   // Opciones de filtro
   const proyectos = ['Todos', ...Array.from(new Set(stock.map(u => u.proyecto_nombre))).sort()];
   const tipologias = [
@@ -209,10 +240,10 @@ const BrokerQuotePage: React.FC = () => {
       return 0;
     });
 
-  if (isValidating || loadingCommissions) // Esperar también a que carguen las comisiones
+  if (isValidating || loadingCommissions || loadingUf) // Esperar también a que carguen las comisiones y la UF
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="animate-spin" /> Validando...
+        <Loader2 className="animate-spin" /> Cargando datos...
       </div>
     );
   if (error || !brokerInfo)
@@ -238,8 +269,15 @@ const BrokerQuotePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow">
-        <div className="container mx-auto p-4">
+        <div className="container mx-auto p-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold">Cotizador Broker: {brokerInfo.name}</h1>
+          <div className="text-lg font-semibold text-gray-700">
+            {ufValue ? (
+              <span>UF: $ {ufValue.toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+            ) : (
+              <span className="text-sm text-gray-500">Cargando UF...</span>
+            )}
+          </div>
         </div>
       </header>
       <main className="container mx-auto p-4">
@@ -384,14 +422,14 @@ const BrokerQuotePage: React.FC = () => {
 
         {/* Configuración solo de la unidad seleccionada */}
         {activeTab === 'configuracion' && (
-          <div className="bg-white shadow rounded p-6"> {/* Removed space-y-6 from here */}
+          <div className="bg-white shadow rounded p-6">
             <h2 className="text-xl font-semibold mb-4">Configuración de Cotización</h2>
             {!selectedUnidad ? (
               <p className="text-gray-500">Seleccione un departamento en Principales.</p>
             ) : (
               <>
                 {/* Sección Cliente/RUT */}
-                {/* Changed from 'mb-6' to 'pb-4 mb-4' and added 'border-b' for separation */}
+                {/* Changed from 'mb-6' to 'pb-4 mb-4' and added 'border-b' for visual separation and padding */}
                 <div className="bg-blue-50 p-4 rounded border-b pb-4 mb-6">
                   <h3 className="text-lg font-medium mb-2">Datos del Cliente</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
