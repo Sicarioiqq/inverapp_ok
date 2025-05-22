@@ -9,7 +9,9 @@ import {
   Loader2,
   ShieldX,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  PlusCircle, // Icono para añadir
+  Trash2 // Icono para eliminar
 } from 'lucide-react';
 
 interface BrokerInfo {
@@ -73,11 +75,12 @@ const BrokerQuotePage: React.FC = () => {
   // NUEVOS ESTADOS para la configuración de cotización
   const [quotationType, setQuotationType] = useState<QuotationType>('descuento');
   const [discountAmount, setDiscountAmount] = useState<number>(0);
-  const [bonoAmount, setBonoAmount] = useState<number>(0); // Renamed from bonusAmount to bonoAmount for clarity
+  const [bonoAmount, setBonoAmount] = useState<number>(0);
 
   // NUEVOS ESTADOS para unidades secundarias del proyecto
   const [projectSecondaryUnits, setProjectSecondaryUnits] = useState<Unidad[]>([]);
-  const [selectedSecondaryUnits, setSelectedSecondaryUnits] = useState<string[]>([]); // Array de IDs de unidades secundarias seleccionadas
+  const [selectedSecondaryUnitToAdd, setSelectedSecondaryUnitToAdd] = useState<string>(''); // ID de la unidad seleccionada en el dropdown
+  const [addedSecondaryUnits, setAddedSecondaryUnits] = useState<Unidad[]>([]); // Lista de unidades secundarias añadidas a la cotización
 
 
   // Validar broker
@@ -132,7 +135,7 @@ const BrokerQuotePage: React.FC = () => {
         }
         setStock(all);
       } catch (e) {
-        console.error('Error loading stock:', e);
+        console.error('Error cargando stock:', e);
       } finally {
         setLoadingStock(false);
       }
@@ -150,7 +153,7 @@ const BrokerQuotePage: React.FC = () => {
             if (ce) throw ce;
             setBrokerCommissions(data || []);
         } catch (e) {
-            console.error('Error loading broker commissions:', e);
+            console.error('Error cargando comisiones de broker:', e);
         } finally {
             setLoadingCommissions(false);
         }
@@ -165,29 +168,29 @@ const BrokerQuotePage: React.FC = () => {
     const fetchUf = async () => {
       setLoadingUf(true);
       try {
-        // Using mindicador.cl API for UF value
+        // Usando la API mindicador.cl para el valor de la UF
         const response = await fetch('https://mindicador.cl/api');
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`Error HTTP! estado: ${response.status}`);
         }
         const data = await response.json();
-        // Assuming UF value is available at data.uf.valor
+        // Asumiendo que el valor de la UF está en data.uf.valor
         if (data && data.uf && data.uf.valor) {
           setUfValue(data.uf.valor);
         } else {
-          throw new Error('UF value not found in API response.');
+          throw new Error('Valor de UF no encontrado en la respuesta de la API.');
         }
       } catch (e) {
-        console.error('Error fetching UF value:', e);
-        // Optionally, set an error state for UF fetch as well
+        console.error('Error obteniendo valor de UF:', e);
+        // Opcionalmente, se puede establecer un estado de error para la obtención de UF
       } finally {
         setLoadingUf(false);
       }
     };
     fetchUf();
-  }, []); // Empty dependency array means this runs once on mount
+  }, []); // El array de dependencia vacío significa que se ejecuta una vez al montar
 
-  // NUEVO: Fetch secondary units for the selected project
+  // NUEVO: Obtener unidades secundarias para el proyecto seleccionado
   useEffect(() => {
     if (selectedUnidad?.proyecto_nombre) {
       const fetchProjectUnits = async () => {
@@ -196,21 +199,22 @@ const BrokerQuotePage: React.FC = () => {
             .from<Unidad>('stock_unidades')
             .select('id, unidad, tipologia, valor_lista, tipo_bien')
             .eq('proyecto_nombre', selectedUnidad.proyecto_nombre)
-            .neq('tipo_bien', 'DEPARTAMENTO') // Filter for secondary units
+            .neq('tipo_bien', 'DEPARTAMENTO') // Filtrar por unidades secundarias (no departamentos)
             .order('unidad');
 
           if (suError) throw suError;
           setProjectSecondaryUnits(data || []);
-          setSelectedSecondaryUnits([]); // Reset selected secondary units when project changes
+          setSelectedSecondaryUnitToAdd(''); // Resetear selección del dropdown al cambiar de proyecto
+          setAddedSecondaryUnits([]); // Resetear unidades secundarias añadidas
         } catch (e) {
-          console.error('Error loading project secondary units:', e);
+          console.error('Error cargando unidades secundarias del proyecto:', e);
           setProjectSecondaryUnits([]);
         }
       };
       fetchProjectUnits();
     } else {
       setProjectSecondaryUnits([]);
-      setSelectedSecondaryUnits([]);
+      setAddedSecondaryUnits([]);
     }
   }, [selectedUnidad?.proyecto_nombre]);
 
@@ -221,9 +225,9 @@ const BrokerQuotePage: React.FC = () => {
     'Todos',
     ...Array.from(
       new Set(
-        // Filter tipologias based on activeTab and current project filter
+        // Filtrar tipologías basadas en la pestaña activa y el filtro de proyecto actual
         stock
-          .filter(u => activeTab === 'principales' ? u.tipo_bien === 'DEPARTAMENTO' : true) // ONLY show DEPARTAMENTO for 'principales'
+          .filter(u => activeTab === 'principales' ? u.tipo_bien === 'DEPARTAMENTO' : true) // SOLO mostrar DEPARTAMENTO para 'principales'
           .filter(u => filterProyecto === 'Todos' || u.proyecto_nombre === filterProyecto)
           .map(u => u.tipologia)
       )
@@ -280,14 +284,22 @@ const BrokerQuotePage: React.FC = () => {
       return 0;
     });
 
-  // Handler para seleccionar/deseleccionar unidades secundarias
-  const handleSelectSecondaryUnit = (unitId: string) => {
-    setSelectedSecondaryUnits(prev =>
-      prev.includes(unitId)
-        ? prev.filter(id => id !== unitId)
-        : [...prev, unitId]
-    );
+  // Handler para agregar unidad secundaria a la cotización
+  const handleAddSecondaryUnit = () => {
+    if (selectedSecondaryUnitToAdd) {
+      const unitToAdd = projectSecondaryUnits.find(unit => unit.id === selectedSecondaryUnitToAdd);
+      if (unitToAdd && !addedSecondaryUnits.some(unit => unit.id === unitToAdd.id)) {
+        setAddedSecondaryUnits(prev => [...prev, unitToAdd]);
+        setSelectedSecondaryUnitToAdd(''); // Limpiar la selección del dropdown
+      }
+    }
   };
+
+  // Handler para remover unidad secundaria de la cotización
+  const handleRemoveAddedSecondaryUnit = (unitId: string) => {
+    setAddedSecondaryUnits(prev => prev.filter(unit => unit.id !== unitId));
+  };
+
 
   if (isValidating || loadingCommissions || loadingUf) // Esperar también a que carguen las comisiones y la UF
     return (
@@ -556,26 +568,26 @@ const BrokerQuotePage: React.FC = () => {
                 <section className="mt-6 border-t pt-4"> {/* Added border-t and pt-4 for separation */}
                     <h3 className="text-lg font-semibold col-span-full mb-4">Configuración de Cotización</h3>
 
-                    {/* Tipo de Descuento/Bono */}
-                    <div className="mb-4">
-                        <label htmlFor="quotationType" className="block text-sm font-medium text-gray-700">Tipo de Configuración</label>
-                        <select
-                            id="quotationType"
-                            name="quotationType"
-                            value={quotationType}
-                            onChange={e => setQuotationType(e.target.value as QuotationType)}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        >
-                            <option value="descuento">Descuento</option>
-                            <option value="bono">Bono Pie</option>
-                            <option value="mix">Mix (Descuento + Bono)</option>
-                        </select>
-                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4"> {/* Columnas para la configuración */}
+                        {/* Columna 1: Tipo de Configuración */}
+                        <div>
+                            <label htmlFor="quotationType" className="block text-sm font-medium text-gray-700">Tipo de Configuración</label>
+                            <select
+                                id="quotationType"
+                                name="quotationType"
+                                value={quotationType}
+                                onChange={e => setQuotationType(e.target.value as QuotationType)}
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            >
+                                <option value="descuento">Descuento</option>
+                                <option value="bono">Bono Pie</option>
+                                <option value="mix">Mix (Descuento + Bono)</option>
+                            </select>
+                        </div>
 
-                    {/* Campos de Ingreso Condicionales */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        {/* Columna 2 y 3: Campos de Ingreso Condicionales */}
                         {quotationType === 'descuento' && (
-                            <div>
+                            <div className="md:col-span-2"> {/* Ocupa 2 columnas en md y arriba */}
                                 <label htmlFor="discountInput" className="block text-sm font-medium text-gray-700">Descuento (%)</label>
                                 <input
                                     type="number"
@@ -590,7 +602,7 @@ const BrokerQuotePage: React.FC = () => {
                             </div>
                         )}
                         {quotationType === 'bono' && (
-                            <div>
+                            <div className="md:col-span-2"> {/* Ocupa 2 columnas en md y arriba */}
                                 <label htmlFor="bonoInput" className="block text-sm font-medium text-gray-700">Bono Pie (UF)</label>
                                 <input
                                     type="number"
@@ -605,7 +617,7 @@ const BrokerQuotePage: React.FC = () => {
                         )}
                         {quotationType === 'mix' && (
                             <>
-                                <div>
+                                <div> {/* Columna 2 para el descuento */}
                                     <label htmlFor="mixDiscountInput" className="block text-sm font-medium text-gray-700">Descuento (%)</label>
                                     <input
                                         type="number"
@@ -618,12 +630,12 @@ const BrokerQuotePage: React.FC = () => {
                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                     />
                                 </div>
-                                <div>
+                                <div> {/* Columna 3 para el bono automático */}
                                     <label htmlFor="mixBonoInput" className="block text-sm font-medium text-gray-700">Bono Pie (UF) (Automático)</label>
                                     <input
                                         type="number"
                                         id="mixBonoInput"
-                                        value={bonoAmount} // This will be calculated automatically later
+                                        value={bonoAmount} // Este se calculará automáticamente más tarde
                                         readOnly
                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed"
                                     />
@@ -633,26 +645,64 @@ const BrokerQuotePage: React.FC = () => {
                     </div>
 
                     {/* Listado de Secundarios para agregar a la cotización */}
-                    <div className="border-t pt-4">
-                        <h4 className="text-lg font-medium mb-3">Agregar Secundarios a la Cotización</h4>
-                        {projectSecondaryUnits.length === 0 ? (
-                            <p className="text-gray-500">No hay unidades secundarias disponibles para este proyecto.</p>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {projectSecondaryUnits.map(unit => (
-                                    <div key={unit.id} className="flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            id={`secondary-${unit.id}`}
-                                            checked={selectedSecondaryUnits.includes(unit.id)}
-                                            onChange={() => handleSelectSecondaryUnit(unit.id)}
-                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                        />
-                                        <label htmlFor={`secondary-${unit.id}`} className="ml-2 text-sm text-gray-700">
-                                            {unit.unidad} ({unit.tipologia}) - {unit.valor_lista?.toLocaleString()} UF
-                                        </label>
-                                    </div>
-                                ))}
+                    <div className="border-t pt-4 mt-6"> {/* Separación visual */}
+                        <h4 className="text-lg font-semibold mb-3">Agregar Secundarios a la Cotización</h4>
+                        
+                        <div className="flex items-end gap-2 mb-4"> {/* Contenedor del dropdown y botón */}
+                            <div className="flex-grow">
+                                <label htmlFor="secondaryUnitSelect" className="sr-only">Seleccionar unidad secundaria</label>
+                                <select
+                                    id="secondaryUnitSelect"
+                                    value={selectedSecondaryUnitToAdd}
+                                    onChange={e => setSelectedSecondaryUnitToAdd(e.target.value)}
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                >
+                                    <option value="">Seleccione un secundario</option>
+                                    {projectSecondaryUnits.length === 0 ? (
+                                        <option disabled>No hay unidades secundarias disponibles para este proyecto.</option>
+                                    ) : (
+                                        projectSecondaryUnits.map(unit => (
+                                            // Solo mostrar unidades que no han sido añadidas ya
+                                            !addedSecondaryUnits.some(addedUnit => addedUnit.id === unit.id) && (
+                                                <option key={unit.id} value={unit.id}>
+                                                    {unit.unidad} ({unit.tipologia}) - {unit.valor_lista?.toLocaleString()} UF
+                                                </option>
+                                            )
+                                        ))
+                                    )}
+                                </select>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleAddSecondaryUnit}
+                                disabled={!selectedSecondaryUnitToAdd}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 flex items-center"
+                            >
+                                <PlusCircle className="h-5 w-5 mr-1" /> Agregar
+                            </button>
+                        </div>
+
+                        {/* Lista de Secundarios Agregados */}
+                        {addedSecondaryUnits.length > 0 && (
+                            <div className="mt-4 border-t pt-4"> {/* Separación visual */}
+                                <h5 className="text-md font-medium mb-2">Secundarios Agregados a la Cotización:</h5>
+                                <ul className="space-y-2">
+                                    {addedSecondaryUnits.map(unit => (
+                                        <li key={unit.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
+                                            <span className="text-sm text-gray-800">
+                                                {unit.unidad} ({unit.tipologia}) - {unit.valor_lista?.toLocaleString()} UF
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveAddedSecondaryUnit(unit.id)}
+                                                className="text-red-600 hover:text-red-800 ml-4 p-1 rounded-full hover:bg-red-100"
+                                                title="Eliminar de la cotización"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
                         )}
                     </div>
