@@ -380,9 +380,11 @@ const BrokerQuotePage: React.FC = () => {
   // Sincronizar pagoPromesa y pagoPromesaPct
   useEffect(() => {
     // Solo sincronizar si totalEscritura es válido y mayor a 0
-    if (totalEscritura > 0 && !isNaN(pagoPromesa)) {
+    if (totalEscritura > 0 && !isNaN(pagoPromesa) && isFinite(pagoPromesa)) {
       setPagoPromesaPct((pagoPromesa / totalEscritura) * 100);
     } else if (isNaN(pagoPromesa) || !isFinite(pagoPromesa)) { // Si pagoPromesa se vuelve inválido, resetear pct
+      setPagoPromesaPct(0);
+    } else { // Si totalEscritura es 0 o inválido
       setPagoPromesaPct(0);
     }
   }, [pagoPromesa, totalEscritura]); // Dependencia de totalEscritura está correcta ahora
@@ -390,9 +392,11 @@ const BrokerQuotePage: React.FC = () => {
   // Sincronizar pagoPie y pagoPiePct
   useEffect(() => {
     // Solo sincronizar si totalEscritura es válido y mayor a 0
-    if (totalEscritura > 0 && !isNaN(pagoPie)) {
+    if (totalEscritura > 0 && !isNaN(pagoPie) && isFinite(pagoPie)) {
       setPagoPiePct((pagoPie / totalEscritura) * 100);
     } else if (isNaN(pagoPie) || !isFinite(pagoPie)) { // Si pagoPie se vuelve inválido, resetear pct
+      setPagoPiePct(0);
+    } else { // Si totalEscritura es 0 o inválido
       setPagoPiePct(0);
     }
   }, [pagoPie, totalEscritura]); // Dependencia de totalEscritura está correcta ahora
@@ -423,7 +427,7 @@ const BrokerQuotePage: React.FC = () => {
 
     if (totalEscritura === 0) { // Si el total escritura es 0, no se puede calcular porcentaje, solo se actualiza el UF si es directo
       setPagoPromesa(finalValue);
-      setPagoPromesaPct(0); // El porcentaje es 0 si el total es 0
+      // El porcentaje se calculará via useEffect si totalEscritura deja de ser 0
       return;
     }
 
@@ -431,7 +435,7 @@ const BrokerQuotePage: React.FC = () => {
       setPagoPromesa(finalValue);
       // El porcentaje se calculará y actualizará vía useEffect
     } else { // type === 'pct'
-      setPagoPromesaPct(finalValue);
+      setPagoPromesaPct(finalValue); // Actualiza el estado del porcentaje directamente
       setPagoPromesa((finalValue / 100) * totalEscritura);
     }
   };
@@ -444,7 +448,7 @@ const BrokerQuotePage: React.FC = () => {
 
     if (totalEscritura === 0) {
       setPagoPie(finalValue);
-      setPagoPiePct(0); // El porcentaje es 0 si el total es 0
+      // El porcentaje se calculará via useEffect si totalEscritura deja de ser 0
       return;
     }
 
@@ -452,7 +456,7 @@ const BrokerQuotePage: React.FC = () => {
       setPagoPie(finalValue);
       // El porcentaje se calculará y actualizará vía useEffect
     } else { // type === 'pct'
-      setPagoPiePct(finalValue);
+      setPagoPiePct(finalValue); // Actualiza el estado del porcentaje directamente
       setPagoPie((finalValue / 100) * totalEscritura);
     }
   };
