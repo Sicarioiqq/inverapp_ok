@@ -327,7 +327,7 @@ const ReservationForm = () => {
       const numValue = parseFloat(value);
       setFormData(prev => ({
         ...prev,
-        [name]: Math.min(100, Math.max(0, numValue))
+        [name]: isNaN(numValue) ? 0 : Math.min(100, Math.max(0, numValue))
       }));
     } else {
       setFormData(prev => ({
