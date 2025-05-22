@@ -234,14 +234,17 @@ const BrokerQuotePage: React.FC = () => {
         selectedUnidad.proyecto_nombre
       );
 
-      if (quotationType === 'descuento' || quotationType === 'mix') {
-        // En estos modos, el descuento se "autocarga" con el descuento disponible del departamento
+      if (quotationType === 'descuento') {
+        // En este modo, el descuento se "autocarga" con el descuento disponible del departamento
         // y se redondea a 2 decimales para la visualización.
         setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); 
-        setBonoAmount(0); // Restablecer bono en estos modos
+        setBonoAmount(0); // Restablecer bono en este modo
       } else if (quotationType === 'bono') {
         setDiscountAmount(0); // Restablecer descuento en modo bono
         setBonoAmount(0); // El bono en modo 'bono' se ingresa manualmente por ahora, no hay un valor inicial automático
+      } else if (quotationType === 'mix') {
+        setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); // El descuento inicial es el de la unidad
+        setBonoAmount(0); // El bono en mix se calculará automáticamente más tarde (o es 0 inicialmente)
       }
     } else {
       // Resetear estados si no hay unidad seleccionada
