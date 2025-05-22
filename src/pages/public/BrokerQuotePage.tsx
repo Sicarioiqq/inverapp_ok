@@ -123,9 +123,17 @@ const BrokerQuotePage: React.FC = () => {
   useEffect(() => {
     let arr = [...stock];
     if (selectedProject) arr = arr.filter(u => u.proyecto_nombre === selectedProject);
+    // actualizar lista de tipologías según proyecto seleccionado
     const types = Array.from(new Set(arr.map(u => u.tipologia))).sort();
     setTypologies(types);
     if (selectedTip) arr = arr.filter(u => u.tipologia === selectedTip);
+    // ocultar unidades con descuento neto < 0%
+    arr = arr.filter(u => {
+      const basePct = (u.descuento ?? 0) * 100;
+      const comm = commissions[u.proyecto_nombre] ?? 0;
+      return basePct - comm >= 0;
+    });
+    // ordenar
     arr.sort((a, b) => {
       const fa = a[sortField] ?? '';
       const fb = b[sortField] ?? '';
@@ -134,7 +142,7 @@ const BrokerQuotePage: React.FC = () => {
       return 0;
     });
     setFiltered(arr);
-  }, [stock, selectedProject, selectedTip, sortField, sortAsc]);
+  }, [stock, selectedProject, selectedTip, sortField, sortAsc, commissions]);
 
   const headers: { key: keyof Unidad; label: string }[] = [
     { key: 'proyecto_nombre', label: 'Proyecto' },
