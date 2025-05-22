@@ -143,6 +143,11 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, o
           icon: <Building2 className="h-5 w-5" />,
           path: '/informes/consolidado-brokers',
         },
+        {
+      title: 'Stock',
+      icon: <PackageSearch className="h-5 w-5" />, // Ícono para Stock
+      path: '/informes/stock', // Ruta que definiste en App.tsx
+    },
       ],
     },
     {
