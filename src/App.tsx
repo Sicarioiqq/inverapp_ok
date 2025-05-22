@@ -164,10 +164,10 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/informes/stock" element={
-    <ProtectedRoute>
-      <StockReportPage />
-    </ProtectedRoute>
-  } />
+            <ProtectedRoute>
+              <StockReportPage />
+          </ProtectedRoute>
+          } />
           <Route path="/informes/consolidado-brokers" element={
             <ProtectedRoute>
               <ConsolidadoBrokers />
