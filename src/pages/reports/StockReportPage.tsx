@@ -9,7 +9,7 @@ interface StockUnidad {
   id: string;
   created_at: string;
   proyecto_nombre: string | null;
-  unidad_codigo: string | null; // Coincide con la columna de Supabase
+  unidad: string | null; // Coincide con la columna de Supabase
   tipo_bien: string | null;     // Columna del Excel 'Tipo Bien'
   tipologia: string | null;     // Columna del Excel 'Tipo' (ej. 2D+2B)
   piso: string | null;
