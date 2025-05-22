@@ -31,7 +31,7 @@ interface Unidad {
   sup_terraza?: number | null;
   sup_total?: number | null;
   valor_lista: number | null;
-  descuento: number | null;
+  descuento: number | null; // Descuento base de la unidad (ej: 0.15 para 15%)
   estado_unidad: string | null;
   tipo_bien: string; // Asegúrate de que esta propiedad esté en la interfaz
 }
@@ -76,8 +76,8 @@ const BrokerQuotePage: React.FC = () => {
 
   // NUEVOS ESTADOS para la configuración de cotización
   const [quotationType, setQuotationType] = useState<QuotationType>('descuento');
-  const [discountAmount, setDiscountAmount] = useState<number>(0);
-  const [bonoAmount, setBonoAmount] = useState<number>(0); // Este bono es el que se ingresa en la configuración, no necesariamente el del pago.
+  const [discountAmount, setDiscountAmount] = useState<number>(0); // El descuento en % ingresado por el usuario
+  const [bonoAmount, setBonoAmount] = useState<number>(0); // El monto de bono en UF ingresado por el usuario
 
   // NUEVOS ESTADOS para unidades secundarias del proyecto
   const [projectSecondaryUnits, setProjectSecondaryUnits] = useState<Unidad[]>([]);
@@ -89,7 +89,8 @@ const BrokerQuotePage: React.FC = () => {
   const [pagoPromesa, setPagoPromesa] = useState<number>(0);
   const [pagoPie, setPagoPie] = useState<number>(0);
   // pagoCreditoHipotecario se calculará automáticamente
-  const [pagoBonoPieCotizacion, setPagoBonoPieCotizacion] = useState<number>(0); // Bono pie que afecta la forma de pago
+  const [pagoBonoPieCotizacion, setPagoBonoPieCotizacion] = useState<number>(0); // Este es el monto del bono pie que aparece en la sección "Forma de Pago"
+
 
   // Constante para el valor fijo de la reserva en pesos
   const VALOR_RESERVA_PESOS = 100000;
@@ -202,33 +203,47 @@ const BrokerQuotePage: React.FC = () => {
     fetchUf();
   }, []); // El array de dependencia vacío significa que se ejecuta una vez al montar
 
-  // NUEVO: Obtener unidades secundarias para el proyecto seleccionado
+  // NUEVO: Obtener unidades secundarias para el proyecto seleccionado e inicializar descuentos/bonos
   useEffect(() => {
-    if (selectedUnidad?.proyecto_nombre) {
+    if (selectedUnidad) {
       const fetchProjectUnits = async () => {
         try {
           const { data, error: suError } = await supabase
             .from<Unidad>('stock_unidades')
-            .select('id, unidad, tipologia, valor_lista, tipo_bien') // Asegúrate de seleccionar 'tipo_bien' aquí
+            .select('id, unidad, tipologia, valor_lista, tipo_bien')
             .eq('proyecto_nombre', selectedUnidad.proyecto_nombre)
-            .neq('tipo_bien', 'DEPARTAMENTO') // Filtrar por unidades secundarias (no departamentos)
+            .neq('tipo_bien', 'DEPARTAMENTO')
             .order('unidad');
 
           if (suError) throw suError;
           setProjectSecondaryUnits(data || []);
-          setSelectedSecondaryUnitToAdd(''); // Resetear selección del dropdown al cambiar de proyecto
-          setAddedSecondaryUnits([]); // Resetear unidades secundarias añadidas
+          setSelectedSecondaryUnitToAdd('');
+          setAddedSecondaryUnits([]);
         } catch (e) {
           console.error('Error cargando unidades secundarias del proyecto:', e);
           setProjectSecondaryUnits([]);
         }
       };
       fetchProjectUnits();
+
+      // Inicializar discountAmount o bonoAmount según el tipo de configuración
+      if (quotationType === 'descuento') {
+        setDiscountAmount((selectedUnidad.descuento ?? 0) * 100);
+        setBonoAmount(0); // Asegurarse de que el otro sea 0
+      } else if (quotationType === 'bono') {
+        setDiscountAmount(0); // Asegurarse de que el otro sea 0
+        setBonoAmount(0); // Por ahora, bono se ingresa manualmente o se calculará en el futuro
+      } else if (quotationType === 'mix') {
+        setDiscountAmount((selectedUnidad.descuento ?? 0) * 100); // El descuento inicial es el de la unidad
+        setBonoAmount(0); // El bono en mix se calculará automáticamente más tarde (o es 0 inicialmente)
+      }
     } else {
       setProjectSecondaryUnits([]);
       setAddedSecondaryUnits([]);
+      setDiscountAmount(0);
+      setBonoAmount(0);
     }
-  }, [selectedUnidad?.proyecto_nombre]);
+  }, [selectedUnidad, quotationType]); // Se re-ejecuta si la unidad seleccionada o el tipo de cotización cambian
 
   // Efecto para inicializar el pago de reserva (en UF) y para sincronizar el bono pie de configuración con el de cotización
   useEffect(() => {
@@ -242,7 +257,7 @@ const BrokerQuotePage: React.FC = () => {
     } else {
       setPagoBonoPieCotizacion(0); // Si es solo descuento, el bono pie de la cotización es 0
     }
-  }, [ufValue, bonoAmount, quotationType]); // Depende de ufValue, bonoAmount y quotationType
+  }, [ufValue, bonoAmount, quotationType]); // Depende de ufValue, bonoAmount y quotationType para recalcular
 
   // Opciones de filtro
   const proyectos = ['Todos', ...Array.from(new Set(stock.map(u => u.proyecto_nombre))).sort()];
@@ -366,6 +381,7 @@ const BrokerQuotePage: React.FC = () => {
   // Función para convertir UF a Pesos
   const ufToPesos = (uf: number | null): string => {
     if (uf === null || ufValue === null) return '-';
+    // Muestra pesos sin decimales
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
       currency: 'CLP',
@@ -662,10 +678,21 @@ const BrokerQuotePage: React.FC = () => {
                                   name="quotationType"
                                   value={quotationType}
                                   onChange={e => {
-                                    setQuotationType(e.target.value as QuotationType);
-                                    // Resetear montos al cambiar tipo de configuración
-                                    setDiscountAmount(0);
-                                    setBonoAmount(0);
+                                    const newQuotationType = e.target.value as QuotationType;
+                                    setQuotationType(newQuotationType);
+                                    // Al cambiar el tipo de configuración, inicializar montos
+                                    if (selectedUnidad) {
+                                      if (newQuotationType === 'descuento') {
+                                        setDiscountAmount((selectedUnidad.descuento ?? 0) * 100);
+                                        setBonoAmount(0);
+                                      } else if (newQuotationType === 'bono') {
+                                        setDiscountAmount(0);
+                                        setBonoAmount(0); // El bono en modo 'bono' se ingresa manualmente por ahora
+                                      } else if (newQuotationType === 'mix') {
+                                        setDiscountAmount((selectedUnidad.descuento ?? 0) * 100); // El descuento inicial es el de la unidad
+                                        setBonoAmount(0); // El bono en mix se calculará automáticamente más tarde (o es 0 inicialmente)
+                                      }
+                                    }
                                   }}
                                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                               >
@@ -859,7 +886,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <div className="flex justify-end">
                                         <input
                                             type="number"
-                                            value={pagoReserva}
+                                            value={formatCurrency(pagoReserva)} // Usar formatCurrency para 2 decimales
                                             readOnly // Campo de Reserva es readOnly
                                             className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed"
                                             step="0.01"
@@ -875,7 +902,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <div className="flex justify-end">
                                         <input
                                             type="number"
-                                            value={pagoPromesa}
+                                            value={formatCurrency(pagoPromesa)} // Usar formatCurrency para 2 decimales
                                             onChange={e => setPagoPromesa(parseFloat(e.target.value) || 0)}
                                             className="w-24 text-right border rounded-md px-2 py-1"
                                             step="0.01"
@@ -891,7 +918,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <div className="flex justify-end">
                                         <input
                                             type="number"
-                                            value={pagoPie}
+                                            value={formatCurrency(pagoPie)} // Usar formatCurrency para 2 decimales
                                             onChange={e => setPagoPie(parseFloat(e.target.value) || 0)}
                                             className="w-24 text-right border rounded-md px-2 py-1"
                                             step="0.01"
@@ -907,7 +934,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <div className="flex justify-end">
                                         <input
                                             type="number"
-                                            value={pagoCreditoHipotecarioCalculado} // Cálculo automático
+                                            value={formatCurrency(pagoCreditoHipotecarioCalculado)} // Usar formatCurrency para 2 decimales
                                             readOnly // Crédito Hipotecario es readOnly
                                             className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed"
                                             step="0.01"
@@ -915,7 +942,7 @@ const BrokerQuotePage: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* Fila: Bono Pie (ahora se usa bonoPieAplicado del inicio) */}
+                                {/* Fila: Bono Pie (ahora se usa pagoBonoPieCotizacion) */}
                                 <div className="grid grid-cols-5 items-center">
                                     <span className="col-span-2">Bono Pie:</span>
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoBonoPieCotizacion / totalEscritura) * 100) : formatCurrency(0)}%</span>
@@ -923,7 +950,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <div className="flex justify-end">
                                         <input
                                             type="number"
-                                            value={pagoBonoPieCotizacion} // Utiliza el bono del cálculo de configuración
+                                            value={formatCurrency(pagoBonoPieCotizacion)} // Usar formatCurrency para 2 decimales
                                             readOnly // Este bono se maneja desde la sección de configuración
                                             className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed"
                                             step="0.01"
