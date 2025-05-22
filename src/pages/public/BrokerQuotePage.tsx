@@ -375,7 +375,7 @@ const BrokerQuotePage: React.FC = () => {
     setAddedSecondaryUnits(prev => prev.filter(unit => unit.id !== unitId));
   };
 
-  // Función para formatear moneda
+  // Función para formatear moneda (siempre con 2 decimales)
   const formatCurrency = (amount: number | null): string => {
     if (amount === null) return '-';
     return new Intl.NumberFormat('es-CL', {
@@ -385,10 +385,9 @@ const BrokerQuotePage: React.FC = () => {
     }).format(amount);
   };
 
-  // Función para convertir UF a Pesos
+  // Función para convertir UF a Pesos (con 0 decimales para pesos)
   const ufToPesos = (uf: number | null): string => {
     if (uf === null || ufValue === null) return '-';
-    // Muestra pesos sin decimales
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
       currency: 'CLP',
@@ -898,13 +897,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoReserva / totalEscritura) * 100) : formatCurrency(0)}%</span>
                                     <span className="text-right">{ufToPesos(pagoReserva)}</span>
                                     <div className="flex justify-end">
-                                        <input
-                                            type="number"
-                                            value={formatCurrency(pagoReserva)} // Usar formatCurrency para 2 decimales
-                                            readOnly // Campo de Reserva es readOnly
-                                            className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed"
-                                            step="0.01"
-                                        />
+                                        <span className="w-24 text-right px-2 py-1 bg-gray-100 rounded-md border border-gray-300 font-semibold">{formatCurrency(pagoReserva)}</span>
                                     </div>
                                 </div>
 
@@ -946,13 +939,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoCreditoHipotecarioCalculado / totalEscritura) * 100) : formatCurrency(0)}%</span>
                                     <span className="text-right">{ufToPesos(pagoCreditoHipotecarioCalculado)}</span>
                                     <div className="flex justify-end">
-                                        <input
-                                            type="number"
-                                            value={formatCurrency(pagoCreditoHipotecarioCalculado)} // Usar formatCurrency para 2 decimales
-                                            readOnly // Crédito Hipotecario es readOnly
-                                            className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed"
-                                            step="0.01"
-                                        />
+                                        <span className="w-24 text-right px-2 py-1 bg-gray-100 rounded-md border border-gray-300 font-semibold">{formatCurrency(pagoCreditoHipotecarioCalculado)}</span>
                                     </div>
                                 </div>
 
@@ -962,13 +949,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoBonoPieCotizacion / totalEscritura) * 100) : formatCurrency(0)}%</span>
                                     <span className="text-right">{ufToPesos(pagoBonoPieCotizacion)}</span>
                                     <div className="flex justify-end">
-                                        <input
-                                            type="number"
-                                            value={formatCurrency(pagoBonoPieCotizacion)} // Usar formatCurrency para 2 decimales
-                                            readOnly // Este bono se maneja desde la sección de configuración
-                                            className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed"
-                                            step="0.01"
-                                        />
+                                        <span className="w-24 text-right px-2 py-1 bg-gray-100 rounded-md border border-gray-300 font-semibold">{formatCurrency(pagoBonoPieCotizacion)}</span>
                                     </div>
                                 </div>
                                 
