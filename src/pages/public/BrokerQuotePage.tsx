@@ -21,7 +21,6 @@ interface Unidad {
   proyecto_nombre: string;
   unidad: string;
   tipologia: string;
-  tipo_bien: string;
   piso: string | null;
   sup_util: number | null;
   valor_lista: number | null;
@@ -40,7 +39,7 @@ const BrokerQuotePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('principales');
 
-  // Stock principales state
+  // Principales stock state
   const [stock, setStock] = useState<Unidad[]>([]);
   const [filtered, setFiltered] = useState<Unidad[]>([]);
   const [projects, setProjects] = useState<string[]>([]);
@@ -51,7 +50,7 @@ const BrokerQuotePage: React.FC = () => {
   const [sortAsc, setSortAsc] = useState(true);
   const [loadingStock, setLoadingStock] = useState(false);
 
-  // Validate access and fetch broker
+  // Validate broker access
   useEffect(() => {
     const validate = async () => {
       if (!brokerSlug || !accessToken) {
@@ -77,7 +76,7 @@ const BrokerQuotePage: React.FC = () => {
     validate();
   }, [brokerSlug, accessToken]);
 
-  // Fetch stock principales
+  // Load principales stock
   useEffect(() => {
     if (!brokerInfo) return;
     const load = async () => {
@@ -86,7 +85,7 @@ const BrokerQuotePage: React.FC = () => {
         const { data, error: se } = await supabase
           .from<Unidad>('stock_unidades')
           .select(
-            'id, proyecto_nombre, unidad, tipologia, tipo_bien, piso, sup_util, valor_lista, descuento, estado_unidad'
+            'id, proyecto_nombre, unidad, tipologia, piso, sup_util, valor_lista, descuento, estado_unidad'
           )
           .eq('tipo_bien', 'DEPARTAMENTO');
         if (se) throw se;
@@ -103,14 +102,14 @@ const BrokerQuotePage: React.FC = () => {
     load();
   }, [brokerInfo]);
 
-  // Filter & sort
+  // Filter and sort when dependencies change
   useEffect(() => {
-    let arr = stock;
+    let arr = [...stock];
     if (selectedProject) arr = arr.filter(u => u.proyecto_nombre === selectedProject);
     const types = Array.from(new Set(arr.map(u => u.tipologia))).sort();
     setTypologies(types);
     if (selectedTip) arr = arr.filter(u => u.tipologia === selectedTip);
-    arr = [...arr].sort((a, b) => {
+    arr.sort((a, b) => {
       const fa = a[sortField] ?? '';
       const fb = b[sortField] ?? '';
       if (fa < fb) return sortAsc ? -1 : 1;
@@ -134,8 +133,7 @@ const BrokerQuotePage: React.FC = () => {
   if (isValidating)
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="animate-spin" />
-        Validando...
+        <Loader2 className="animate-spin" /> Validando...
       </div>
     );
   if (error || !brokerInfo)
@@ -218,16 +216,84 @@ const BrokerQuotePage: React.FC = () => {
                 ))}
               </select>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full bg-white">
-                <thead>
+            <div className="overflow-x-auto bg-white shadow rounded">
+              <table className="min-w-full">
+                <thead className="bg-gray-200">
                   <tr>
                     {headers.map(h => (
                       <th
                         key={h.key}
-                        className="px-4 py-2 cursor-pointer"
+                        className="px-4 py-2 text-left cursor-pointer"
                         onClick={() => {
                           if (sortField === h.key) setSortAsc(!sortAsc);
                           else {
                             setSortField(h.key);
                             setSortAsc(true);
+                          }
+                        }}
+                      >
+                        <div className="flex items-center">
+                          {h.label}
+                          {sortField === h.key && (
+                            sortAsc ? <ArrowUp className="ml-1" /> : <ArrowDown className="ml-1" />
+                          )}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingStock ? (
+                    <tr>
+                      <td colSpan={headers.length} className="p-4 text-center">
+                        <Loader2 className="animate-spin" /> Cargando...
+                      </td>
+                    </tr>
+                  ) : filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={headers.length} className="p-4 text-center text-gray-500">
+                        No hay unidades para mostrar.
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map(u => (
+                      <tr key={u.id} className="border-t">
+                        <td className="px-4 py-2">{u.proyecto_nombre}</td>
+                        <td className="px-4 py-2">{u.unidad}</td>
+                        <td className="px-4 py-2">{u.tipologia}</td>
+                        <td className="px-4 py-2">{u.piso ?? '-'}</td>
+                        <td className="px-4 py-2 text-right">
+                          {u.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          {u.valor_lista?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          {u.descuento != null
+                            ? `${(u.descuento * 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+                            : '-'}
+                        </td>
+                        <td className="px-4 py-2">
+                          <span className={`px-2 py-1 rounded-full text-sm ${
+                            u.estado_unidad === 'Disponible' ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {u.estado_unidad}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+        {activeTab === 'secundarios' && <div>Contenido Secundarios...</div>}
+        {activeTab === 'configuracion' && <div>Contenido Configuración...</div>}
+      </main>
+    </div>
+  );
+};
+
+export default BrokerQuotePage;
