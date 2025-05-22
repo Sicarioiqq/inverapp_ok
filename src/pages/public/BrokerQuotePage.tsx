@@ -41,34 +41,108 @@ const BrokerQuotePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('principales');
 
-  const [stock, setStock] = useState<Unidad[]>([]);
-  const [filtered, setFiltered] = useState<Unidad[]>([]);
-  const [projects, setProjects] = useState<string[]>([]);
-  const [typologies, setTypologies] = useState<string[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('');
-  const [selectedTip, setSelectedTip] = useState<string>('');
-  const [sortField, setSortField] = useState<keyof Unidad>('proyecto_nombre');
-  const [sortAsc, setSortAsc] = useState(true);
-  const [loadingStock, setLoadingStock] = useState(false);
-
-  const [commissions, setCommissions] = useState<Record<string, number>>({});
-
-  // Selected unidad & configuration form values
   const [selectedUnidad, setSelectedUnidad] = useState<Unidad | null>(null);
   const [cliente, setCliente] = useState('');
   const [rut, setRut] = useState('');
 
-  // ... validation and data loading logic unchanged ...
+  // Validación de acceso y carga de broker
+  useEffect(() => {
+    if (!brokerSlug || !accessToken) {
+      setError('Información de acceso inválida.');
+      setIsValidating(false);
+      return;
+    }
+    const fetchBroker = async () => {
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('brokers')
+          .select('id, name')
+          .eq('slug', brokerSlug)
+          .eq('public_access_token', accessToken)
+          .single();
+        if (fetchError || !data) throw new Error('Acceso no autorizado');
+        setBrokerInfo(data);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setIsValidating(false);
+      }
+    };
+    fetchBroker();
+  }, [brokerSlug, accessToken, navigate]);
+
+  if (isValidating) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
+        <p className="text-xl text-gray-700">Validando acceso...</p>
+      </div>
+    );
+  }
+
+  if (error || !brokerInfo) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-red-50 p-4 text-center">
+        <ShieldX className="h-16 w-16 text-red-500 mb-4" />
+        <h1 className="text-2xl font-bold text-red-700 mb-2">Acceso Denegado</h1>
+        <p className="text-red-600">{error || 'No se pudo verificar la información.'}</p>
+        <button
+          onClick={() => navigate('/login')}
+          className="mt-6 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+        >
+          Ir al Login
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow">
         <div className="container mx-auto p-4">
-          <h1 className="text-2xl font-bold">Cotizador Broker: {brokerInfo?.name}</h1>
+          <h1 className="text-2xl font-bold">Cotizador Broker: {brokerInfo.name}</h1>
         </div>
       </header>
+
       <main className="container mx-auto p-4">
-        {/* Tabs nav omitted for brevity */}
+        {/* Aquí irían las pestañas Principales y Secundarios */}
+        <div className="mb-6 border-b border-gray-300">
+          <nav className="flex space-x-4">
+            <button
+              onClick={() => setActiveTab('principales')}
+              className={`pb-2 px-4 border-b-2 font-medium text-sm ${
+                activeTab === 'principales'
+                  ? 'border-blue-600 text-blue-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-400'
+              }`}
+            >
+              <Home className="inline-block h-5 w-5 mr-1 align-text-bottom" />
+              Principales
+            </button>
+            <button
+              onClick={() => setActiveTab('secundarios')}
+              className={`pb-2 px-4 border-b-2 font-medium text-sm ${
+                activeTab === 'secundarios'
+                  ? 'border-blue-600 text-blue-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-400'
+              }`}
+            >
+              <LayoutDashboard className="inline-block h-5 w-5 mr-1 align-text-bottom" />
+              Secundarios
+            </button>
+            <button
+              onClick={() => setActiveTab('configuracion')}
+              className={`pb-2 px-4 border-b-2 font-medium text-sm ${
+                activeTab === 'configuracion'
+                  ? 'border-blue-600 text-blue-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-400'
+              }`}
+            >
+              <SlidersHorizontal className="inline-block h-5 w-5 mr-1 align-text-bottom" />
+              Configuración
+            </button>
+          </nav>
+        </div>
 
         {/* Configuration Tab */}
         {activeTab === 'configuracion' && (
@@ -105,34 +179,53 @@ const BrokerQuotePage: React.FC = () => {
             {/* Proyecto Section */}
             <section>
               <h3 className="text-lg font-medium text-gray-800">Proyecto</h3>
-              <p className="mt-1 text-gray-600">{selectedUnidad?.proyecto_nombre}</p>
+              <p className="mt-1 text-gray-600">{selectedUnidad?.proyecto_nombre || '-'}</p>
             </section>
 
             {/* Unidad Section */}
             <section>
               <h3 className="text-lg font-medium text-gray-800">Unidad</h3>
               <p className="mt-1 text-gray-600">
-                {selectedUnidad?.unidad} <span className="text-sm text-gray-500">({selectedUnidad?.estado_unidad})</span>
+                {selectedUnidad?.unidad || '-'} <span className="text-sm text-gray-500">({selectedUnidad?.estado_unidad || '-'})</span>
               </p>
-              <p className="mt-1 text-gray-600">Tipología: {selectedUnidad?.tipologia}</p>
+              <p className="mt-1 text-gray-600">Tipología: {selectedUnidad?.tipologia || '-'}</p>
               <p className="mt-1 text-gray-600">Piso: {selectedUnidad?.piso ?? '-'}</p>
               <p className="mt-1 text-gray-600">
-                Descuento: <span className="font-semibold">{((selectedUnidad?.descuento ?? 0) * 100).toFixed(2)}%</span>
+                Descuento:{' '}
+                <span className="font-semibold">
+                  {selectedUnidad && selectedUnidad.descuento != null
+                    ? `${(selectedUnidad.descuento * 100).toFixed(2)} %`
+                    : '-'}
+                </span>
               </p>
               <p className="mt-1 text-gray-600">
-                Valor Lista: <span className="font-semibold">{selectedUnidad?.valor_lista} UF</span>
+                Valor Lista:{' '}
+                <span className="font-semibold">
+                  {selectedUnidad?.valor_lista != null
+                    ? `${selectedUnidad.valor_lista.toLocaleString(undefined, { minimumFractionDigits: 0 })} UF`
+                    : '-'}
+                </span>
               </p>
             </section>
 
             {/* Superficies Section */}
             <section>
               <h3 className="text-lg font-medium text-gray-800">Superficies</h3>
-              <p className="mt-1 text-gray-600">Sup. Útil: {selectedUnidad?.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2 })} m²</p>
+              <p className="mt-1 text-gray-600">
+                Sup. Útil:{' '}
+                {selectedUnidad?.sup_util != null
+                  ? `${selectedUnidad.sup_util.toLocaleString(undefined, { minimumFractionDigits: 2 })} m²`
+                  : '-'}
+              </p>
             </section>
           </div>
         )}
+
       </main>
-      <footer className="text-center py-6 text-sm text-gray-500">© {new Date().getFullYear()} InverAPP - Cotizador Brokers</footer>
+
+      <footer className="text-center py-6 text-sm text-gray-500">
+        © {new Date().getFullYear()} InverAPP - Cotizador Brokers
+      </footer>
     </div>
   );
 };
