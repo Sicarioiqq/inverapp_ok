@@ -1,4 +1,3 @@
-```typescript
 // src/pages/public/BrokerQuotePage.tsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -248,4 +247,3 @@ const BrokerQuotePage: React.FC = () => {
 };
 
 export default BrokerQuotePage;
-```
