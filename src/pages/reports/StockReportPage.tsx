@@ -16,7 +16,7 @@ interface StockUnidad {
   orientacion: string | null;
   sup_util: number | null;    // Coincide con la columna de Supabase
   sup_terraza: number | null;   // Coincide con la columna de Supabase
-  m2_totales: number | null;   // Coincide con la columna de Supabase
+  sup_total: number | null;   // Coincide con la columna de Supabase
   precio_uf: number | null;    // Coincide con la columna de Supabase
   estado_unidad: string | null;
   etapa: string | null;         // Columna del Excel 'Etapa'
@@ -46,7 +46,7 @@ const StockReportPage: React.FC = () => {
           orientacion, 
           sup_util, 
           sup_terraza, 
-          m2_totales, 
+          sup_total, 
           precio_uf, 
           estado_unidad,
           etapa 
