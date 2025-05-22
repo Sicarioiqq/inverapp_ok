@@ -8,7 +8,6 @@ interface Broker {
   id: string;
   name: string | null;
 }
-
 interface BrokerCommission {
   id?: string;
   broker_id: string;
@@ -21,56 +20,56 @@ const BrokerCommissionsConfig: React.FC = () => {
   const [projects, setProjects] = useState<string[]>([]);
   const [commissionInputs, setCommissionInputs] = useState<Record<string, Record<string, string>>>({});
   const [dbCommissions, setDbCommissions] = useState<BrokerCommission[]>([]);
+  const [selectedBroker, setSelectedBroker] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Carga inicial de datos
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // 1) Fetch brokers
+      // Brokers
       const { data: brokerData, error: brokerErr } = await supabase
         .from('brokers')
-        .select('id, name')
+        .select('id,name')
         .order('name', { ascending: true });
       if (brokerErr) throw brokerErr;
       setBrokers(brokerData || []);
+      if (brokerData?.length) setSelectedBroker(brokerData[0].id);
 
-      // 2) Paginate through all stock_unidades to collect distinct project names
+      // Proyectos (paginado completo)
       const BATCH = 1000;
-      let from = 0;
       let all: { proyecto_nombre: string }[] = [];
-      while (true) {
+      for (let from = 0; ; from += BATCH) {
         const { data: chunk, error: chunkErr } = await supabase
           .from('stock_unidades')
           .select('proyecto_nombre')
-          .order('proyecto_nombre', { ascending: true })
+          .order('proyecto_nombre')
           .range(from, from + BATCH - 1);
         if (chunkErr) throw chunkErr;
         if (!chunk || chunk.length === 0) break;
         all = all.concat(chunk);
         if (chunk.length < BATCH) break;
-        from += BATCH;
       }
       const distinct = Array.from(
         new Set(all.map(r => r.proyecto_nombre).filter(Boolean) as string[])
       ).sort();
       setProjects(distinct);
 
-      // 3) Fetch existing commission records
+      // Comisiones existentes
       const { data: commData, error: commErr } = await supabase
         .from('broker_project_commissions')
-        .select('id, broker_id, project_name, commission_rate');
+        .select('id,broker_id,project_name,commission_rate');
       if (commErr) throw commErr;
       setDbCommissions(commData || []);
 
-      // 4) Initialize inputs
+      // Inputs iniciales
       const inputs: Record<string, Record<string, string>> = {};
       (commData || []).forEach(c => {
-        if (!inputs[c.broker_id]) inputs[c.broker_id] = {};
-        inputs[c.broker_id][c.project_name] =
-          c.commission_rate != null ? c.commission_rate.toFixed(2) : '';
+        inputs[c.broker_id] ??= {};
+        inputs[c.broker_id][c.project_name] = c.commission_rate != null ? c.commission_rate.toFixed(2) : '';
       });
       setCommissionInputs(inputs);
     } catch (e: any) {
@@ -81,36 +80,36 @@ const BrokerCommissionsConfig: React.FC = () => {
       setLoading(false);
     }
   }, []);
-
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleInputChange = (brokerId: string, project: string, value: string) => {
-    if (/^(?:100(?:\.[0-9]{1,2})?|\d{1,2}(?:\.[0-9]{1,2})?)?$/.test(value)) {
+  // Cambio de input (solo permitimos 0-100 con hasta 2 decimales)
+  const handleInputChange = (project: string, value: string) => {
+    if (/^(?:100(?:\.[0-9]{1,2})?|\d{1,2}(?:\.[0-9]{1,2})?)?$/.test(value) && selectedBroker) {
       setCommissionInputs(prev => ({
         ...prev,
-        [brokerId]: { ...(prev[brokerId] || {}), [project]: value }
+        [selectedBroker]: { ...(prev[selectedBroker] || {}), [project]: value }
       }));
     }
   };
 
+  // Guardar solo para el broker seleccionado
   const handleSave = async () => {
+    if (!selectedBroker) return;
     setSaving(true);
     setError(null);
     const upserts: Omit<BrokerCommission, 'id'>[] = [];
     const deletes: string[] = [];
 
     projects.forEach(project => {
-      brokers.forEach(broker => {
-        const val = commissionInputs[broker.id]?.[project] || '';
-        const existing = dbCommissions.find(
-          c => c.broker_id === broker.id && c.project_name === project
-        );
-        if (val.trim() !== '') {
-          upserts.push({ broker_id: broker.id, project_name: project, commission_rate: parseFloat(val) });
-        } else if (existing?.id) {
-          deletes.push(existing.id);
-        }
-      });
+      const val = commissionInputs[selectedBroker]?.[project] || '';
+      const existing = dbCommissions.find(
+        c => c.broker_id === selectedBroker && c.project_name === project
+      );
+      if (val.trim() !== '') {
+        upserts.push({ broker_id: selectedBroker, project_name: project, commission_rate: parseFloat(val) });
+      } else if (existing?.id) {
+        deletes.push(existing.id);
+      }
     });
 
     try {
@@ -127,7 +126,7 @@ const BrokerCommissionsConfig: React.FC = () => {
           .upsert(upserts, { onConflict: 'broker_id,project_name' });
         if (upErr) throw upErr;
       }
-      toast.success('Comisiones guardadas correctamente');
+      toast.success('Comisiones guardadas');
       fetchData();
     } catch (e: any) {
       console.error(e);
@@ -146,7 +145,6 @@ const BrokerCommissionsConfig: React.FC = () => {
       </div>
     );
   }
-
   if (error) {
     return (
       <div className="p-6 text-center">
@@ -158,42 +156,52 @@ const BrokerCommissionsConfig: React.FC = () => {
   }
 
   return (
-    <div className="bg-white shadow-xl rounded-lg p-6 overflow-auto">
-      <div className="flex items-center mb-4">
-        <Percent className="h-6 w-6 text-blue-600 mr-2" />
-        <h3 className="text-xl font-semibold text-gray-800">Comisiones por Proyecto × Broker</h3>
+    <div className="bg-white shadow-xl rounded-lg p-6 overflow-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center">
+          <Percent className="h-6 w-6 text-blue-600 mr-2" />
+          <h3 className="text-xl font-semibold text-gray-800">Comisiones por Proyecto × Broker</h3>
+        </div>
+        <div>
+          <label htmlFor="broker-select" className="block text-sm font-medium text-gray-700">Broker</label>
+          <select
+            id="broker-select"
+            value={selectedBroker || ''}
+            onChange={e => setSelectedBroker(e.target.value)}
+            className="mt-1 block px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500"
+          >
+            {brokers.map(b => <option key={b.id} value={b.id}>{b.name || b.id}</option>)}
+          </select>
+        </div>
       </div>
+
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-2 text-left font-medium text-gray-700 sticky left-0 bg-gray-50">Proyecto</th>
-              {brokers.map(b => (
-                <th key={b.id} className="px-4 py-2 text-center font-medium text-gray-700">{b.name || '—'}</th>
-              ))}
+              <th className="px-4 py-2 text-left font-medium text-gray-700">Proyecto</th>
+              <th className="px-4 py-2 text-center font-medium text-gray-700">% Comisión</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {projects.map(project => (
               <tr key={project}>
-                <td className="px-4 py-2 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white">{project}</td>
-                {brokers.map(b => (
-                  <td key={b.id} className="px-4 py-2 text-center">
-                    <input
-                      type="text"
-                      value={commissionInputs[b.id]?.[project] || ''}
-                      onChange={e => handleInputChange(b.id, project, e.target.value)}
-                      className="w-16 text-right px-2 py-1 border rounded focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="%"
-                    />
-                  </td>
-                ))}
+                <td className="px-4 py-2 font-medium text-gray-900 whitespace-nowrap">{project}</td>
+                <td className="px-4 py-2 text-center">
+                  <input
+                    type="text"
+                    value={commissionInputs[selectedBroker!]?.[project] || ''}
+                    onChange={e => handleInputChange(project, e.target.value)}
+                    className="w-20 text-right px-2 py-1 border rounded focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="%"
+                  />
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="mt-4 flex justify-end">
+      <div className="flex justify-end">
         <button
           onClick={handleSave}
           disabled={saving}
