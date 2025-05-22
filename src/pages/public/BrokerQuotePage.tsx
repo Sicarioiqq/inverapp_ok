@@ -88,7 +88,7 @@ const BrokerQuotePage: React.FC = () => {
     validate();
   }, [brokerSlug, accessToken]);
 
-  // Load full stock for both tabs
+  // Load full stock for both tabs (fetch all rows)
   useEffect(() => {
     if (!brokerInfo) return;
     const load = async () => {
@@ -96,7 +96,11 @@ const BrokerQuotePage: React.FC = () => {
       try {
         const { data, error: se } = await supabase
           .from<Unidad>('stock_unidades')
-          .select('id, proyecto_nombre, unidad, tipologia, piso, sup_util, valor_lista, descuento, estado_unidad, tipo_bien');
+          .select(
+            'id, proyecto_nombre, unidad, tipologia, piso, sup_util, valor_lista, descuento, estado_unidad, tipo_bien'
+          )
+          // fetch beyond default 1000 rows limit
+          .range(0, 10000);
         if (se) throw se;
         if (data) {
           setStock(data);
@@ -226,30 +230,4 @@ const BrokerQuotePage: React.FC = () => {
                       <td className="px-4 py-2">{u.tipologia}</td>
                       <td className="px-4 py-2">{u.piso || '-'}</td>
                       <td className="px-4 py-2 text-right">{u.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="px-4 py-2 text-right">{u.valor_lista?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
-                      {activeTab === 'principales' && (
-                        <td className="px-4 py-2 text-right">{net.toLocaleString(undefined,{ minimumFractionDigits:2, maximumFractionDigits:2 })}%</td>
-                      )}
-                      <td className="px-4 py-2">
-                        <span className={`px-2 py-1 rounded-full text-sm ${u.estado_unidad === 'Disponible' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{u.estado_unidad}</span>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {activeTab === 'configuracion' && (
-          <div className="mt-6 p-4 bg-white shadow rounded">
-            <p>Contenido de configuración de cotización.</p>
-          </div>
-        )}
-      </main>
-      <footer className="text-center py-8 text-sm text-gray-500">&copy; {new Date().getFullYear()} InverAPP - Cotizador para Brokers</footer>
-    </div>
-  );
-};
-
-export default BrokerQuotePage;
+                      <td className="px-4 py-2 text-right">{u.valor_lista?.to
