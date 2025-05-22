@@ -31,7 +31,7 @@ interface Unidad {
   valor_lista: number | null;
   descuento: number | null;
   estado_unidad: string | null;
-  tipo_bien: string;
+  tipo_bien: string; // Asegúrate de que esta propiedad esté en la interfaz
 }
 
 // NUEVA INTERFAZ para comisiones de broker por proyecto
@@ -75,7 +75,7 @@ const BrokerQuotePage: React.FC = () => {
   // NUEVOS ESTADOS para la configuración de cotización
   const [quotationType, setQuotationType] = useState<QuotationType>('descuento');
   const [discountAmount, setDiscountAmount] = useState<number>(0);
-  const [bonoAmount, setBonoAmount] = useState<number>(0); // Renamed from bonusAmount to bonoAmount for clarity
+  const [bonoAmount, setBonoAmount] = useState<number>(0);
 
   // NUEVOS ESTADOS para unidades secundarias del proyecto
   const [projectSecondaryUnits, setProjectSecondaryUnits] = useState<Unidad[]>([]);
@@ -197,7 +197,7 @@ const BrokerQuotePage: React.FC = () => {
         try {
           const { data, error: suError } = await supabase
             .from<Unidad>('stock_unidades')
-            .select('id, unidad, tipologia, valor_lista, tipo_bien')
+            .select('id, unidad, tipologia, valor_lista, tipo_bien') // Asegúrate de seleccionar 'tipo_bien' aquí
             .eq('proyecto_nombre', selectedUnidad.proyecto_nombre)
             .neq('tipo_bien', 'DEPARTAMENTO') // Filtrar por unidades secundarias (no departamentos)
             .order('unidad');
@@ -325,7 +325,13 @@ const BrokerQuotePage: React.FC = () => {
     { key: 'descuento', label: 'Desc. (%)' },
     { key: 'estado_unidad', label: 'Estado' }
   ];
-  const headersSecundarios = headersPrincipales.filter(h => h.key !== 'descuento');
+  // Modificar headersSecundarios para mostrar 'tipo_bien' en lugar de 'tipologia'
+  const headersSecundarios = headersPrincipales.map(h => {
+    if (h.key === 'tipologia') {
+      return { key: 'tipo_bien', label: 'Tipo Bien' }; // Cambiar a tipo_bien
+    }
+    return h;
+  }).filter(h => h.key !== 'descuento'); // Mantener el filtro de descuento
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -466,7 +472,8 @@ const BrokerQuotePage: React.FC = () => {
                       >
                         <td className="px-4 py-2">{u.proyecto_nombre}</td>
                         <td className="px-4 py-2">{u.unidad}</td>
-                        <td className="px-4 py-2">{u.tipologia}</td>
+                        {/* Aquí se muestra 'tipo_bien' en lugar de 'tipologia' para la tabla de secundarios */}
+                        <td className="px-4 py-2">{activeTab === 'secundarios' ? u.tipo_bien : u.tipologia}</td> 
                         <td className="px-4 py-2">{u.piso || '-'}</td>
                         <td className="px-4 py-2 text-right">{u.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td className="px-4 py-2 text-right">{u.valor_lista?.toLocaleString()}</td>
@@ -665,7 +672,7 @@ const BrokerQuotePage: React.FC = () => {
                                                 // Solo mostrar unidades que no han sido añadidas ya
                                                 !addedSecondaryUnits.some(addedUnit => addedUnit.id === unit.id) && (
                                                     <option key={unit.id} value={unit.id}>
-                                                        {unit.unidad} ({unit.tipologia}) - {unit.valor_lista?.toLocaleString()} UF
+                                                        {unit.unidad} ({unit.tipo_bien}) - {unit.valor_lista?.toLocaleString()} UF
                                                     </option>
                                                 )
                                             ))
@@ -693,7 +700,7 @@ const BrokerQuotePage: React.FC = () => {
                                     {addedSecondaryUnits.map(unit => (
                                         <li key={unit.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
                                             <span className="text-sm text-gray-800">
-                                                {unit.unidad} ({unit.tipologia}) - {unit.valor_lista?.toLocaleString()} UF
+                                                {unit.unidad} ({unit.tipo_bien}) - {unit.valor_lista?.toLocaleString()} UF
                                             </span>
                                             <button
                                                 type="button"
