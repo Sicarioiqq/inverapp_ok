@@ -897,6 +897,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoReserva / totalEscritura) * 100) : formatCurrency(0)}%</span>
                                     <span className="text-right">{ufToPesos(pagoReserva)}</span>
                                     <div className="flex justify-end">
+                                        {/* Ahora es un span porque es de solo lectura y formateado */}
                                         <span className="w-24 text-right px-2 py-1 bg-gray-100 rounded-md border border-gray-300 font-semibold">{formatCurrency(pagoReserva)}</span>
                                     </div>
                                 </div>
@@ -939,6 +940,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoCreditoHipotecarioCalculado / totalEscritura) * 100) : formatCurrency(0)}%</span>
                                     <span className="text-right">{ufToPesos(pagoCreditoHipotecarioCalculado)}</span>
                                     <div className="flex justify-end">
+                                        {/* Ahora es un span porque es de solo lectura y formateado */}
                                         <span className="w-24 text-right px-2 py-1 bg-gray-100 rounded-md border border-gray-300 font-semibold">{formatCurrency(pagoCreditoHipotecarioCalculado)}</span>
                                     </div>
                                 </div>
@@ -949,6 +951,7 @@ const BrokerQuotePage: React.FC = () => {
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoBonoPieCotizacion / totalEscritura) * 100) : formatCurrency(0)}%</span>
                                     <span className="text-right">{ufToPesos(pagoBonoPieCotizacion)}</span>
                                     <div className="flex justify-end">
+                                        {/* Ahora es un span porque es de solo lectura y formateado */}
                                         <span className="w-24 text-right px-2 py-1 bg-gray-100 rounded-md border border-gray-300 font-semibold">{formatCurrency(pagoBonoPieCotizacion)}</span>
                                     </div>
                                 </div>
