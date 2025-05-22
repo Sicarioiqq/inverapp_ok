@@ -1950,7 +1950,7 @@ const ReservationForm = () => {
 
                       max="100"
 
-                      step="1"
+                      step="0.001"
 
                       value={formData.column_discount}
 
@@ -1984,7 +1984,7 @@ const ReservationForm = () => {
 
                       max="100"
 
-                      step="1"
+                      step="0.001"
 
                       value={formData.additional_discount}
 
@@ -2018,7 +2018,7 @@ const ReservationForm = () => {
 
                       max="100"
 
-                      step="1"
+                      step="0.001"
 
                       value={formData.other_discount}
 
