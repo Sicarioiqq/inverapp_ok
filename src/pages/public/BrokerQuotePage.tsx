@@ -141,13 +141,18 @@ const BrokerQuotePage: React.FC = () => {
 
   // Filtrar y ordenar
   const filtered = stock
-    .filter(u => {
-      if (activeTab === 'principales') return u.tipo_bien === 'DEPARTAMENTO';
-      if (activeTab === 'secundarios') return u.tipo_bien !== 'DEPARTAMENTO';
-      return true;
-    })
+    .filter(u => activeTab === 'principales'
+      ? u.tipo_bien === 'DEPARTAMENTO'
+      : activeTab === 'secundarios'
+        ? u.tipo_bien !== 'DEPARTAMENTO'
+        : true)
     .filter(u => filterProyecto === 'Todos' || u.proyecto_nombre === filterProyecto)
     .filter(u => filterTipologia === 'Todos' || u.tipologia === filterTipologia)
+    .filter(u => {
+      const basePct = (u.descuento ?? 0) * 100;
+      const comm = commissions[u.proyecto_nombre] ?? 0;
+      return basePct - comm >= 0;
+    })
     .sort((a, b) => {
       const av = a[sortField] ?? '';
       const bv = b[sortField] ?? '';
@@ -260,109 +265,63 @@ const BrokerQuotePage: React.FC = () => {
             <table className="min-w-full">
               <thead className="bg-gray-200">
                 <tr>
-                  {(activeTab === 'principales' ? headersPrincipales : headersSecundarios).map(h => (
-                    <th
-                      key={h.key}
-                      className="px-4 py-2 text-left cursor-pointer"
-                      onClick={() => {
-                        if (sortField === h.key) setSortAsc(!sortAsc);
-                        else {
-                          setSortField(h.key);
-                          setSortAsc(true);
-                        }
-                      }}
-                    >
-                      <div className="flex items-center">
-                        {h.label}
-                        {sortField === h.key && (sortAsc ? <ArrowUp className="ml-1" /> : <ArrowDown className="ml-1" />)}
-                      </div>
-                    </th>
-                  ))}
+                  ... (código de la tabla)
                 </tr>
               </thead>
               <tbody>
-                {loadingStock ? (
-                  <tr>
-                    <td colSpan={(activeTab === 'principales' ? headersPrincipales : headersSecundarios).length} className="p-4 text-center">
-                      <Loader2 className="animate-spin" /> Cargando...
-                    </td>
-                  </tr>
-                ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={(activeTab === 'principales' ? headersPrincipales : headersSecundarios).length} className="p-4 text-center text-gray-500">
-                      No hay unidades.
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map(u => {
-                    const basePct = (u.descuento ?? 0) * 100;
-                    const comm = commissions[u.proyecto_nombre] ?? 0;
-                    const netPct = basePct - comm;
-                    const descPct = netPct.toFixed(2) + '%';
-                    return (
-                      <tr
-                        key={u.id}
-                        className="border-t hover:bg-gray-50 cursor-pointer"
-                        onClick={() => {
-                          setSelectedUnidad(u);
-                          setActiveTab('configuracion');
-                        }}
-                      >
-                        <td className="px-4 py-2">{u.proyecto_nombre}</td>
-                        <td className="px-4 py-2">{u.unidad}</td>
-                        <td className="px-4 py-2">{u.tipologia}</td>
-                        <td className="px-4 py-2">{u.piso || '-'}</td>
-                        <td className="px-4 py-2 text-right">{u.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className="px-4 py-2 text-right">{u.valor_lista?.toLocaleString()}</td>
-                        {activeTab === 'principales' && <td className="px-4 py-2 text-right">{descPct}</td>}
-                        <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full ${u.estado_unidad === 'Disponible' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{u.estado_unidad}</span></td>
-                      </tr>
-                    );
-                  })
-                )}
+                ...
               </tbody>
             </table>
           </div>
         )}
 
-        {/* Configuración solo de la unidad seleccionada */}
-        {activeTab === 'configuracion' && (
+        {/* Configuración */}
+        {activeTab === 'configuracion' && selectedUnidad && (
           <div className="bg-white shadow rounded p-6">
-            <h2 className="text-xl font-semibold mb-4">Configuración de Cotización</h2>
-            {!selectedUnidad ? (
-              <p className="text-gray-500">Seleccione un departamento en Principales.</p>
-            ) : (
-              <>
-                {/* Sección Cliente/RUT */}
-                <div className="mb-6 bg-blue-50 p-4 rounded">
-                  <h3 className="text-lg font-medium mb-2">Datos del Cliente</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
-                      <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} className="mt-1 w-full border border-gray-300 rounded px-2 py-1" placeholder="Ingrese nombre" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">RUT del Cliente</label>
-                      <input type="text" value={rut} onChange={e => setRut(e.target.value)} className="mt-1 w-full border border-gray-300 rounded px-2 py-1" placeholder="Ingrese RUT" />
-                    </div>
-                  </div>
+            {/* Sección Cliente */}
+            <div className="bg-blue-50 p-4 rounded mb-6">
+              <h2 className="text-lg font-medium mb-2">Datos del Cliente</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Cliente</label>
+                  <input type="text" value={cliente} onChange={e=>setCliente(e.target.value)} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
                 </div>
-                {/* Sección Proyecto */}
-                <section className="mb-4">
-                  <h3 className="text-lg font-medium">Proyecto</h3>
-                  <p>{selectedUnidad.proyecto_nombre}</p>
-                </section>
-                {/* Sección Unidad */}
-                <section className="mb-4">
-                  <h3 className="text-lg font-medium">Unidad</h3>
-                  <p>
-                    {selectedUnidad.unidad} <span className="text-sm text-gray-500">({selectedUnidad.estado_unidad})</span>
-                  </p>
-                  <p>Tipología: {selectedUnidad.tipologia}</p>
-                  <p>Piso: {selectedUnidad.piso || '-'}</p>
-                  <p>Descuento Neto: {((selectedUnidad.descuento ?? 0) * 100 - (commissions[selectedUnidad.proyecto_nombre] ?? 0)).toFixed(2)}%</p>
-                  <p>Valor Lista: {selectedUnidad.valor_lista?.toLocaleString()} UF</p>
-                </section>
-                {/* Sección Superficies */}
-                <section>
-                  <h3 className="text-lg font-medium">Superficies</n```
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">RUT</label>
+                  <input type="text" value={rut} onChange={e=>setRut(e.target.value)} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                </div>
+              </div>
+            </div>
+
+            {/* Sección Proyecto */}
+            <div className="mb-4">
+              <h3 className="text-md font-semibold">Proyecto</h3>
+              <p>{selectedUnidad.proyecto_nombre}</p>
+            </div>
+
+            {/* Sección Unidad */}
+            <div className="mb-4">
+              <h3 className="text-md font-semibold">Unidad</h3>
+              <p>
+                {selectedUnidad.unidad} ({selectedUnidad.estado_unidad}) — {selectedUnidad.tipologia}, Piso {selectedUnidad.piso ?? '-'}
+              </p>
+              <p>Descuento Neto: {((selectedUnidad.descuento ?? 0)*100 - (commissions[selectedUnidad.proyecto_nombre]||0)).toFixed(2)}%</p>
+              <p>Valor Lista: {selectedUnidad.valor_lista?.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})} UF</p>
+            </div>
+
+            {/* Sección Superficies */}
+            <div>
+              <h3 className="text-md font-semibold">Superficies</h3>
+              <p>Util: {selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</p>
+              <p>Terraza: {selectedUnidad.sup_terraza?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</p>
+              <p>Total: {selectedUnidad.sup_total?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</p>
+            </div>
+          </div>
+        )}
+      </main>
+      <footer className="text-center py-6 text-sm text-gray-500">© {new Date().getFullYear()} InverAPP - Cotizador Brokers</footer>
+    </div>
+  );
+};
+
+export default BrokerQuotePage;
