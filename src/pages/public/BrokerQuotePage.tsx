@@ -345,6 +345,7 @@ const BrokerQuotePage: React.FC = () => {
                     <td colSpan={(activeTab === 'principales' ? headersPrincipales : headersSecundarios).length} className="p-4 text-center text-gray-500">
                       No hay unidades.
                     </td>
+                  </td>
                   </tr>
                 ) : (
                   filtered.map(u => {
@@ -384,13 +385,14 @@ const BrokerQuotePage: React.FC = () => {
 
         {/* Configuración solo de la unidad seleccionada */}
         {activeTab === 'configuracion' && (
-          <div className="bg-white shadow rounded p-6">
+          <div className="bg-white shadow rounded p-6 space-y-6"> {/* Added space-y-6 for separation */}
             <h2 className="text-xl font-semibold mb-4">Configuración de Cotización</h2>
             {!selectedUnidad ? (
               <p className="text-gray-500">Seleccione un departamento en Principales.</p>
             ) : (
               <>
                 {/* Sección Cliente/RUT */}
+                {/* Kept its original styling as it already has mb-6 */}
                 <div className="mb-6 bg-blue-50 p-4 rounded">
                   <h3 className="text-lg font-medium mb-2">Datos del Cliente</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -405,29 +407,30 @@ const BrokerQuotePage: React.FC = () => {
                   </div>
                 </div>
                 {/* Sección Proyecto */}
-                <section className="mb-4">
+                {/* Added mt-6 for separation from previous section */}
+                <section className="mt-6 mb-4">
                   <h3 className="text-lg font-medium">Proyecto</h3>
                   <p>{selectedUnidad.proyecto_nombre}</p>
                 </section>
                 {/* Sección Unidad, Estado, Tipología, Piso, Descuento, Valor */}
-                {/* Modificado para ocupar 4 columnas */}
-                <section className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Modified to use grid, removed bold tags, added mt-6 for separation */}
+                <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <h3 className="text-lg font-medium col-span-full">Unidad</h3>
                   <div>
                     <p>
-                      **N° Bien:** {selectedUnidad.unidad} <span className="text-sm text-gray-500">({selectedUnidad.estado_unidad})</span>
+                      N° Bien: {selectedUnidad.unidad} <span className="text-sm text-gray-500">({selectedUnidad.estado_unidad})</span>
                     </p>
                   </div>
                   <div>
-                    <p>**Tipología:** {selectedUnidad.tipologia}</p>
+                    <p>Tipología: {selectedUnidad.tipologia}</p>
                   </div>
                   <div>
-                    <p>**Piso:** {selectedUnidad.piso || '-'}</p>
+                    <p>Piso: {selectedUnidad.piso || '-'}</p>
                   </div>
                   <div>
                     {/* Mostrar el descuento ajustado en la sección de configuración también */}
                     <p>
-                      **Descuento:** {
+                      Descuento: {
                         (calculateAdjustedDiscount(
                           selectedUnidad.valor_lista,
                           selectedUnidad.descuento,
@@ -441,24 +444,24 @@ const BrokerQuotePage: React.FC = () => {
                     </p>
                   </div>
                   <div className="col-span-full">
-                    <p>**Valor Lista:** {selectedUnidad.valor_lista?.toLocaleString()} UF</p>
+                    <p>Valor Lista: {selectedUnidad.valor_lista?.toLocaleString()} UF</p>
                   </div>
                 </section>
                 {/* Sección Superficies */}
-                {/* Modificado para ocupar 4 columnas */}
-                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Modified to use grid, removed bold tags, added mt-6 for separation */}
+                <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <h3 className="text-lg font-medium col-span-full">Superficies</h3>
                   <div>
-                    <p>**Sup. Útil:** {selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</p>
+                    <p>Sup. Útil: {selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</p>
                   </div>
                   {selectedUnidad.sup_terraza != null && (
                     <div>
-                      <p>**Sup. Terraza:** {selectedUnidad.sup_terraza} m²</p>
+                      <p>Sup. Terraza: {selectedUnidad.sup_terraza} m²</p>
                     </div>
                   )}
                   {selectedUnidad.sup_total != null && (
                     <div>
-                      <p>**Sup. Total:** {selectedUnidad.sup_total} m²</p>
+                      <p>Sup. Total: {selectedUnidad.sup_total} m²</p>
                     </div>
                   )}
                 </section>
