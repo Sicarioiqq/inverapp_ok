@@ -26,6 +26,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   // Set default headers for all requests
   headers: {
     'x-timezone': 'America/Santiago'
+  },
+  // Add request timeout to prevent hanging requests
+  db: {
+    schema: 'public'
   }
 });
 
