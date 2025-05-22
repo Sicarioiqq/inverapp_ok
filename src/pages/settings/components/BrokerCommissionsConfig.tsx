@@ -29,43 +29,46 @@ const BrokerCommissionsConfig: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data: brokersData, error: bErr } = await supabase
+      // Fetch brokers
+      const { data: brokersData, error: brokerErr } = await supabase
         .from('brokers')
         .select('id, name')
         .order('name', { ascending: true });
-      if (bErr) throw bErr;
+      if (brokerErr) throw brokerErr;
       setBrokers(brokersData || []);
 
-                  // Fetch all distinct project names, overriding default row limit
-      const { data: projData, error: pErr } = await supabase
+      // Fetch all distinct project names (override default limit)
+      const { data: projData, error: projErr } = await supabase
         .from('stock_unidades')
         .select('proyecto_nombre', { count: 'exact' })
         .order('proyecto_nombre', { ascending: true })
-        .range(0, 10000); // ajusta según máximo esperado
-      if (pErr) throw pErr;
-      // extraemos, deduplicamos y ordenamos
-      const projectNames = Array.from(
+        .range(0, 10000);
+      if (projErr) throw projErr;
+      const names = Array.from(
         new Set((projData || []).map(r => r.proyecto_nombre).filter(Boolean) as string[])
       ).sort();
-      setProjects(projectNames);
+      setProjects(names);
 
-      const { data: commData, error: cErr } = await supabase
+      // Fetch existing commission records
+      const { data: commData, error: commErr } = await supabase
         .from('broker_project_commissions')
         .select('id, broker_id, project_name, commission_rate');
-      if (cErr) throw cErr;
+      if (commErr) throw commErr;
       setDbCommissions(commData || []);
 
       // Initialize inputs map
-      const inputs: Record<string, Record<string, string>> = {};
+      const inputsMap: Record<string, Record<string, string>> = {};
       (commData || []).forEach(c => {
-        inputs[c.broker_id] = inputs[c.broker_id] || {};
-        inputs[c.broker_id][c.project_name] = c.commission_rate != null ? String(c.commission_rate) : '';
+        if (!inputsMap[c.broker_id]) inputsMap[c.broker_id] = {};
+        inputsMap[c.broker_id][c.project_name] =
+          c.commission_rate != null ? c.commission_rate.toFixed(2) : '';
       });
-      setCommissionInputs(inputs);
+      setCommissionInputs(inputsMap);
     } catch (e: any) {
       console.error(e);
-      setError(e.message);
-      toast.error(e.message);
+      const message = e.message || 'Error al cargar datos';
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -74,11 +77,11 @@ const BrokerCommissionsConfig: React.FC = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleInputChange = (brokerId: string, project: string, value: string) => {
-    // Allow empty or valid percentage up to two decimals
-    if (/^(?:100(?:\.00?)?|\d{1,2}(?:\.\d{1,2})?)?$/.test(value)) {
+    // Allow empty or percentage up to two decimals
+    if (/^(?:100(?:\.\d{1,2})?|\d{1,2}(?:\.\d{1,2})?)?$/.test(value)) {
       setCommissionInputs(prev => ({
         ...prev,
-        [brokerId]: { ...prev[brokerId], [project]: value }
+        [brokerId]: { ...(prev[brokerId] || {}), [project]: value }
       }));
     }
   };
@@ -86,37 +89,38 @@ const BrokerCommissionsConfig: React.FC = () => {
   const handleSave = async () => {
     setSaving(true);
     setError(null);
-    const toUpsert: Omit<BrokerCommission, 'id'>[] = [];
-    const toDelete: string[] = [];
+    const upserts: Omit<BrokerCommission, 'id'>[] = [];
+    const deletes: string[] = [];
 
     projects.forEach(project => {
       brokers.forEach(broker => {
-        const val = commissionInputs[broker.id]?.[project];
-        const existing = dbCommissions.find(c => c.broker_id === broker.id && c.project_name === project);
-        if (val && val.trim() !== '') {
-          const rate = parseFloat(val);
-          toUpsert.push({ broker_id: broker.id, project_name: project, commission_rate: rate });
+        const val = commissionInputs[broker.id]?.[project] || '';
+        const existing = dbCommissions.find(
+          c => c.broker_id === broker.id && c.project_name === project
+        );
+        if (val.trim() !== '') {
+          upserts.push({ broker_id: broker.id, project_name: project, commission_rate: parseFloat(val) });
         } else if (existing?.id) {
-          toDelete.push(existing.id);
+          deletes.push(existing.id);
         }
       });
     });
 
     try {
-      if (toDelete.length) {
+      if (deletes.length) {
         const { error: delErr } = await supabase
           .from('broker_project_commissions')
           .delete()
-          .in('id', toDelete);
+          .in('id', deletes);
         if (delErr) throw delErr;
       }
-      if (toUpsert.length) {
+      if (upserts.length) {
         const { error: upErr } = await supabase
           .from('broker_project_commissions')
-          .upsert(toUpsert, { onConflict: 'broker_id,project_name' });
+          .upsert(upserts, { onConflict: 'broker_id,project_name' });
         if (upErr) throw upErr;
       }
-      toast.success('Comisiones guardadas correctamente.');
+      toast.success('Comisiones guardadas correctamente');
       fetchData();
     } catch (e: any) {
       console.error(e);
@@ -127,26 +131,35 @@ const BrokerCommissionsConfig: React.FC = () => {
     }
   };
 
-  if (loading) return (
-    <div className="p-6 flex justify-center items-center">
-      <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
-      <span className="ml-3 text-gray-700">Cargando comisiones...</span>
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="p-6 flex justify-center items-center">
+        <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
+        <span className="ml-3 text-gray-700">Cargando comisiones...</span>
+      </div>
+    );
+  }
 
-  if (error) return (
-    <div className="p-6 text-center">
-      <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-      <p className="text-red-600 mb-4">{error}</p>
-      <button onClick={fetchData} className="px-4 py-2 bg-blue-600 text-white rounded">Reintentar</button>
-    </div>
-  );
+  if (error) {
+    return (
+      <div className="p-6 text-center">
+        <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-blue-600 text-white rounded"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white shadow-xl rounded-lg p-6 overflow-auto">
       <div className="flex items-center mb-4">
         <Percent className="h-6 w-6 text-blue-600 mr-2" />
-        <h3 className="text-xl font-semibold text-gray-800">Comisiones por Proyecto x Broker</h3>
+        <h3 className="text-xl font-semibold text-gray-800">Comisiones por Proyecto × Broker</h3>
       </div>
 
       <div className="overflow-x-auto">
@@ -155,7 +168,7 @@ const BrokerCommissionsConfig: React.FC = () => {
             <tr>
               <th className="px-4 py-2 text-left font-medium text-gray-700 sticky left-0 bg-gray-50">Proyecto</th>
               {brokers.map(b => (
-                <th key={b.id} className="px-4 py-2 text-center font-medium text-gray-700">{b.name}</th>
+                <th key={b.id} className="px-4 py-2 text-center font-medium text-gray-700">{b.name || '—'}</th>
               ))}
             </tr>
           </thead>
@@ -194,4 +207,3 @@ const BrokerCommissionsConfig: React.FC = () => {
 };
 
 export default BrokerCommissionsConfig;
-```
