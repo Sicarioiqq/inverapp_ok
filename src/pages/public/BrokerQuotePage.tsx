@@ -384,15 +384,15 @@ const BrokerQuotePage: React.FC = () => {
 
         {/* Configuración solo de la unidad seleccionada */}
         {activeTab === 'configuracion' && (
-          <div className="bg-white shadow rounded p-6"> {/* Removed space-y-6 here, individual section margins will handle spacing */}
+          <div className="bg-white shadow rounded p-6"> {/* Removed space-y-6 from here */}
             <h2 className="text-xl font-semibold mb-4">Configuración de Cotización</h2>
             {!selectedUnidad ? (
               <p className="text-gray-500">Seleccione un departamento en Principales.</p>
             ) : (
               <>
                 {/* Sección Cliente/RUT */}
-                {/* Added 'border-b pb-4 mb-4' for visual separation and padding */}
-                <div className="bg-blue-50 p-4 rounded border-b pb-4 mb-4">
+                {/* Changed from 'mb-6' to 'pb-4 mb-4' and added 'border-b' for separation */}
+                <div className="bg-blue-50 p-4 rounded border-b pb-4 mb-6">
                   <h3 className="text-lg font-medium mb-2">Datos del Cliente</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -406,31 +406,30 @@ const BrokerQuotePage: React.FC = () => {
                   </div>
                 </div>
                 {/* Sección Proyecto */}
-                {/* Added 'border-b pb-4' and 'mt-6' for visual separation and padding */}
+                {/* Added 'mt-6' for separation and 'border-b pb-4' */}
                 <section className="mt-6 border-b pb-4">
-                  <h3 className="text-lg font-medium">Proyecto</h3>
-                  <p><strong>Proyecto:</strong> {selectedUnidad.proyecto_nombre}</p>
+                  <h3 className="text-lg font-medium mb-2">Proyecto</h3>
+                  <p><span className="font-semibold">Proyecto:</span> {selectedUnidad.proyecto_nombre}</p>
                 </section>
                 {/* Sección Unidad, Estado, Tipología, Piso, Descuento, Valor */}
-                {/* Modified to use grid, added bold tags, added 'border-b pb-4' and 'mt-6' for separation */}
+                {/* Modified to use grid, added bold tags to values, added 'border-b pb-4' and 'mt-6' */}
                 <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-b pb-4">
-                  <h3 className="text-lg font-medium col-span-full">Detalles de Unidad</h3> {/* Changed title for clarity */}
+                  <h3 className="text-lg font-medium col-span-full mb-2">Detalles de Unidad</h3>
                   <div>
                     <p>
-                      <strong>N° Bien:</strong> {selectedUnidad.unidad} <span className="text-sm text-gray-500">({selectedUnidad.estado_unidad})</span>
+                      N° Bien: <span className="font-semibold">{selectedUnidad.unidad}</span> <span className="text-sm text-gray-500">({selectedUnidad.estado_unidad})</span>
                     </p>
                   </div>
                   <div>
-                    <p><strong>Tipología:</strong> {selectedUnidad.tipologia}</p>
+                    <p>Tipología: <span className="font-semibold">{selectedUnidad.tipologia}</span></p>
                   </div>
                   <div>
-                    <p><strong>Piso:</strong> {selectedUnidad.piso || '-'}</p>
+                    <p>Piso: <span className="font-semibold">{selectedUnidad.piso || '-'}</span></p>
                   </div>
                   <div>
-                    {/* Mostrar el descuento ajustado en la sección de configuración también */}
                     <p>
-                      <strong>Descuento:</strong> {
-                        (calculateAdjustedDiscount(
+                      Descuento: <span className="font-semibold">
+                        {(calculateAdjustedDiscount(
                           selectedUnidad.valor_lista,
                           selectedUnidad.descuento,
                           selectedUnidad.proyecto_nombre
@@ -440,27 +439,28 @@ const BrokerQuotePage: React.FC = () => {
                           selectedUnidad.proyecto_nombre
                         )! * 100) : (selectedUnidad.descuento ?? 0) * 100).toFixed(2)
                       }%
+                      </span>
                     </p>
                   </div>
                   <div className="col-span-full">
-                    <p><strong>Valor Lista:</strong> {selectedUnidad.valor_lista?.toLocaleString()} UF</p>
+                    <p>Valor Lista: <span className="font-semibold">{selectedUnidad.valor_lista?.toLocaleString()} UF</span></p>
                   </div>
                 </section>
                 {/* Sección Superficies */}
-                {/* Modified to use grid, added bold tags, added 'mt-6' for separation */}
+                {/* Modified to use grid, added bold tags to values, added 'mt-6' */}
                 <section className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <h3 className="text-lg font-medium col-span-full">Superficies</h3>
+                  <h3 className="text-lg font-medium col-span-full mb-2">Superficies</h3>
                   <div>
-                    <p><strong>Sup. Útil:</strong> {selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</p>
+                    <p>Sup. Útil: <span className="font-semibold">{selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</span></p>
                   </div>
                   {selectedUnidad.sup_terraza != null && (
                     <div>
-                      <p><strong>Sup. Terraza:</strong> {selectedUnidad.sup_terraza} m²</p>
+                      <p>Sup. Terraza: <span className="font-semibold">{selectedUnidad.sup_terraza} m²</span></p>
                     </div>
                   )}
                   {selectedUnidad.sup_total != null && (
                     <div>
-                      <p><strong>Sup. Total:</strong> {selectedUnidad.sup_total} m²</p>
+                      <p>Sup. Total: <span className="font-semibold">{selectedUnidad.sup_total} m²</span></p>
                     </div>
                   )}
                 </section>
