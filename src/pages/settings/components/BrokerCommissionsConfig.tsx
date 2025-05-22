@@ -40,7 +40,9 @@ const BrokerCommissionsConfig: React.FC = () => {
         .from('stock_unidades')
         .select('proyecto_nombre');
       if (pErr) throw pErr;
-      const unique = Array.from(new Set((projData || []).map(r => r.proyecto_nombre).filter(Boolean) as string[]));
+      const unique = Array.from(
+        new Set((projData || []).map(r => r.proyecto_nombre).filter(Boolean) as string[])
+      );
       setProjects(unique.sort());
 
       const { data: commData, error: cErr } = await supabase
@@ -68,7 +70,8 @@ const BrokerCommissionsConfig: React.FC = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleInputChange = (brokerId: string, project: string, value: string) => {
-    if (value === '' || /^(100(\.\d{1,2})?|\d{1,2}(\.\d{1,2})?)$/.test(value)) {
+    // Allow empty or valid percentage up to two decimals
+    if (/^(?:100(?:\.00?)?|\d{1,2}(?:\.\d{1,2})?)?$/.test(value)) {
       setCommissionInputs(prev => ({
         ...prev,
         [brokerId]: { ...prev[brokerId], [project]: value }
@@ -86,7 +89,7 @@ const BrokerCommissionsConfig: React.FC = () => {
       brokers.forEach(broker => {
         const val = commissionInputs[broker.id]?.[project];
         const existing = dbCommissions.find(c => c.broker_id === broker.id && c.project_name === project);
-        if (val != null && val !== '') {
+        if (val && val.trim() !== '') {
           const rate = parseFloat(val);
           toUpsert.push({ broker_id: broker.id, project_name: project, commission_rate: rate });
         } else if (existing?.id) {
@@ -109,7 +112,7 @@ const BrokerCommissionsConfig: React.FC = () => {
           .upsert(toUpsert, { onConflict: 'broker_id,project_name' });
         if (upErr) throw upErr;
       }
-      toast.success('Comisiones guardadas.');
+      toast.success('Comisiones guardadas correctamente.');
       fetchData();
     } catch (e: any) {
       console.error(e);
@@ -123,15 +126,15 @@ const BrokerCommissionsConfig: React.FC = () => {
   if (loading) return (
     <div className="p-6 flex justify-center items-center">
       <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
-      <span className="ml-3">Cargando comisiones...</span>
+      <span className="ml-3 text-gray-700">Cargando comisiones...</span>
     </div>
   );
 
   if (error) return (
     <div className="p-6 text-center">
       <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-      <p className="text-red-600">{error}</p>
-      <button onClick={fetchData} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded">Reintentar</button>
+      <p className="text-red-600 mb-4">{error}</p>
+      <button onClick={fetchData} className="px-4 py-2 bg-blue-600 text-white rounded">Reintentar</button>
     </div>
   );
 
@@ -139,13 +142,14 @@ const BrokerCommissionsConfig: React.FC = () => {
     <div className="bg-white shadow-xl rounded-lg p-6 overflow-auto">
       <div className="flex items-center mb-4">
         <Percent className="h-6 w-6 text-blue-600 mr-2" />
-        <h3 className="text-xl font-semibold">Comisiones por Proyecto x Broker</h3>
+        <h3 className="text-xl font-semibold text-gray-800">Comisiones por Proyecto x Broker</h3>
       </div>
+
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-2 text-left font-medium text-gray-700">Proyecto</th>
+              <th className="px-4 py-2 text-left font-medium text-gray-700 sticky left-0 bg-gray-50">Proyecto</th>
               {brokers.map(b => (
                 <th key={b.id} className="px-4 py-2 text-center font-medium text-gray-700">{b.name}</th>
               ))}
@@ -154,34 +158,31 @@ const BrokerCommissionsConfig: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {projects.map(project => (
               <tr key={project}>
-                <td className="px-4 py-2 font-medium text-gray-900 whitespace-nowrap">{project}</td>
-                {brokers.map(b => {
-                  const val = commissionInputs[b.id]?.[project] || '';
-                  return (
-                    <td key={b.id} className="px-4 py-2">
-                      <input
-                        type="text"
-                        value={val}
-                        onChange={e => handleInputChange(b.id, project, e.target.value)}
-                        className="w-16 text-right px-2 py-1 border rounded focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="%"
-                      />
-                    </td>
-                  );
-                })}
+                <td className="px-4 py-2 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white">{project}</td>
+                {brokers.map(b => (
+                  <td key={b.id} className="px-4 py-2 text-center">
+                    <input
+                      type="text"
+                      value={commissionInputs[b.id]?.[project] || ''}
+                      onChange={e => handleInputChange(b.id, project, e.target.value)}
+                      className="w-16 text-right px-2 py-1 border rounded focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="%"
+                    />
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
       <div className="mt-4 flex justify-end">
         <button
           onClick={handleSave}
           disabled={saving}
           className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center"
         >
-          {saving ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : null}
-          Guardar
+          {saving && <Loader2 className="animate-spin h-5 w-5 mr-2 text-white" />}Guardar
         </button>
       </div>
     </div>
@@ -189,4 +190,3 @@ const BrokerCommissionsConfig: React.FC = () => {
 };
 
 export default BrokerCommissionsConfig;
-```
