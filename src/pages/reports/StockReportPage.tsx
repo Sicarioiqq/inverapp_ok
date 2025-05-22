@@ -22,9 +22,10 @@ interface StockUnidad {
 }
 
 const StockReportPage: React.FC = () => {
-  const [stockData, setStockData] = useState<StockUnidad[]>([]);
-  const [loading,   setLoading]   = useState<boolean>(true);
-  const [error,     setError]     = useState<string | null>(null);
+  const [stockData, setStockData]       = useState<StockUnidad[]>([]);
+  const [loading,   setLoading]         = useState<boolean>(true);
+  const [error,     setError]           = useState<string | null>(null);
+  const [activeTab, setActiveTab]       = useState<'principales' | 'secundarios'>('principales');
 
   useEffect(() => {
     const fetchStockData = async () => {
@@ -51,7 +52,7 @@ const StockReportPage: React.FC = () => {
           .from('stock_unidades')
           .select(columns)
           .order('proyecto_nombre', { ascending: true })
-          .order('unidad', { ascending: true });
+          .order('unidad',         { ascending: true });
 
         if (fetchError) throw fetchError;
         setStockData(Array.isArray(data) ? data : []);
@@ -62,9 +63,60 @@ const StockReportPage: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchStockData();
   }, []);
+
+  // Filtra según el tipo_bien
+  const principales = stockData.filter(item => item.tipo_bien === 'DEPARTAMENTO');
+  const secundarios = stockData.filter(item => item.tipo_bien !== 'DEPARTAMENTO');
+
+  const renderTable = (rows: StockUnidad[]) => (
+    <div className="overflow-x-auto bg-white shadow-md rounded-lg">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Proyecto</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">N° Bien</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipo Bien</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipología</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Piso</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Sup. Útil</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Precio UF</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Etapa</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {rows.map(item => (
+            <tr key={item.id} className="hover:bg-gray-50 transition-colors duration-150">
+              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{item.proyecto_nombre}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.unidad}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.tipo_bien}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.tipologia}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.piso}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">
+                {item.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">
+                {item.valor_lista?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm">
+                <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                  item.estado_unidad === 'Disponible' ? 'bg-green-100 text-green-800' :
+                  item.estado_unidad === 'Reservado'   ? 'bg-yellow-100 text-yellow-800' :
+                  item.estado_unidad === 'Vendido'     ? 'bg-red-100 text-red-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {item.estado_unidad}
+                </span>
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.etapa}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 
   return (
     <Layout>
@@ -87,98 +139,39 @@ const StockReportPage: React.FC = () => {
             </div>
             <p className="text-red-700 bg-red-100 p-4 rounded-md">{error}</p>
           </div>
-        ) : stockData.length === 0 ? (
-          <p className="text-gray-600 text-lg">No hay unidades de stock disponibles para mostrar.</p>
         ) : (
-          <div className="overflow-x-auto bg-white shadow-md rounded-lg">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Proyecto
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    N° Bien
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Tipo Bien
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Tipología
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Piso
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Sup. Útil
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Precio UF
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Etapa
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {stockData.map(item => (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-gray-50 transition-colors duration-150"
-                  >
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {item.proyecto_nombre}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                      {item.unidad}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                      {item.tipo_bien}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                      {item.tipologia}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                      {item.piso}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">
-                      {item.sup_util?.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">
-                      {item.valor_lista?.toLocaleString(undefined, {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <span
-                        className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          item.estado_unidad === 'Disponible'
-                            ? 'bg-green-100 text-green-800'
-                            : item.estado_unidad === 'Reservado'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : item.estado_unidad === 'Vendido'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {item.estado_unidad}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                      {item.etapa}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Pestañas */}
+            <div className="border-b border-gray-200 mb-4">
+              <nav className="-mb-px flex space-x-8">
+                <button
+                  onClick={() => setActiveTab('principales')}
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'principales'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Principales
+                </button>
+                <button
+                  onClick={() => setActiveTab('secundarios')}
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'secundarios'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Secundarios
+                </button>
+              </nav>
+            </div>
+
+            {/* Tabla según pestaña */}
+            {activeTab === 'principales'
+              ? renderTable(principales)
+              : renderTable(secundarios)}
+          </>
         )}
       </div>
     </Layout>
