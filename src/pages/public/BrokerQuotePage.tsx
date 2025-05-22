@@ -1,5 +1,5 @@
 // src/pages/public/BrokerQuotePage.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react'; // Importar useMemo
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import {
@@ -268,24 +268,6 @@ const BrokerQuotePage: React.FC = () => {
     }
   }, [ufValue, bonoAmount, quotationType]); // Depende de ufValue, bonoAmount y quotationType para recalcular
 
-  // Sincronizar pagoPromesa y pagoPromesaPct
-  useEffect(() => {
-    if (totalEscritura > 0 && !isNaN(pagoPromesa)) {
-      setPagoPromesaPct((pagoPromesa / totalEscritura) * 100);
-    } else {
-      setPagoPromesaPct(0);
-    }
-  }, [pagoPromesa, totalEscritura]);
-
-  // Sincronizar pagoPie y pagoPiePct
-  useEffect(() => {
-    if (totalEscritura > 0 && !isNaN(pagoPie)) {
-      setPagoPiePct((pagoPie / totalEscritura) * 100);
-    } else {
-      setPagoPiePct(0);
-    }
-  }, [pagoPie, totalEscritura]);
-
 
   // Opciones de filtro
   const proyectos = ['Todos', ...Array.from(new Set(stock.map(u => u.proyecto_nombre))).sort()];
@@ -351,33 +333,45 @@ const BrokerQuotePage: React.FC = () => {
       return 0;
     });
 
-  // Cálculos para la nueva sección de Cotización
-  const precioBaseDepartamento = selectedUnidad?.valor_lista || 0;
-  
-  // Ajusta el precio del departamento según el tipo de configuración
-  let precioDescuentoDepartamento = 0;
-  let precioDepartamentoConDescuento = precioBaseDepartamento;
-  
-  // Si la configuración es 'descuento' o 'mix', aplica el descuento al departamento
-  if (quotationType === 'descuento' || quotationType === 'mix') {
-    precioDescuentoDepartamento = (precioBaseDepartamento * discountAmount) / 100;
-    precioDepartamentoConDescuento = precioBaseDepartamento - precioDescuentoDepartamento;
-  } else {
-    // Si la configuración es solo 'bono', no hay descuento directo en el departamento
-    precioDescuentoDepartamento = 0;
-    precioDepartamentoConDescuento = precioBaseDepartamento;
-  }
+  // Cálculos para la nueva sección de Cotización usando useMemo
+  const {
+    precioBaseDepartamento,
+    precioDescuentoDepartamento,
+    precioDepartamentoConDescuento,
+    precioTotalSecundarios,
+    totalEscritura,
+    pagoCreditoHipotecarioCalculado,
+    totalFormaDePago
+  } = useMemo(() => {
+    const pBaseDepto = selectedUnidad?.valor_lista || 0;
+    let pDescuentoDepto = 0;
+    let pDeptoConDescuento = pBaseDepto;
 
-  const precioTotalSecundarios = addedSecondaryUnits.reduce((sum, unit) => sum + (unit.valor_lista || 0), 0);
+    if (quotationType === 'descuento' || quotationType === 'mix') {
+      pDescuentoDepto = (pBaseDepto * discountAmount) / 100;
+      pDeptoConDescuento = pBaseDepto - pDescuentoDepto;
+    } else {
+      pDescuentoDepto = 0;
+      pDeptoConDescuento = pBaseDepto;
+    }
 
-  // Calcula el "Total Escritura"
-  const totalEscritura = precioDepartamentoConDescuento + precioTotalSecundarios;
-  
-  // Calcula el crédito hipotecario ajustado
-  const pagoCreditoHipotecarioCalculado = totalEscritura - (pagoReserva + pagoPromesa + pagoPie + pagoBonoPieCotizacion);
+    const pTotalSecundarios = addedSecondaryUnits.reduce((sum, unit) => sum + (unit.valor_lista || 0), 0);
+    const tEscritura = pDeptoConDescuento + pTotalSecundarios;
 
-  // Este es el "Total" de la forma de pago (sumando el crédito hipotecario calculado)
-  const totalFormaDePago = pagoReserva + pagoPromesa + pagoPie + pagoCreditoHipotecarioCalculado + pagoBonoPieCotizacion;
+    const pCreditoHipotecarioCalculado = tEscritura - (pagoReserva + pagoPromesa + pagoPie + pagoBonoPieCotizacion);
+    const tFormaDePago = pagoReserva + pagoPromesa + pagoPie + pCreditoHipotecarioCalculado + pagoBonoPieCotizacion;
+
+    return {
+      precioBaseDepartamento: pBaseDepto,
+      precioDescuentoDepartamento: pDescuentoDepto,
+      precioDepartamentoConDescuento: pDeptoConDescuento,
+      precioTotalSecundarios: pTotalSecundarios,
+      totalEscritura: tEscritura,
+      pagoCreditoHipotecarioCalculado: pCreditoHipotecarioCalculado,
+      totalFormaDePago: tFormaDePago
+    };
+  }, [selectedUnidad, quotationType, discountAmount, addedSecondaryUnits,
+      pagoReserva, pagoPromesa, pagoPie, pagoBonoPieCotizacion]);
 
 
   // Handler para agregar unidad secundaria a la cotización
@@ -398,39 +392,47 @@ const BrokerQuotePage: React.FC = () => {
 
   // Funciones para manejar la edición bidireccional de Promesa y Pie
   const handlePromesaChange = (type: 'uf' | 'pct', value: string) => {
-    const numValue = parseFloat(value); // No usar || 0 aquí para distinguir entre 0 y NaN/empty
-    if (isNaN(numValue) || !isFinite(numValue)) { // Si no es un número válido o es infinito, resetear
-      setPagoPromesa(0);
+    const numValue = parseFloat(value); 
+    if (isNaN(numValue) || !isFinite(numValue)) { 
+      setPagoPromesa(0); // Reiniciar a 0 si no es un número válido
+      setPagoPromesaPct(0);
       return;
     }
 
-    if (totalEscritura === 0) { // Si el total escritura es 0, no se puede calcular porcentaje
-      setPagoPromesa(numValue); // Aceptar el valor UF, el % será 0
+    if (totalEscritura === 0) {
+      setPagoPromesa(numValue);
+      setPagoPromesaPct(0); // El porcentaje es 0 si el total es 0
       return;
     }
 
     if (type === 'uf') {
       setPagoPromesa(numValue);
+      setPagoPromesaPct((numValue / totalEscritura) * 100);
     } else { // type === 'pct'
+      setPagoPromesaPct(numValue);
       setPagoPromesa((numValue / 100) * totalEscritura);
     }
   };
 
   const handlePieChange = (type: 'uf' | 'pct', value: string) => {
-    const numValue = parseFloat(value); // No usar || 0 aquí para distinguir entre 0 y NaN/empty
-    if (isNaN(numValue) || !isFinite(numValue)) { // Si no es un número válido o es infinito, resetear
-      setPagoPie(0);
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || !isFinite(numValue)) {
+      setPagoPie(0); // Reiniciar a 0 si no es un número válido
+      setPagoPiePct(0);
       return;
     }
 
-    if (totalEscritura === 0) { // Si el total escritura es 0, no se puede calcular porcentaje
-      setPagoPie(numValue); // Aceptar el valor UF, el % será 0
+    if (totalEscritura === 0) {
+      setPagoPie(numValue);
+      setPagoPiePct(0); // El porcentaje es 0 si el total es 0
       return;
     }
 
     if (type === 'uf') {
       setPagoPie(numValue);
+      setPagoPiePct((numValue / totalEscritura) * 100);
     } else { // type === 'pct'
+      setPagoPiePct(numValue);
       setPagoPie((numValue / 100) * totalEscritura);
     }
   };
