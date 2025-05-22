@@ -174,6 +174,20 @@ const StockReportPage: React.FC = () => {
         </div>
 
         <div className="border-b border-gray-200 mb-4">
+
+        {/* Resumen de unidades actuales */}
+        <div className="bg-white shadow rounded-lg p-4 mb-6 flex space-x-4">
+          <div>
+            <p className="text-sm text-gray-500">Total unidades mostradas</p>
+            <p className="text-2xl font-semibold text-gray-800">{filtered.length}</p>
+          </div>
+          {activeTab!=='todos' && (
+            <div>
+              <p className="text-sm text-gray-500">Unidades {activeTab==='principales'? 'Deptos' : 'Otros'}</p>
+              <p className="text-2xl font-semibold text-gray-800">{activeTab==='principales' ? principales.length : secundarios.length}</p>
+            </div>
+          )}
+        </div>
           <nav className="-mb-px flex space-x-8">
             {['todos','principales','secundarios'].map(tab=>(
               <button
