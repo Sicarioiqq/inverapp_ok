@@ -3,25 +3,59 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import Layout from '../../components/Layout';
-import { 
-  ArrowLeft, 
-  CheckCircle2, 
-  XCircle, 
-  Loader2, 
-  Calendar, 
-  DollarSign, 
-  Building2, 
-  User, 
-  Home, 
+import {
+  ArrowLeft,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Calendar,
+  DollarSign,
+  Building2,
+  User,
+  Home,
   AlertTriangle,
   Clock,
   Wallet,
   TrendingDown,
   TrendingUp,
-  Minus
+  Minus,
+  Gift // Import Gift icon for promotions
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+// --- Definiciones de Tipos para Promociones (copiado de PaymentEdit.tsx) ---
+export const PROMOTION_TYPES_ARRAY = [
+  'Arriendo garantizado',
+  'Cashback',
+  'Giftcard',
+  'Bono Ejecutivo',
+  'Crédito al Pie',
+  'Dividendo Garantizado'
+] as const;
+
+export type PromotionType = typeof PROMOTION_TYPES_ARRAY[number];
+
+export interface AppliedPromotion {
+  id: string;
+  reservation_id: string;
+  promotion_type: PromotionType;
+  is_against_discount: boolean;
+  observations?: string | null;
+  amount: number;
+  beneficiary: string;
+  rut: string;
+  bank: string;
+  account_type: string;
+  account_number: string;
+  email: string;
+  purchase_order?: string | null;
+  document_number?: string | null;
+  document_date?: string | null;
+  payment_date?: string | null;
+  created_at?: string;
+}
+// --- Fin Tipos ---
 
 interface BrokerPaymentApprovalDetail {
   // Información de la tarea
@@ -103,6 +137,7 @@ interface BrokerPaymentApprovalDetail {
   
   // Diferencia calculada
   difference: number;
+  totalPromotionsAgainstDiscount: number; // NUEVO: Total de promociones que son contra descuento
 }
 
 const BrokerPaymentApprovalDetail: React.FC = () => {
@@ -116,18 +151,59 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
   const [isRejecting, setIsRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [appliedPromotions, setAppliedPromotions] = useState<AppliedPromotion[]>([]); // NUEVO estado para promociones
 
   useEffect(() => {
     if (id && session?.user?.id) {
-      fetchApprovalDetails();
+      // Fetch both approval details and promotions in parallel
+      Promise.all([
+        fetchApprovalDetails(),
+        fetchAppliedPromotionsForReservationId(id) // Pass the task ID, which will be used to find the reservation ID
+      ]).catch((err) => {
+        console.error("Error en la carga inicial:", err);
+        setError(err.message || "Error al cargar datos.");
+      }).finally(() => {
+        setLoading(false);
+      });
     }
   }, [id, session?.user?.id]);
+
+  // NUEVA función para obtener promociones por reservation_id
+  const fetchAppliedPromotionsForReservationId = async (commissionFlowTaskId: string) => {
+    try {
+      // First, get the reservation_id from the commission flow task
+      const { data: taskLookupData, error: taskLookupError } = await supabase
+        .from('commission_flow_tasks')
+        .select('commission_flow_id, commission_flow:commission_flows(broker_commission:broker_commissions(reservation_id))')
+        .eq('id', commissionFlowTaskId)
+        .single();
+
+      if (taskLookupError) throw taskLookupError;
+      if (!taskLookupData?.commission_flow?.broker_commission?.reservation_id) {
+        throw new Error('Could not find reservation ID for this commission flow task.');
+      }
+      const reservationId = taskLookupData.commission_flow.broker_commission.reservation_id;
+
+      const { data, error: promoError } = await supabase
+        .from('promotions')
+        .select('*')
+        .eq('reservation_id', reservationId)
+        .order('created_at', { ascending: true });
+
+      if (promoError) throw promoError;
+      setAppliedPromotions((data as AppliedPromotion[]) || []);
+    } catch (err: any) {
+      console.error('Error fetching applied promotions:', err);
+      // Don't throw here, allow the main fetchApprovalDetails to proceed
+    }
+  };
+
 
   const fetchApprovalDetails = async () => {
     if (!id) return;
     
     try {
-      setLoading(true);
+      // setLoading(true) is handled by the outer useEffect's Promise.all
       
       // Get the commission flow task
       const { data: taskData, error: taskError } = await supabase
@@ -223,17 +299,27 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
       const daysToComplete = taskData.task?.days_to_complete || null;
       const isOverdue = daysToComplete !== null && daysPending > daysToComplete;
       
-      // Calculate difference
-      // Recuperación = total_payment - subsidy_payment
+      // Calculate total promotions that are "against discount"
+      const totalPromotionsAgainstDiscount = appliedPromotions.reduce((sum, promo) => {
+        if (promo.is_against_discount) {
+          return sum + (promo.amount || 0);
+        }
+        return sum;
+      }, 0);
+
+      // Calculate difference (Recuperación - Mínimo - Comisión - Promociones Contra Descuento)
       const totalPayment = flowData.broker_commission.reservation.total_payment;
       const subsidyPayment = flowData.broker_commission.reservation.subsidy_payment;
       const recoveryPayment = totalPayment - subsidyPayment;
       
       const minimumPrice = flowData.broker_commission.reservation.minimum_price;
       const commissionAmount = flowData.broker_commission.commission_amount;
-      const difference = recoveryPayment - minimumPrice - commissionAmount;
       
-      // Save the difference to the broker_commission record
+      const difference = recoveryPayment - minimumPrice - commissionAmount - totalPromotionsAgainstDiscount; // MODIFICADO
+
+      // Save the difference to the broker_commission record (if the column exists)
+      // NOTE: This assumes 'difference' column exists in 'broker_commissions' table.
+      // If not, this line might cause an error or simply not save the value.
       await supabase
         .from('broker_commissions')
         .update({ difference: difference })
@@ -314,14 +400,15 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
         recoveryPayment: recoveryPayment, // Calculado como total_payment - subsidy_payment
         
         // Diferencia calculada
-        difference: difference
+        difference: difference,
+        totalPromotionsAgainstDiscount: totalPromotionsAgainstDiscount, // NUEVO: Incluir en los datos formateados
       };
       
       setData(formattedData);
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      // setLoading(false) is handled by the outer useEffect's Promise.all
     }
   };
 
@@ -834,6 +921,50 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
           </div>
         </div>
 
+        {/* --- NUEVO: Sección de Promociones Aplicadas (copiada de PaymentEdit.tsx para visualización) --- */}
+        {appliedPromotions.length > 0 && (
+          <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
+            <div className="flex justify-between items-center mb-4 border-b pb-3">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <Gift className="h-6 w-6 mr-2 text-purple-600" />
+                Promociones Aplicadas (Solo para visualización en esta pantalla)
+              </h2>
+            </div>
+            <div className="space-y-3 max-h-72 overflow-y-auto">
+              {appliedPromotions.map((promo) => (
+                <div key={promo.id} className="p-4 border border-gray-200 rounded-lg bg-slate-50 shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-semibold text-md text-purple-700">{promo.promotion_type}</h3>
+                      <p className="text-lg font-bold text-purple-600">
+                        {formatCurrency(promo.amount)} UF
+                      </p>
+                    </div>
+                    <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+                      promo.is_against_discount
+                        ? 'bg-orange-100 text-orange-800'
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {promo.is_against_discount ? 'Contra Descuento' : 'No Contra Dcto.'}
+                    </span>
+                  </div>
+                  {promo.observations && (
+                    <p className="text-sm text-gray-600 mt-2 pt-2 border-t border-gray-100 italic">
+                      {promo.observations}
+                    </p>
+                  )}
+                  <div className="mt-2 text-xs text-gray-500 space-y-0.5 pt-2 border-t border-gray-100">
+                      {promo.beneficiary && (<p><strong>Beneficiario:</strong> {promo.beneficiary}{promo.rut && ` (RUT: ${promo.rut})`}</p>)}
+                      {promo.document_number && (<p><strong>Doc. Pago N°:</strong> {promo.document_number} {promo.document_date ? `(Fecha Emisión: ${formatDate(promo.document_date)})` : ''}</p>)}
+                      {promo.payment_date && (<p><strong>Fecha Pago Promoción:</strong> {formatDate(promo.payment_date)}</p>)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* --- FIN SECCIÓN: Promociones Aplicadas --- */}
+
         {/* Resumen Financiero */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex items-center mb-4">
@@ -894,9 +1025,18 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
                 {formatCurrency(data.difference)} UF
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                (Recuperación - Mínimo - Comisión)
+                (Recuperación - Mínimo - Comisión - Promociones Contra Descuento) {/* MODIFICADO el subtítulo */}
               </div>
             </div>
+            {/* NUEVO: Mostrar el total de promociones descontadas para transparencia */}
+            {data.totalPromotionsAgainstDiscount > 0 && (
+                <div className="mt-4 pt-3 border-t col-span-full">
+                    <p className="text-sm text-gray-600">
+                        Total Promociones (Contra Descuento) aplicadas en Diferencia: 
+                        <span className="font-semibold text-orange-600"> {formatCurrency(data.totalPromotionsAgainstDiscount)} UF</span>
+                    </p>
+                </div>
+            )}
           </div>
         </div>
 
