@@ -87,7 +87,9 @@ const BrokerQuotePage: React.FC = () => {
   // NUEVOS ESTADOS para la forma de pago de la cotización
   const [pagoReserva, setPagoReserva] = useState<number>(0);
   const [pagoPromesa, setPagoPromesa] = useState<number>(0);
+  const [pagoPromesaPct, setPagoPromesaPct] = useState<number>(0); // Nuevo estado para el % de promesa
   const [pagoPie, setPagoPie] = useState<number>(0);
+  const [pagoPiePct, setPagoPiePct] = useState<number>(0); // Nuevo estado para el % de pie
   // pagoCreditoHipotecario se calculará automáticamente
   const [pagoBonoPieCotizacion, setPagoBonoPieCotizacion] = useState<number>(0); // Este es el monto del bono pie que aparece en la sección "Forma de Pago"
 
@@ -269,6 +271,25 @@ const BrokerQuotePage: React.FC = () => {
     }
   }, [ufValue, bonoAmount, quotationType]); // Depende de ufValue, bonoAmount y quotationType para recalcular
 
+  // Sincronizar pagoPromesa y pagoPromesaPct
+  useEffect(() => {
+    if (totalEscritura > 0 && !isNaN(pagoPromesa)) {
+      setPagoPromesaPct((pagoPromesa / totalEscritura) * 100);
+    } else {
+      setPagoPromesaPct(0);
+    }
+  }, [pagoPromesa, totalEscritura]);
+
+  // Sincronizar pagoPie y pagoPiePct
+  useEffect(() => {
+    if (totalEscritura > 0 && !isNaN(pagoPie)) {
+      setPagoPiePct((pagoPie / totalEscritura) * 100);
+    } else {
+      setPagoPiePct(0);
+    }
+  }, [pagoPie, totalEscritura]);
+
+
   // Opciones de filtro
   const proyectos = ['Todos', ...Array.from(new Set(stock.map(u => u.proyecto_nombre))).sort()];
   const tipologias = [
@@ -377,6 +398,40 @@ const BrokerQuotePage: React.FC = () => {
   const handleRemoveAddedSecondaryUnit = (unitId: string) => {
     setAddedSecondaryUnits(prev => prev.filter(unit => unit.id !== unitId));
   };
+
+  // Funciones para manejar la edición bidireccional de Promesa y Pie
+  const handlePromesaChange = (type: 'uf' | 'pct', value: string) => {
+    const numValue = parseFloat(value) || 0;
+    if (totalEscritura === 0) { // Evitar divisiones por cero
+      setPagoPromesa(0);
+      setPagoPromesaPct(0);
+      return;
+    }
+    if (type === 'uf') {
+      setPagoPromesa(numValue);
+      setPagoPromesaPct((numValue / totalEscritura) * 100);
+    } else { // type === 'pct'
+      setPagoPromesaPct(numValue);
+      setPagoPromesa((numValue / 100) * totalEscritura);
+    }
+  };
+
+  const handlePieChange = (type: 'uf' | 'pct', value: string) => {
+    const numValue = parseFloat(value) || 0;
+    if (totalEscritura === 0) { // Evitar divisiones por cero
+      setPagoPie(0);
+      setPagoPiePct(0);
+      return;
+    }
+    if (type === 'uf') {
+      setPagoPie(numValue);
+      setPagoPiePct((numValue / totalEscritura) * 100);
+    } else { // type === 'pct'
+      setPagoPiePct(numValue);
+      setPagoPie((numValue / 100) * totalEscritura);
+    }
+  };
+
 
   // Función para formatear moneda (siempre con 2 decimales)
   const formatCurrency = (amount: number | null): string => {
@@ -908,13 +963,23 @@ const BrokerQuotePage: React.FC = () => {
                                 {/* Fila: Promesa */}
                                 <div className="grid grid-cols-5 items-center">
                                     <span className="col-span-2">Promesa:</span>
-                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoPromesa / totalEscritura) * 100) : formatCurrency(0)}%</span>
-                                    <span className="text-right">{ufToPesos(pagoPromesa)}</span>
+                                    {/* Input de porcentaje */}
                                     <div className="flex justify-end">
                                         <input
                                             type="number"
-                                            value={pagoPromesa} // Mantener como number para edición directa
-                                            onChange={e => setPagoPromesa(parseFloat(e.target.value) || 0)}
+                                            value={parseFloat(pagoPromesaPct.toFixed(2))} // Mostrar con 2 decimales
+                                            onChange={e => handlePromesaChange('pct', e.target.value)}
+                                            className="w-24 text-right border rounded-md px-2 py-1"
+                                            step="0.01"
+                                        />%
+                                    </div>
+                                    <span className="text-right">{ufToPesos(pagoPromesa)}</span>
+                                    {/* Input de UF */}
+                                    <div className="flex justify-end">
+                                        <input
+                                            type="number"
+                                            value={pagoPromesa} // Valor numérico para edición directa
+                                            onChange={e => handlePromesaChange('uf', e.target.value)}
                                             className="w-24 text-right border rounded-md px-2 py-1"
                                             step="0.01"
                                         />
@@ -924,13 +989,23 @@ const BrokerQuotePage: React.FC = () => {
                                 {/* Fila: Pie */}
                                 <div className="grid grid-cols-5 items-center">
                                     <span className="col-span-2">Pie:</span>
-                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoPie / totalEscritura) * 100) : formatCurrency(0)}%</span>
-                                    <span className="text-right">{ufToPesos(pagoPie)}</span>
+                                    {/* Input de porcentaje */}
                                     <div className="flex justify-end">
                                         <input
                                             type="number"
-                                            value={pagoPie} // Mantener como number para edición directa
-                                            onChange={e => setPagoPie(parseFloat(e.target.value) || 0)}
+                                            value={parseFloat(pagoPiePct.toFixed(2))} // Mostrar con 2 decimales
+                                            onChange={e => handlePieChange('pct', e.target.value)}
+                                            className="w-24 text-right border rounded-md px-2 py-1"
+                                            step="0.01"
+                                        />%
+                                    </div>
+                                    <span className="text-right">{ufToPesos(pagoPie)}</span>
+                                    {/* Input de UF */}
+                                    <div className="flex justify-end">
+                                        <input
+                                            type="number"
+                                            value={pagoPie} // Valor numérico para edición directa
+                                            onChange={e => handlePieChange('uf', e.target.value)}
                                             className="w-24 text-right border rounded-md px-2 py-1"
                                             step="0.01"
                                         />
