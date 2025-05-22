@@ -258,4 +258,23 @@ const BrokerQuotePage: React.FC = () => {
                         <td className="px-4 py-2">{u.proyecto_nombre}</td>
                         <td className="px-4 py-2">{u.unidad}</td>
                         <td className="px-4 py-2">{u.tipologia}</td>
-                        <td className="px-4 py-2">{u.piso || '-'}
+                        <td className="px-4 py-2">{u.piso || '-'}</td>
+                        <td className="px-4 py-2">{u.sup_util?.toFixed(2) ?? '-'}</td>
+                        <td className="px-4 py-2">{u.valor_lista?.toFixed(3) ?? '-'}</td>
+                        <td className="px-4 py-2">{u.descuento?.toFixed(3) ?? '-'}</td>
+                        <td className="px-4 py-2">{u.estado_unidad}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+        {/* TODO: implementar secundarios y configuracion */}
+      </main>
+    </div>
+  );
+};
+
+export default BrokerQuotePage;
