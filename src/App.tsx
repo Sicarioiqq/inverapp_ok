@@ -163,8 +163,7 @@ function App() {
               <BrokerPaymentsReport />
             </ProtectedRoute>
           } />
-          <Route
-  path="/informes/stock"
+          <Route path="/informes/stock"
   element={
     <ProtectedRoute>
       <StockReportPage />
