@@ -49,6 +49,11 @@ function App() {
           <Route path="/register" element={
             session ? <Navigate to="/dashboard" replace /> : <Register />
           } />
+          {/* 👇 NUEVA RUTA PÚBLICA PARA COTIZADOR DE BROKER 👇 */}
+          <Route 
+            path="/cotizador-broker/:brokerSlug/:accessToken" 
+            element={<BrokerQuotePage />} 
+          />
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
