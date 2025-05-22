@@ -236,14 +236,17 @@ const BrokerQuotePage: React.FC = () => {
         selectedUnidad.proyecto_nombre
       );
 
-      if (quotationType === 'descuento' || quotationType === 'mix') {
-        // En estos modos, el descuento se "autocarga" con el descuento disponible del departamento
+      if (quotationType === 'descuento') {
+        // En este modo, el descuento se "autocarga" con el descuento disponible del departamento
         // y se redondea a 2 decimales para la visualización.
         setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); 
-        setBonoAmount(0); // Restablecer bono en estos modos
+        setBonoAmount(0); // Restablecer bono en este modo
       } else if (quotationType === 'bono') {
         setDiscountAmount(0); // Restablecer descuento en modo bono
         setBonoAmount(0); // El bono en modo 'bono' se ingresa manualmente por ahora, no hay un valor inicial automático
+      } else if (quotationType === 'mix') {
+        setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); // El descuento inicial es el de la unidad
+        setBonoAmount(0); // El bono en mix se calculará automáticamente más tarde (o es 0 inicialmente)
       }
     } else {
       // Resetear estados si no hay unidad seleccionada
@@ -339,7 +342,7 @@ const BrokerQuotePage: React.FC = () => {
     precioDescuentoDepartamento,
     precioDepartamentoConDescuento,
     precioTotalSecundarios,
-    totalEscritura,
+    totalEscritura, // Definido dentro de useMemo
     pagoCreditoHipotecarioCalculado,
     totalFormaDePago
   } = useMemo(() => {
@@ -374,6 +377,27 @@ const BrokerQuotePage: React.FC = () => {
       pagoReserva, pagoPromesa, pagoPie, pagoBonoPieCotizacion]);
 
 
+  // Sincronizar pagoPromesa y pagoPromesaPct
+  useEffect(() => {
+    // Solo sincronizar si totalEscritura es válido y mayor a 0
+    if (totalEscritura > 0 && !isNaN(pagoPromesa)) {
+      setPagoPromesaPct((pagoPromesa / totalEscritura) * 100);
+    } else if (isNaN(pagoPromesa) || !isFinite(pagoPromesa)) { // Si pagoPromesa se vuelve inválido, resetear pct
+      setPagoPromesaPct(0);
+    }
+  }, [pagoPromesa, totalEscritura]); // Dependencia de totalEscritura está correcta ahora
+
+  // Sincronizar pagoPie y pagoPiePct
+  useEffect(() => {
+    // Solo sincronizar si totalEscritura es válido y mayor a 0
+    if (totalEscritura > 0 && !isNaN(pagoPie)) {
+      setPagoPiePct((pagoPie / totalEscritura) * 100);
+    } else if (isNaN(pagoPie) || !isFinite(pagoPie)) { // Si pagoPie se vuelve inválido, resetear pct
+      setPagoPiePct(0);
+    }
+  }, [pagoPie, totalEscritura]); // Dependencia de totalEscritura está correcta ahora
+
+
   // Handler para agregar unidad secundaria a la cotización
   const handleAddSecondaryUnit = () => {
     if (selectedSecondaryUnitToAdd) {
@@ -393,47 +417,43 @@ const BrokerQuotePage: React.FC = () => {
   // Funciones para manejar la edición bidireccional de Promesa y Pie
   const handlePromesaChange = (type: 'uf' | 'pct', value: string) => {
     const numValue = parseFloat(value); 
-    if (isNaN(numValue) || !isFinite(numValue)) { 
-      setPagoPromesa(0); // Reiniciar a 0 si no es un número válido
-      setPagoPromesaPct(0);
-      return;
-    }
+    
+    // Si el valor ingresado no es un número válido o es infinito, se trata como 0
+    const finalValue = isNaN(numValue) || !isFinite(numValue) ? 0 : numValue;
 
-    if (totalEscritura === 0) {
-      setPagoPromesa(numValue);
+    if (totalEscritura === 0) { // Si el total escritura es 0, no se puede calcular porcentaje, solo se actualiza el UF si es directo
+      setPagoPromesa(finalValue);
       setPagoPromesaPct(0); // El porcentaje es 0 si el total es 0
       return;
     }
 
     if (type === 'uf') {
-      setPagoPromesa(numValue);
-      setPagoPromesaPct((numValue / totalEscritura) * 100);
+      setPagoPromesa(finalValue);
+      // El porcentaje se calculará y actualizará vía useEffect
     } else { // type === 'pct'
-      setPagoPromesaPct(numValue);
-      setPagoPromesa((numValue / 100) * totalEscritura);
+      setPagoPromesaPct(finalValue);
+      setPagoPromesa((finalValue / 100) * totalEscritura);
     }
   };
 
   const handlePieChange = (type: 'uf' | 'pct', value: string) => {
     const numValue = parseFloat(value);
-    if (isNaN(numValue) || !isFinite(numValue)) {
-      setPagoPie(0); // Reiniciar a 0 si no es un número válido
-      setPagoPiePct(0);
-      return;
-    }
+    
+    // Si el valor ingresado no es un número válido o es infinito, se trata como 0
+    const finalValue = isNaN(numValue) || !isFinite(numValue) ? 0 : numValue;
 
     if (totalEscritura === 0) {
-      setPagoPie(numValue);
+      setPagoPie(finalValue);
       setPagoPiePct(0); // El porcentaje es 0 si el total es 0
       return;
     }
 
     if (type === 'uf') {
-      setPagoPie(numValue);
-      setPagoPiePct((numValue / totalEscritura) * 100);
+      setPagoPie(finalValue);
+      // El porcentaje se calculará y actualizará vía useEffect
     } else { // type === 'pct'
-      setPagoPiePct(numValue);
-      setPagoPie((numValue / 100) * totalEscritura);
+      setPagoPiePct(finalValue);
+      setPagoPie((finalValue / 100) * totalEscritura);
     }
   };
 
