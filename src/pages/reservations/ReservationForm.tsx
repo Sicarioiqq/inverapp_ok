@@ -213,17 +213,31 @@ const ReservationForm = () => {
         throw new Error('ID de reserva inválido');
       }
 
-      // Split the query into smaller chunks to avoid URL length issues
+      // Fetch reservation data with specific columns
       const { data: reservationData, error: reservationError } = await supabase
         .from('reservations')
         .select(`
-          *,
-          clients:client_id (
-            id,
-            rut,
-            first_name,
-            last_name
-          )
+          reservation_number,
+          client_id,
+          project_id,
+          seller_id,
+          reservation_date,
+          apartment_number,
+          parking_number,
+          storage_number,
+          apartment_price,
+          parking_price,
+          storage_price,
+          column_discount,
+          additional_discount,
+          other_discount,
+          reservation_payment,
+          promise_payment,
+          down_payment,
+          credit_payment,
+          subsidy_payment,
+          is_with_broker,
+          broker_id
         `)
         .eq('id', id)
         .single();
@@ -237,6 +251,18 @@ const ReservationForm = () => {
         throw new Error('No se encontró la reserva');
       }
 
+      // Fetch client data separately
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .select('id, rut, first_name, last_name')
+        .eq('id', reservationData.client_id)
+        .single();
+
+      if (clientError) {
+        console.error('Error fetching client:', clientError);
+        throw new Error('Error al cargar el cliente: ' + clientError.message);
+      }
+
       setFormData({
         ...reservationData,
         reservation_date: reservationData.reservation_date.split('T')[0],
@@ -245,8 +271,7 @@ const ReservationForm = () => {
         other_discount: (reservationData.other_discount || 0) * 100
       });
       
-      // Extract client data from the nested clients object
-      setSelectedClient(reservationData.clients);
+      setSelectedClient(clientData);
     } catch (err: any) {
       console.error('Error in fetchReservation:', err);
       setError(err.message);
@@ -265,7 +290,7 @@ const ReservationForm = () => {
       setIsSearching(true);
       const { data, error } = await supabase
         .from('clients')
-        .select('*')
+        .select('id, rut, first_name, last_name')
         .or(`rut.ilike.%${clientSearchTerm}%,first_name.ilike.%${clientSearchTerm}%,last_name.ilike.%${clientSearchTerm}%`)
         .is('deleted_at', null)
         .order('first_name')
@@ -339,7 +364,7 @@ const ReservationForm = () => {
         const { data, error } = await supabase
           .from('reservations')
           .insert([{ ...reservationData, created_by: session?.user.id }])
-          .select()
+          .select('id')
           .single();
 
         if (error) throw error;
@@ -384,7 +409,7 @@ const ReservationForm = () => {
           const { data, error } = await supabase
             .from('reservations')
             .insert([{ ...reservationData, created_by: session?.user.id }])
-            .select()
+            .select('id')
             .single();
 
           if (error) throw error;
@@ -435,7 +460,7 @@ const ReservationForm = () => {
           created_by: session?.user.id,
           updated_by: session?.user.id
         })
-        .select()
+        .select('id')
         .single();
 
       if (flowRecordError) throw flowRecordError;
