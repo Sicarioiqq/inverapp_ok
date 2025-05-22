@@ -25,6 +25,7 @@ interface Unidad {
   piso: string | null;
   sup_util: number | null;
   valor_lista: number | null;
+  descuento: number | null;
   estado_unidad: string | null;
 }
 
@@ -85,7 +86,7 @@ const BrokerQuotePage: React.FC = () => {
         const { data, error: se } = await supabase
           .from<Unidad>('stock_unidades')
           .select(
-            'id, proyecto_nombre, unidad, tipologia, tipo_bien, piso, sup_util, valor_lista, estado_unidad'
+            'id, proyecto_nombre, unidad, tipologia, tipo_bien, piso, sup_util, valor_lista, descuento, estado_unidad'
           )
           .eq('tipo_bien', 'DEPARTAMENTO');
         if (se) throw se;
@@ -126,6 +127,7 @@ const BrokerQuotePage: React.FC = () => {
     { key: 'piso', label: 'Piso' },
     { key: 'sup_util', label: 'Sup. Útil' },
     { key: 'valor_lista', label: 'Valor Lista (UF)' },
+    { key: 'descuento', label: 'Descuento (%)' },
     { key: 'estado_unidad', label: 'Estado' },
   ];
 
@@ -146,16 +148,16 @@ const BrokerQuotePage: React.FC = () => {
           <>
             <div className="flex space-x-4 mb-4">
               <select value={selectedProject} onChange={e=>{setSelectedProject(e.target.value); setSelectedTip('');}} className="border p-2 rounded">
-                <option value="">Todos Proyectos</option>{projects.map(p=><option key={p} value={p}>{p}</option>)}
+                <option value="">Todos Proyectos</option>{projects.map(p=><option key={p} value={p}>{p}</option>) }
               </select>
               <select value={selectedTip} onChange={e=>setSelectedTip(e.target.value)} className="border p-2 rounded">
-                <option value="">Todas Tipologías</option>{typologies.map(t=><option key={t} value={t}>{t}</option>)}
+                <option value="">Todas Tipologías</option>{typologies.map(t=><option key={t} value={t}>{t}</option>) }
               </select>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full bg-white">
                 <thead><tr>{headers.map(h=><th key={h.key} className="px-4 py-2 cursor-pointer" onClick={()=>{if(sortField===h.key) setSortAsc(!sortAsc); else{setSortField(h.key); setSortAsc(true);}}}><div className="flex items-center">{h.label}{sortField===h.key && (sortAsc?<ArrowUp/>:<ArrowDown/>)}</div></th>)}</tr></thead>
-                <tbody>{loadingStock ? <tr><td colSpan={headers.length} className="p-4 text-center"><Loader2 className="animate-spin"/></td></tr> : filtered.map(u=><tr key={u.id} className="odd:bg-gray-50 hover:bg-gray-100"><td className="px-4 py-2">{u.proyecto_nombre}</td><td className="px-4 py-2">{u.unidad}</td><td className="px-4 py-2">{u.tipologia}</td><td className="px-4 py-2">{u.piso||'-'}</td><td className="px-4 py-2 text-right">{u.sup_util?.toFixed(2)||'-'}</td><td className="px-4 py-2 text-right">{u.valor_lista?.toFixed(0)||'-'}</td><td className="px-4 py-2">{u.estado_unidad}</td></tr>)}
+                <tbody>{loadingStock ? <tr><td colSpan={headers.length} className="p-4 text-center"><Loader2 className="animate-spin"/></td></tr> : filtered.map(u=><tr key={u.id} className="odd:bg-gray-50 hover:bg-gray-100"><td className="px-4 py-2">{u.proyecto_nombre}</td><td className="px-4 py-2">{u.unidad}</td><td className="px-4 py-2>{u.tipologia}</td><td className="px-4 py-2">{u.piso||'-'}</td><td className="px-4 py-2 text-right">{u.sup_util?.toFixed(2)||'-'}</td><td className="px-4 py-2 text-right">{u.valor_lista?.toFixed(0)||'-'}</td><td className="px-4 py-2 text-right">{u.descuento?.toFixed(3)||'-'}</td><td className="px-4 py-2">{u.estado_unidad}</td></tr>) }
                 </tbody>
               </table>
             </div>
