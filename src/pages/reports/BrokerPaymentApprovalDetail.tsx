@@ -138,7 +138,6 @@ interface BrokerPaymentApprovalDetail {
   // Diferencia calculada
   difference: number;
   totalPromotionsAgainstDiscount: number; // NUEVO: Total de promociones que son contra descuento
-  appliedPromotions: AppliedPromotion[]; // NUEVO: Lista de promociones aplicadas
 }
 
 const BrokerPaymentApprovalDetail: React.FC = () => {
@@ -152,18 +151,59 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
   const [isRejecting, setIsRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [appliedPromotions, setAppliedPromotions] = useState<AppliedPromotion[]>([]); // NUEVO estado para promociones
 
   useEffect(() => {
     if (id && session?.user?.id) {
-      fetchApprovalDetails();
+      // Fetch both approval details and promotions in parallel
+      Promise.all([
+        fetchApprovalDetails(),
+        fetchAppliedPromotionsForReservationId(id) // Pass the task ID, which will be used to find the reservation ID
+      ]).catch((err) => {
+        console.error("Error en la carga inicial:", err);
+        setError(err.message || "Error al cargar datos.");
+      }).finally(() => {
+        setLoading(false);
+      });
     }
   }, [id, session?.user?.id]);
+
+  // NUEVA función para obtener promociones por reservation_id
+  const fetchAppliedPromotionsForReservationId = async (commissionFlowTaskId: string) => {
+    try {
+      // First, get the reservation_id from the commission flow task
+      const { data: taskLookupData, error: taskLookupError } = await supabase
+        .from('commission_flow_tasks')
+        .select('commission_flow_id, commission_flow:commission_flows(broker_commission:broker_commissions(reservation_id))')
+        .eq('id', commissionFlowTaskId)
+        .single();
+
+      if (taskLookupError) throw taskLookupError;
+      if (!taskLookupData?.commission_flow?.broker_commission?.reservation_id) {
+        throw new Error('Could not find reservation ID for this commission flow task.');
+      }
+      const reservationId = taskLookupData.commission_flow.broker_commission.reservation_id;
+
+      const { data, error: promoError } = await supabase
+        .from('promotions')
+        .select('*')
+        .eq('reservation_id', reservationId)
+        .order('created_at', { ascending: true });
+
+      if (promoError) throw promoError;
+      setAppliedPromotions((data as AppliedPromotion[]) || []);
+    } catch (err: any) {
+      console.error('Error fetching applied promotions:', err);
+      // Don't throw here, allow the main fetchApprovalDetails to proceed
+    }
+  };
+
 
   const fetchApprovalDetails = async () => {
     if (!id) return;
     
     try {
-      setLoading(true);
+      // setLoading(true) is handled by the outer useEffect's Promise.all
       
       // Get the commission flow task
       const { data: taskData, error: taskError } = await supabase
@@ -244,8 +284,7 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
                 id,
                 name,
                 business_name
-              ),
-              promotions:promotions(*) // Fetch promotions related to this reservation
+              )
             )
           )
         `)
@@ -261,8 +300,7 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
       const isOverdue = daysToComplete !== null && daysPending > daysToComplete;
       
       // Calculate total promotions that are "against discount"
-      const promotions = flowData.broker_commission.reservation.promotions || [];
-      const totalPromotionsAgainstDiscount = promotions.reduce((sum: number, promo: any) => {
+      const totalPromotionsAgainstDiscount = appliedPromotions.reduce((sum, promo) => {
         if (promo.is_against_discount) {
           return sum + (promo.amount || 0);
         }
@@ -364,14 +402,13 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
         // Diferencia calculada
         difference: difference,
         totalPromotionsAgainstDiscount: totalPromotionsAgainstDiscount, // NUEVO: Incluir en los datos formateados
-        appliedPromotions: promotions, // NUEVO: Incluir la lista de promociones en los datos formateados
       };
       
       setData(formattedData);
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      // setLoading(false) is handled by the outer useEffect's Promise.all
     }
   };
 
@@ -885,7 +922,7 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
         </div>
 
         {/* --- NUEVO: Sección de Promociones Aplicadas (copiada de PaymentEdit.tsx para visualización) --- */}
-        {data.appliedPromotions.length > 0 && ( // Use data.appliedPromotions
+        {appliedPromotions.length > 0 && (
           <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
             <div className="flex justify-between items-center mb-4 border-b pb-3">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
@@ -894,7 +931,7 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
               </h2>
             </div>
             <div className="space-y-3 max-h-72 overflow-y-auto">
-              {data.appliedPromotions.map((promo) => ( // Use data.appliedPromotions
+              {appliedPromotions.map((promo) => (
                 <div key={promo.id} className="p-4 border border-gray-200 rounded-lg bg-slate-50 shadow-sm">
                   <div className="flex justify-between items-start">
                     <div>
@@ -988,7 +1025,7 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
                 {formatCurrency(data.difference)} UF
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                (Recuperación - Mínimo - Comisión - Promociones Contra Descuento)
+                (Recuperación - Mínimo - Comisión - Promociones Contra Descuento) {/* MODIFICADO el subtítulo */}
               </div>
             </div>
             {/* NUEVO: Mostrar el total de promociones descontadas para transparencia */}
