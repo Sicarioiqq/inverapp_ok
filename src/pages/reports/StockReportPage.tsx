@@ -9,18 +9,17 @@ interface StockUnidad {
   id: string;
   created_at: string;
   proyecto_nombre: string | null;
-  unidad_codigo: string | null; // Asumiendo que 'unidad' en tu mapeo se guarda como 'unidad_codigo'
+  unidad_codigo: string | null; // Coincide con la columna de Supabase
   tipo_bien: string | null;     // Columna del Excel 'Tipo Bien'
   tipologia: string | null;     // Columna del Excel 'Tipo' (ej. 2D+2B)
   piso: string | null;
   orientacion: string | null;
-  m2_utiles: number | null;    // Corresponde a 'Sup. Útil'
-  m2_terraza: number | null;   // Corresponde a 'Sup. terraza'
-  m2_totales: number | null;   // Corresponde a 'Sup. total'
-  precio_uf: number | null;    // Corresponde a 'Valor lista'
+  m2_utiles: number | null;    // Coincide con la columna de Supabase
+  m2_terraza: number | null;   // Coincide con la columna de Supabase
+  m2_totales: number | null;   // Coincide con la columna de Supabase
+  precio_uf: number | null;    // Coincide con la columna de Supabase
   estado_unidad: string | null;
   etapa: string | null;         // Columna del Excel 'Etapa'
-  // Añade más columnas si las tienes en la tabla y quieres mostrarlas
 }
 
 const StockReportPage: React.FC = () => {
@@ -31,46 +30,76 @@ const StockReportPage: React.FC = () => {
 
   useEffect(() => {
     const fetchStockData = async () => {
+      console.log('[StockReportPage] Iniciando fetchStockData...');
       setLoading(true);
       setError(null);
       try {
-        // Asegúrate de que los nombres de columna en .select() coincidan con tu tabla 'stock_unidades'
+        // Nombres de columna EXACTOS de tu tabla 'stock_unidades' en Supabase
+        const columnsToSelect = `
+          id, 
+          created_at,
+          proyecto_nombre, 
+          unidad_codigo, 
+          tipo_bien, 
+          tipologia, 
+          piso, 
+          orientacion, 
+          m2_utiles, 
+          m2_terraza, 
+          m2_totales, 
+          precio_uf, 
+          estado_unidad,
+          etapa 
+        `;
+        console.log('[StockReportPage] Columnas a seleccionar de Supabase:', columnsToSelect.trim());
+
         const { data, error: fetchError } = await supabase
-          .from('stock_unidades')
-          .select(`
-            id, 
-            created_at,
-            proyecto_nombre, 
-            unidad_codigo, 
-            tipo_bien, 
-            tipologia, 
-            piso, 
-            orientacion, 
-            m2_utiles, 
-            m2_terraza, 
-            m2_totales, 
-            precio_uf, 
-            estado_unidad,
-            etapa 
-          `) // Columnas a seleccionar
+          .from('stock_unidades') // Nombre exacto de tu tabla
+          .select(columnsToSelect)
           .order('proyecto_nombre', { ascending: true })
-          .order('unidad_codigo', { ascending: true });
+          .order('unidad_codigo', { ascending: true }); // Ordenar por la columna correcta
+
+        // --- INICIO DE LOGS DE DEPURACIÓN DETALLADOS ---
+        console.log('----------------------------------------------------');
+        console.log('[StockReportPage] DEBUGGING SUPABASE RESPONSE:');
+        console.log('[StockReportPage] typeof data:', typeof data);
+        console.log('[StockReportPage] Array.isArray(data):', Array.isArray(data));
+        // Usar JSON.stringify para ver la estructura de 'data' y 'fetchError' si son objetos o null
+        console.log('[StockReportPage] data (valor crudo):', JSON.stringify(data, null, 2));
+        console.log('[StockReportPage] fetchError (valor crudo):', JSON.stringify(fetchError, null, 2));
+        console.log('----------------------------------------------------');
+        // --- FIN DE LOGS DE DEPURACIÓN DETALLADOS ---
 
         if (fetchError) {
-          throw fetchError;
+          console.error('[StockReportPage] Error explícito de Supabase al hacer select:', fetchError);
+          throw fetchError; // Esto activará el bloque catch
         }
-        setStockData(data || []);
+        
+        // Asegurarse de que SIEMPRE pasamos un array a setStockData
+        if (Array.isArray(data)) {
+          setStockData(data);
+          console.log(`[StockReportPage] setStockData llamado con un array de ${data.length} elementos.`);
+          if (data.length > 0) {
+            console.log('[StockReportPage] Primera fila de datos procesados:', JSON.stringify(data[0], null, 2));
+          }
+        } else {
+          // Si data NO es un array (podría ser null si no hay resultados y no hay error)
+          console.warn(`[StockReportPage] data NO es un array. Se establecerá stockData a un array vacío.`);
+          setStockData([]);
+        }
+
       } catch (err: any) {
-        console.error('Error fetching stock data:', err);
+        console.error('[StockReportPage] Error CAPTURADO en fetchStockData:', err);
         setError(`Error al cargar el stock: ${err.message}`);
-        setStockData([]);
+        setStockData([]); // Importante para limpiar datos si hay error
       } finally {
         setLoading(false);
+        console.log('[StockReportPage] fetchStockData finalizado. Estado de carga: false.');
       }
     };
 
     fetchStockData();
-  }, []);
+  }, []); // El array de dependencias vacío asegura que se ejecute solo una vez al montar
 
   if (loading) {
     return (
@@ -107,9 +136,9 @@ const StockReportPage: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-100">
               <tr>
-                {/* Define las cabeceras de tu tabla */}
+                {/* Asegúrate de que item.xxx coincida con las propiedades de StockUnidad */}
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Proyecto</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">N° Bien</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">N° Bien (Código)</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipo Bien</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipología</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Piso</th>
@@ -121,7 +150,8 @@ const StockReportPage: React.FC = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {stockData.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 transition-colors duration-150">
+                // Usar item.id como key si está disponible y es único, sino una combinación única.
+                <tr key={item.id || `${item.proyecto_nombre}-${item.unidad_codigo}-${item.tipo_bien}`} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{item.proyecto_nombre}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.unidad_codigo}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{item.tipo_bien}</td>
@@ -134,7 +164,7 @@ const StockReportPage: React.FC = () => {
                       item.estado_unidad === 'Disponible' ? 'bg-green-100 text-green-800' :
                       item.estado_unidad === 'Reservado' ? 'bg-yellow-100 text-yellow-800' :
                       item.estado_unidad === 'Vendido' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'
+                      'bg-gray-100 text-gray-800' // Para 'No Disponible' u otros
                     }`}>
                       {item.estado_unidad}
                     </span>
@@ -149,5 +179,4 @@ const StockReportPage: React.FC = () => {
     </div>
   );
 };
-
 export default StockReportPage;
