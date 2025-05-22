@@ -79,6 +79,9 @@ const BrokerQuotePage: React.FC = () => {
   const [discountAmount, setDiscountAmount] = useState<number>(0); // El descuento en % del departamento
   const [bonoAmount, setBonoAmount] = useState<number>(0); // El monto de bono en UF para la CONFIGURACION
   const [bonoAmountPct, setBonoAmountPct] = useState<number>(0); // El porcentaje de bono para la CONFIGURACION
+  // NUEVO: Estado temporal para el input del bono pie en modo mix
+  const [tempBonoAmountPctInput, setTempBonoAmountPctInput] = useState<string>('0.00');
+
   const [initialTotalAvailableBono, setInitialTotalAvailableBono] = useState<number>(0); // Total disponible en Bono Pie (en UF)
 
   // NUEVOS ESTADOS para unidades secundarias del proyecto
@@ -253,12 +256,14 @@ const BrokerQuotePage: React.FC = () => {
         setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2)));  
         setBonoAmount(0); // Restablecer bono UF en este modo
         setBonoAmountPct(0); // Restablecer bono % en este modo
+        setTempBonoAmountPctInput('0.00'); // Resetear input temporal
         setPagoBonoPieCotizacion(0); // Restablecer bono en forma de pago
       } else if (quotationType === 'bono') {
         setDiscountAmount(0); // Restablecer descuento en modo bono
         setBonoAmount(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // Bono total disponible UF
         // bonoAmountPct se calculará en el useEffect que depende de totalEscritura
         setBonoAmountPct(0); // Inicializar a 0, se actualizará en el useEffect principal
+        setTempBonoAmountPctInput('0.00'); // Resetear input temporal
         setPagoBonoPieCotizacion(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // Sincronizar con forma de pago
       } else if (quotationType === 'mix') {
         // Al seleccionar mix, inicialmente todo el "bono" se muestra como tal.
@@ -266,6 +271,7 @@ const BrokerQuotePage: React.FC = () => {
         setBonoAmount(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // Bono inicial disponible UF
         // bonoAmountPct se calculará en el useEffect que depende de totalEscritura
         setBonoAmountPct(0); // Inicializar a 0, se actualizará en el useEffect principal
+        setTempBonoAmountPctInput('0.00'); // Resetear input temporal
         setPagoBonoPieCotizacion(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // También inicializar el bono en forma de pago
       }
     } else {
@@ -275,6 +281,7 @@ const BrokerQuotePage: React.FC = () => {
       setDiscountAmount(0);
       setBonoAmount(0);
       setBonoAmountPct(0);
+      setTempBonoAmountPctInput('0.00'); // Resetear input temporal
       setInitialTotalAvailableBono(0);
       setPagoReserva(0);
       setPagoPromesa(0);
@@ -339,6 +346,7 @@ const BrokerQuotePage: React.FC = () => {
         // Si no hay unidad seleccionada, resetear los valores relacionados con la cotización
         setBonoAmount(0);
         setBonoAmountPct(0);
+        setTempBonoAmountPctInput('0.00'); // Resetear input temporal
         setPagoBonoPieCotizacion(0);
         setDiscountAmount(0); // También resetear descuento si no hay unidad
         return;
@@ -352,6 +360,7 @@ const BrokerQuotePage: React.FC = () => {
         // Calcular el porcentaje de este bono respecto al totalEscritura
         const bonoPct = (totalEscritura > 0) ? (currentBonoUsedUF / totalEscritura) * 100 : 0;
         setBonoAmountPct(parseFloat(bonoPct.toFixed(2))); // Sincronizar bono % de configuración con el de la forma de pago
+        setTempBonoAmountPctInput(parseFloat(bonoPct.toFixed(2)).toString()); // Sincronizar input temporal
         setBonoAmount(parseFloat(currentBonoUsedUF.toFixed(2))); // Sincronizar bono UF de configuración
 
         // Calcular el descuento "restante" como la diferencia entre el bono total disponible inicial y el bono usado.
@@ -370,9 +379,11 @@ const BrokerQuotePage: React.FC = () => {
       setPagoBonoPieCotizacion(parseFloat(bonoAmount.toFixed(2))); // El bono en la forma de pago es el total disponible
       const bonoPct = (totalEscritura > 0) ? (bonoAmount / totalEscritura) * 100 : 0;
       setBonoAmountPct(parseFloat(bonoPct.toFixed(2)));
+      setTempBonoAmountPctInput(parseFloat(bonoPct.toFixed(2)).toString()); // Sincronizar input temporal
     } else {
       setPagoBonoPieCotizacion(0); // Si es solo descuento, el bono pie de la cotización es 0
       setBonoAmountPct(0);
+      setTempBonoAmountPctInput('0.00'); // Resetear input temporal
       setBonoAmount(0);
     }
   }, [ufValue, quotationType, pagoBonoPieCotizacion, initialTotalAvailableBono, selectedUnidad, totalEscritura, bonoAmount]);
@@ -501,48 +512,41 @@ const BrokerQuotePage: React.FC = () => {
     }
   };
 
-  // Handler para la edición del Bono Pie en la sección "Configuración de Cotización" (cuando es porcentaje)
-  const handleBonoPieConfigChange = (value: string) => {
+  // NUEVO: Función para aplicar los cambios del input temporal
+  const applyBonoPieConfigChange = (value: string) => {
     const numValue = parseFloat(value);
-    // Si el valor ingresado no es un número válido o es infinito, se trata como 0
     const finalValue = isNaN(numValue) || !isFinite(numValue) ? 0 : numValue;
 
-    // Asegurar que el porcentaje no exceda el 100% y no sea negativo
     let limitedBonoPct = Math.min(100, Math.max(0, finalValue));
 
-    // Si no hay unidad seleccionada o totalEscritura es 0, no se puede calcular.
     if (!selectedUnidad || selectedUnidad.valor_lista === null || selectedUnidad.valor_lista === 0 || totalEscritura <= 0) {
         setBonoAmountPct(parseFloat(limitedBonoPct.toFixed(2)));
         setBonoAmount(0);
         setPagoBonoPieCotizacion(0);
         setDiscountAmount(0);
+        setTempBonoAmountPctInput(parseFloat(limitedBonoPct.toFixed(2)).toString());
         return;
     }
 
-    // Calcular el valor en UF del bono basado en el porcentaje ingresado por el usuario
-    const bonoUFFromPct = (limitedBonoPct / 100) * totalEscritura; // Usamos totalEscritura como base para el porcentaje
+    const bonoUFFromPct = (limitedBonoPct / 100) * totalEscritura;
     
-    // Asegurar que el bono UF calculado no exceda el initialTotalAvailableBono
-    // Si el usuario intenta poner un % que resulta en más UF de las disponibles inicialmente,
-    // limitamos el bono UF a initialTotalAvailableBono y ajustamos el porcentaje de nuevo.
     const finalBonoUF = Math.min(bonoUFFromPct, initialTotalAvailableBono);
     
-    // Recalcular el porcentaje final si el bono UF fue limitado
     if (totalEscritura > 0 && bonoUFFromPct !== finalBonoUF) {
       limitedBonoPct = (finalBonoUF / totalEscritura) * 100;
     }
 
-    setBonoAmountPct(parseFloat(limitedBonoPct.toFixed(2))); // Actualizar bono % en configuración
-    setBonoAmount(parseFloat(finalBonoUF.toFixed(2))); // Actualizar bono UF en configuración
-    setPagoBonoPieCotizacion(parseFloat(finalBonoUF.toFixed(2))); // Sincronizar el bono de la forma de pago
+    setBonoAmountPct(parseFloat(limitedBonoPct.toFixed(2)));
+    setBonoAmount(parseFloat(finalBonoUF.toFixed(2)));
+    setPagoBonoPieCotizacion(parseFloat(finalBonoUF.toFixed(2)));
+    setTempBonoAmountPctInput(parseFloat(limitedBonoPct.toFixed(2)).toString()); // Actualizar también el input temporal
 
-    // Recalcular el descuento restante
     const remainingBonoForDiscount = Math.max(0, initialTotalAvailableBono - finalBonoUF);
     let newDiscountPercentage = 0;
     if (selectedUnidad.valor_lista > 0) {
         newDiscountPercentage = (remainingBonoForDiscount / selectedUnidad.valor_lista) * 100;
     }
-    setDiscountAmount(parseFloat(newDiscountPercentage.toFixed(2))); // Actualizar el descuento en %
+    setDiscountAmount(parseFloat(newDiscountPercentage.toFixed(2)));
   };
 
 
@@ -570,10 +574,7 @@ const BrokerQuotePage: React.FC = () => {
   };
 
   // Memoized value for the max percentage allowed for Bono Pie in mix mode.
-  // This helps prevent ReferenceError by ensuring totalEscritura is valid before division in JSX.
   const maxBonoPctAllowed = useMemo(() => {
-    // If selectedUnidad is not available, or its valor_lista is 0, or totalEscritura is 0,
-    // the calculation is not meaningful, so return a default maximum (100%).
     if (!selectedUnidad || selectedUnidad.valor_lista === null || selectedUnidad.valor_lista === 0 || totalEscritura <= 0) {
         return 100; 
     }
@@ -886,18 +887,21 @@ const BrokerQuotePage: React.FC = () => {
                                               setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); 
                                               setBonoAmount(0);
                                               setBonoAmountPct(0);
+                                              setTempBonoAmountPctInput('0.00'); // Resetear input temporal
                                               setPagoBonoPieCotizacion(0);
                                           } else if (newQuotationType === 'bono') {
                                               setDiscountAmount(0);
                                               setBonoAmount(parseFloat(calculatedInitialTotalBonoUF.toFixed(2)));
                                               // bonoAmountPct se calculará en el useEffect principal
                                               setBonoAmountPct(0); 
+                                              setTempBonoAmountPctInput('0.00'); // Resetear input temporal
                                               setPagoBonoPieCotizacion(parseFloat(calculatedInitialTotalBonoUF.toFixed(2)));
                                           } else if (newQuotationType === 'mix') {
                                               setDiscountAmount(0); // Al inicio en mix, descuento es 0, todo es bono
                                               setBonoAmount(parseFloat(calculatedInitialTotalBonoUF.toFixed(2)));
                                               // bonoAmountPct se calculará en el useEffect principal
                                               setBonoAmountPct(0);
+                                              setTempBonoAmountPctInput('0.00'); // Resetear input temporal
                                               setPagoBonoPieCotizacion(parseFloat(calculatedInitialTotalBonoUF.toFixed(2)));
                                           }
                                       }
@@ -959,8 +963,15 @@ const BrokerQuotePage: React.FC = () => {
                                           <input
                                               type="number"
                                               id="mixBonoInput"
-                                              value={parseFloat(bonoAmountPct.toFixed(2))} // Ahora usa el estado de porcentaje
-                                              onChange={e => handleBonoPieConfigChange(e.target.value)} // Nuevo handler para editar el porcentaje
+                                              value={tempBonoAmountPctInput} // Ahora usa el estado temporal
+                                              onChange={e => setTempBonoAmountPctInput(e.target.value)} // Actualiza el estado temporal
+                                              onBlur={e => applyBonoPieConfigChange(e.target.value)} // Aplica cambios al perder el foco
+                                              onKeyDown={e => { // Aplica cambios al presionar Enter
+                                                  if (e.key === 'Enter') {
+                                                      applyBonoPieConfigChange(e.currentTarget.value);
+                                                      e.currentTarget.blur(); // Quita el foco después de Enter
+                                                  }
+                                              }}
                                               min="0" // Limitar para que no sea negativo
                                               max={maxBonoPctAllowed} // Usar el valor memoizado para el máximo
                                               step="0.01"
