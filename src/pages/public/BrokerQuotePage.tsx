@@ -236,17 +236,14 @@ const BrokerQuotePage: React.FC = () => {
         selectedUnidad.proyecto_nombre
       );
 
-      if (quotationType === 'descuento') {
-        // En este modo, el descuento se "autocarga" con el descuento disponible del departamento
+      if (quotationType === 'descuento' || quotationType === 'mix') {
+        // En estos modos, el descuento se "autocarga" con el descuento disponible del departamento
         // y se redondea a 2 decimales para la visualización.
         setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); 
-        setBonoAmount(0); // Restablecer bono en este modo
+        setBonoAmount(0); // Restablecer bono en estos modos
       } else if (quotationType === 'bono') {
         setDiscountAmount(0); // Restablecer descuento en modo bono
         setBonoAmount(0); // El bono en modo 'bono' se ingresa manualmente por ahora, no hay un valor inicial automático
-      } else if (quotationType === 'mix') {
-        setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); // El descuento inicial es el de la unidad
-        setBonoAmount(0); // El bono en mix se calculará automáticamente más tarde (o es 0 inicialmente)
       }
     } else {
       // Resetear estados si no hay unidad seleccionada
@@ -401,33 +398,39 @@ const BrokerQuotePage: React.FC = () => {
 
   // Funciones para manejar la edición bidireccional de Promesa y Pie
   const handlePromesaChange = (type: 'uf' | 'pct', value: string) => {
-    const numValue = parseFloat(value) || 0;
-    if (totalEscritura === 0) { // Evitar divisiones por cero
+    const numValue = parseFloat(value); // No usar || 0 aquí para distinguir entre 0 y NaN/empty
+    if (isNaN(numValue) || !isFinite(numValue)) { // Si no es un número válido o es infinito, resetear
       setPagoPromesa(0);
-      setPagoPromesaPct(0);
       return;
     }
+
+    if (totalEscritura === 0) { // Si el total escritura es 0, no se puede calcular porcentaje
+      setPagoPromesa(numValue); // Aceptar el valor UF, el % será 0
+      return;
+    }
+
     if (type === 'uf') {
       setPagoPromesa(numValue);
-      setPagoPromesaPct((numValue / totalEscritura) * 100);
     } else { // type === 'pct'
-      setPagoPromesaPct(numValue);
       setPagoPromesa((numValue / 100) * totalEscritura);
     }
   };
 
   const handlePieChange = (type: 'uf' | 'pct', value: string) => {
-    const numValue = parseFloat(value) || 0;
-    if (totalEscritura === 0) { // Evitar divisiones por cero
+    const numValue = parseFloat(value); // No usar || 0 aquí para distinguir entre 0 y NaN/empty
+    if (isNaN(numValue) || !isFinite(numValue)) { // Si no es un número válido o es infinito, resetear
       setPagoPie(0);
-      setPagoPiePct(0);
       return;
     }
+
+    if (totalEscritura === 0) { // Si el total escritura es 0, no se puede calcular porcentaje
+      setPagoPie(numValue); // Aceptar el valor UF, el % será 0
+      return;
+    }
+
     if (type === 'uf') {
       setPagoPie(numValue);
-      setPagoPiePct((numValue / totalEscritura) * 100);
     } else { // type === 'pct'
-      setPagoPiePct(numValue);
       setPagoPie((numValue / 100) * totalEscritura);
     }
   };
@@ -435,7 +438,8 @@ const BrokerQuotePage: React.FC = () => {
 
   // Función para formatear moneda (siempre con 2 decimales)
   const formatCurrency = (amount: number | null): string => {
-    if (amount === null) return '-';
+    // Manejar null, NaN, Infinity explícitamente para evitar problemas de visualización
+    if (amount === null || isNaN(amount) || !isFinite(amount)) return '0.00'; 
     return new Intl.NumberFormat('es-CL', {
       style: 'decimal',
       minimumFractionDigits: 2,
@@ -445,7 +449,8 @@ const BrokerQuotePage: React.FC = () => {
 
   // Función para convertir UF a Pesos (con 0 decimales para pesos)
   const ufToPesos = (uf: number | null): string => {
-    if (uf === null || ufValue === null) return '-';
+    // Manejar null, NaN, Infinity explícitamente
+    if (uf === null || ufValue === null || isNaN(uf) || !isFinite(uf) || isNaN(ufValue) || !isFinite(ufValue)) return '$ 0';
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
       currency: 'CLP',
