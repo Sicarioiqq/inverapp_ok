@@ -77,7 +77,8 @@ const BrokerQuotePage: React.FC = () => {
   // NUEVOS ESTADOS para la configuración de cotización
   const [quotationType, setQuotationType] = useState<QuotationType>('descuento');
   const [discountAmount, setDiscountAmount] = useState<number>(0); // El descuento en % ingresado por el usuario
-  const [bonoAmount, setBonoAmount] = useState<number>(0); // El monto de bono en UF ingresado por el usuario
+  const [bonoAmount, setBonoAmount] = useState<number>(0); // El monto de bono en UF ingresado por el usuario (en la configuración)
+  const [initialTotalAvailableBono, setInitialTotalAvailableBono] = useState<number>(0); // Total disponible en Bono Pie
 
   // NUEVOS ESTADOS para unidades secundarias del proyecto
   const [projectSecondaryUnits, setProjectSecondaryUnits] = useState<Unidad[]>([]);
@@ -235,15 +236,25 @@ const BrokerQuotePage: React.FC = () => {
         selectedUnidad.proyecto_nombre
       );
 
-      if (quotationType === 'descuento' || quotationType === 'mix') {
+      // Calcular el bono total disponible basado en el descuento ajustado inicial
+      const calculatedInitialTotalBono = (selectedUnidad.valor_lista ?? 0) * (initialAdjustedDiscount ?? 0);
+      setInitialTotalAvailableBono(parseFloat(calculatedInitialTotalBono.toFixed(2)));
+
+
+      if (quotationType === 'descuento') {
         // En este modo, el descuento se "autocarga" con el descuento disponible del departamento
         setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2)));  
-        setBonoAmount(0); // Restablecer bono en estos modos
+        setBonoAmount(0); // Restablecer bono en este modo
       } else if (quotationType === 'bono') {
         setDiscountAmount(0); // Restablecer descuento en modo bono
         // CÁLCULO DEL BONO PIE: Valor del departamento * Descuento ajustado
         const calculatedBono = (selectedUnidad.valor_lista ?? 0) * (initialAdjustedDiscount ?? 0);
         setBonoAmount(parseFloat(calculatedBono.toFixed(2))); // Redondear a 2 decimales
+      } else if (quotationType === 'mix') {
+        // En modo 'mix', el descuento inicial es el de la unidad (ajustado por broker)
+        // Y el bono inicial es el total disponible, ambos como si fueran 100% de su tipo.
+        setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2)));
+        setBonoAmount(parseFloat(calculatedInitialTotalBono.toFixed(2))); // Bono disponible completo al inicio en mix
       }
     } else {
       // Resetear estados si no hay unidad seleccionada
@@ -251,6 +262,7 @@ const BrokerQuotePage: React.FC = () => {
       setAddedSecondaryUnits([]);
       setDiscountAmount(0);
       setBonoAmount(0);
+      setInitialTotalAvailableBono(0);
     }
   }, [selectedUnidad, quotationType, brokerCommissions, brokerInfo]); // Se re-ejecuta si la unidad seleccionada, el tipo de cotización, o los datos del broker/comisiones cambian
 
@@ -260,13 +272,36 @@ const BrokerQuotePage: React.FC = () => {
       setPagoReserva(parseFloat((VALOR_RESERVA_PESOS / ufValue).toFixed(2))); // Redondear a 2 decimales
     }
     // Sincronizar el bonoAmount de la configuración con el pagoBonoPieCotizacion
-    // Solo si el tipo de configuración es 'bono' o 'mix'
+    // Y aplicar la lógica de "mix" si es necesario
     if (quotationType === 'bono' || quotationType === 'mix') {
-      setPagoBonoPieCotizacion(parseFloat(bonoAmount.toFixed(2))); // Asegurar 2 decimales
+      // Si estamos en mix, y el bono de cotización se ha editado, recalcular el descuento
+      if (quotationType === 'mix' && selectedUnidad) {
+        // El bonoAmount de configuración (setBonoAmount) debe ser igual al pagoBonoPieCotizacion (el editable por el usuario)
+        // para que se refleje correctamente.
+        const currentBonoUsed = pagoBonoPieCotizacion; // Valor del bono que el usuario está "usando" en la forma de pago
+
+        // Calcular el descuento "restante" como la diferencia entre el bono total disponible y el bono usado.
+        // Si el bono usado es mayor que el total disponible (lo que no debería pasar si se valida input),
+        // o si es 0, el restante sería el total disponible.
+        const remainingBonoForDiscount = Math.max(0, initialTotalAvailableBono - currentBonoUsed);
+        
+        // Convertir el bono restante en un porcentaje de descuento
+        let newDiscountPercentage = 0;
+        if (selectedUnidad.valor_lista && selectedUnidad.valor_lista > 0) {
+            newDiscountPercentage = (remainingBonoForDiscount / selectedUnidad.valor_lista) * 100;
+        }
+
+        setDiscountAmount(parseFloat(newDiscountPercentage.toFixed(2))); // Actualizar el descuento en %
+        setBonoAmount(parseFloat(currentBonoUsed.toFixed(2))); // Sincronizar el bono de configuración con el de la forma de pago
+
+      } else {
+        // Para 'bono' (no mix), el bonoAmount de la configuración es el principal.
+        setPagoBonoPieCotizacion(parseFloat(bonoAmount.toFixed(2))); // Asegurar 2 decimales
+      }
     } else {
       setPagoBonoPieCotizacion(0); // Si es solo descuento, el bono pie de la cotización es 0
     }
-  }, [ufValue, bonoAmount, quotationType]); // Depende de ufValue, bonoAmount y quotationType para recalcular
+  }, [ufValue, bonoAmount, quotationType, pagoBonoPieCotizacion, initialTotalAvailableBono, selectedUnidad]); // Depende de ufValue, bonoAmount, quotationType, pagoBonoPieCotizacion y initialTotalAvailableBono para recalcular
 
 
   // Opciones de filtro
@@ -455,6 +490,33 @@ const BrokerQuotePage: React.FC = () => {
     } else { // type === 'pct'
       setPagoPiePct(parseFloat(finalValue.toFixed(2))); // Actualiza el estado del porcentaje directamente, asegurando 2 decimales
       setPagoPie(parseFloat(((finalValue / 100) * totalEscritura).toFixed(2))); // Calcular y redondear a 2 decimales
+    }
+  };
+
+  // Handler para la edición del Bono Pie en la sección "Forma de Pago"
+  const handlePagoBonoPieCotizacionChange = (value: string) => {
+    const numValue = parseFloat(value);
+    const finalValue = isNaN(numValue) || !isFinite(numValue) ? 0 : numValue;
+
+    setPagoBonoPieCotizacion(parseFloat(finalValue.toFixed(2))); // Asegurar 2 decimales
+
+    // Si el tipo de cotización es 'mix', recalcular el descuento restante
+    if (quotationType === 'mix' && selectedUnidad) {
+        // Bono que el usuario está "usando" en la forma de pago
+        const currentBonoUsed = finalValue;
+
+        // Calcular el bono restante que puede ser convertido en descuento.
+        // Aseguramos que no sea negativo si el usuario ingresa un valor mayor al disponible (aunque el min/max debería evitarlo)
+        const remainingBonoForDiscount = Math.max(0, initialTotalAvailableBono - currentBonoUsed);
+        
+        // Convertir el bono restante en un porcentaje de descuento
+        let newDiscountPercentage = 0;
+        if (selectedUnidad.valor_lista && selectedUnidad.valor_lista > 0) {
+            newDiscountPercentage = (remainingBonoForDiscount / selectedUnidad.valor_lista) * 100;
+        }
+
+        setDiscountAmount(parseFloat(newDiscountPercentage.toFixed(2))); // Actualizar el descuento en %
+        setBonoAmount(parseFloat(currentBonoUsed.toFixed(2))); // Sincronizar el bono de configuración con el de la forma de pago
     }
   };
 
@@ -779,14 +841,18 @@ const BrokerQuotePage: React.FC = () => {
                                               selectedUnidad.descuento,
                                               selectedUnidad.proyecto_nombre
                                           );
-                                          if (newQuotationType === 'descuento' || newQuotationType === 'mix') {
+                                          const calculatedInitialTotalBono = (selectedUnidad.valor_lista ?? 0) * (initialAdjustedDiscount ?? 0);
+
+                                          if (newQuotationType === 'descuento') {
                                               setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); // Usar el descuento ajustado del departamento
-                                              setBonoAmount(0); // Restablecer bono en estos modos
+                                              setBonoAmount(0); // Restablecer bono en este modo
                                           } else if (newQuotationType === 'bono') {
                                               setDiscountAmount(0); // Restablecer descuento en modo bono
-                                              // CÁLCULO DEL BONO PIE
-                                              const calculatedBono = (selectedUnidad.valor_lista ?? 0) * (initialAdjustedDiscount ?? 0);
-                                              setBonoAmount(parseFloat(calculatedBono.toFixed(2))); // Redondear a 2 decimales
+                                              setBonoAmount(parseFloat(calculatedInitialTotalBono.toFixed(2))); // Bono total disponible
+                                          } else if (newQuotationType === 'mix') {
+                                              setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); // Descuento inicial es el disponible
+                                              setBonoAmount(parseFloat(calculatedInitialTotalBono.toFixed(2))); // Bono inicial es el disponible
+                                              setPagoBonoPieCotizacion(parseFloat(calculatedInitialTotalBono.toFixed(2))); // También inicializar el bono en forma de pago
                                           }
                                       }
                                   }}
@@ -839,22 +905,19 @@ const BrokerQuotePage: React.FC = () => {
                                               type="number"
                                               id="mixDiscountInput"
                                               value={parseFloat(discountAmount.toFixed(2))} // Mostrar con 2 decimales
-                                              onChange={e => setDiscountAmount(parseFloat(e.target.value) || 0)}
-                                              min="0"
-                                              max="100"
-                                              step="0.01" // Permite input de 2 decimales
+                                              readOnly={true} // El descuento en mix es readOnly
                                               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500
-                                              bg-gray-100 cursor-not-allowed" // El descuento en mix es readOnly
-                                              readOnly={true}
+                                              bg-gray-100 cursor-not-allowed" 
+                                              step="0.01"
                                           />
                                       </div>
                                       <div>
-                                          <label htmlFor="mixBonoInput" className="block text-sm font-medium text-gray-700">Bono Pie (UF) (Automático)</label>
+                                          <label htmlFor="mixBonoInput" className="block text-sm font-medium text-gray-700">Bono Pie (UF)</label>
                                           <input
                                               type="number"
                                               id="mixBonoInput"
                                               value={parseFloat(bonoAmount.toFixed(2))} // Asegurar 2 decimales para la visualización
-                                              readOnly
+                                              readOnly={true} // El bono en mix es readOnly
                                               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed"
                                               step="0.01"
                                           />
@@ -1067,15 +1130,19 @@ const BrokerQuotePage: React.FC = () => {
                                 {/* Fila: Bono Pie (ahora se usa pagoBonoPieCotizacion) */}
                                 <div className="grid grid-cols-5 items-center">
                                     <span className="col-span-2">Bono Pie:</span>
+                                    {/* Porcentaje basado en totalEscritura */}
                                     <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoBonoPieCotizacion / totalEscritura) * 100) : formatCurrency(0)}%</span>
                                     <span className="text-right">{ufToPesos(pagoBonoPieCotizacion)}</span>
                                     <div className="flex justify-end">
-                                        {/* Ahora es un input type="text" con el valor formateado */}
                                         <input
-                                            type="text"
-                                            value={formatCurrency(pagoBonoPieCotizacion)}
-                                            readOnly
-                                            className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed font-semibold"
+                                            type="number" // Mantener como number para permitir edición
+                                            value={parseFloat(pagoBonoPieCotizacion.toFixed(2))} // Mostrar con 2 decimales
+                                            onChange={e => handlePagoBonoPieCotizacionChange(e.target.value)} // Nuevo handler para este campo
+                                            className="w-24 text-right border rounded-md px-2 py-1"
+                                            step="0.01"
+                                            // Desactivar si no es tipo 'mix'
+                                            readOnly={quotationType !== 'mix'}
+                                            style={{backgroundColor: quotationType !== 'mix' ? '#f3f4f6' : 'white', cursor: quotationType !== 'mix' ? 'not-allowed' : 'auto'}}
                                         />
                                     </div>
                                 </div>
