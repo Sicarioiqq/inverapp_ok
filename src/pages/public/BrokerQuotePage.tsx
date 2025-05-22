@@ -11,7 +11,9 @@ import {
   ArrowUp,
   ArrowDown,
   PlusCircle, // Icono para añadir
-  Trash2 // Icono para eliminar
+  Trash2, // Icono para eliminar
+  DollarSign, // Icono para precios
+  Wallet // Icono para forma de pago
 } from 'lucide-react';
 
 interface BrokerInfo {
@@ -82,6 +84,12 @@ const BrokerQuotePage: React.FC = () => {
   const [selectedSecondaryUnitToAdd, setSelectedSecondaryUnitToAdd] = useState<string>(''); // ID de la unidad seleccionada en el dropdown
   const [addedSecondaryUnits, setAddedSecondaryUnits] = useState<Unidad[]>([]); // Lista de unidades secundarias añadidas a la cotización
 
+  // NUEVOS ESTADOS para la forma de pago de la cotización
+  const [pagoReserva, setPagoReserva] = useState<number>(0);
+  const [pagoPromesa, setPagoPromesa] = useState<number>(0);
+  const [pagoPie, setPagoPie] = useState<number>(0);
+  const [pagoCreditoHipotecario, setPagoCreditoHipotecario] = useState<number>(0);
+  const [pagoBonoPie, setPagoBonoPie] = useState<number>(0); // Este será el bono para el total de la cotización, distinto del bono de "configuración de cotización"
 
   // Validar broker
   useEffect(() => {
@@ -266,23 +274,18 @@ const BrokerQuotePage: React.FC = () => {
     return nuevoDescuentoPorcentaje; // Retornar como decimal
   };
 
+  // Cálculos para la nueva sección de Cotización
+  const precioBaseDepartamento = selectedUnidad?.valor_lista || 0;
+  const precioDescuentoDepartamento = (precioBaseDepartamento * discountAmount) / 100;
+  const precioDepartamentoConDescuento = precioBaseDepartamento - precioDescuentoDepartamento;
 
-  // Filtrar y ordenar
-  const filtered = stock
-    .filter(u => {
-      if (activeTab === 'principales') return u.tipo_bien === 'DEPARTAMENTO';
-      if (activeTab === 'secundarios') return u.tipo_bien !== 'DEPARTAMENTO';
-      return true;
-    })
-    .filter(u => filterProyecto === 'Todos' || u.proyecto_nombre === filterProyecto)
-    .filter(u => filterTipologia === 'Todos' || u.tipologia === filterTipologia)
-    .sort((a, b) => {
-      const av = a[sortField] ?? '';
-      const bv = b[sortField] ?? '';
-      if (av < bv) return sortAsc ? -1 : 1;
-      if (av > bv) return sortAsc ? 1 : -1;
-      return 0;
-    });
+  const precioTotalSecundarios = addedSecondaryUnits.reduce((sum, unit) => sum + (unit.valor_lista || 0), 0);
+
+  // Calcula el "Total Escritura"
+  const totalEscritura = precioDepartamentoConDescuento + precioTotalSecundarios;
+  // Este es el "Total" de la forma de pago
+  const totalFormaDePago = pagoReserva + pagoPromesa + pagoPie + pagoCreditoHipotecario + pagoBonoPie;
+
 
   // Handler para agregar unidad secundaria a la cotización
   const handleAddSecondaryUnit = () => {
@@ -298,6 +301,27 @@ const BrokerQuotePage: React.FC = () => {
   // Handler para remover unidad secundaria de la cotización
   const handleRemoveAddedSecondaryUnit = (unitId: string) => {
     setAddedSecondaryUnits(prev => prev.filter(unit => unit.id !== unitId));
+  };
+
+  // Función para formatear moneda
+  const formatCurrency = (amount: number | null): string => {
+    if (amount === null) return '-';
+    return new Intl.NumberFormat('es-CL', {
+      style: 'decimal',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
+  // Función para convertir UF a Pesos
+  const ufToPesos = (uf: number | null): string => {
+    if (uf === null || ufValue === null) return '-';
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(uf * ufValue);
   };
 
 
@@ -678,7 +702,7 @@ const BrokerQuotePage: React.FC = () => {
                                               // Solo mostrar unidades que no han sido añadidas ya
                                               !addedSecondaryUnits.some(addedUnit => addedUnit.id === unit.id) && (
                                                   <option key={unit.id} value={unit.id}>
-                                                      {unit.unidad} ({unit.tipo_bien}) - {unit.valor_lista?.toLocaleString()} UF
+                                                      {unit.unidad} ({unit.tipo_bien}) - {formatCurrency(unit.valor_lista)} UF
                                                   </option>
                                               )
                                           ))
@@ -706,7 +730,7 @@ const BrokerQuotePage: React.FC = () => {
                                   {addedSecondaryUnits.map(unit => (
                                       <li key={unit.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
                                           <span className="text-sm text-gray-800">
-                                              {unit.unidad} ({unit.tipo_bien}) - {unit.valor_lista?.toLocaleString()} UF
+                                              {unit.unidad} ({unit.tipo_bien}) - {formatCurrency(unit.valor_lista)} UF
                                           </span>
                                           <button
                                               type="button"
@@ -723,7 +747,143 @@ const BrokerQuotePage: React.FC = () => {
                       </div>
                   </div>
               </div>
-            )} {/* FIN NUEVA TARJETA/SECCIÓN */}
+            )} {/* FIN NUEVA TARJETA: Configuración de Cotización */}
+            
+            {/* NUEVA TARJETA: Resumen de Cotización */}
+            {selectedUnidad && ( /* Solo mostrar esta tarjeta si hay una unidad seleccionada */
+                <div className="bg-white shadow rounded p-6 mt-6">
+                    <h3 className="text-xl font-semibold mb-4">Resumen de Cotización</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Columna Izquierda: Precios de Unidades */}
+                        <div>
+                            <h4 className="text-lg font-semibold mb-3">Precio Unidades</h4>
+                            <div className="space-y-2 text-gray-700">
+                                <div className="flex justify-between items-center">
+                                    <span>Departamento {selectedUnidad.unidad}:</span>
+                                    <span className="font-semibold">{formatCurrency(selectedUnidad.valor_lista)} UF</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span>Descuento Aplicado:</span>
+                                    <span className="font-semibold text-red-600">- {formatCurrency(precioDescuentoDepartamento)} UF</span>
+                                </div>
+                                {addedSecondaryUnits.map(unit => (
+                                    <div key={unit.id} className="flex justify-between items-center">
+                                        <span>{unit.tipo_bien} {unit.unidad}:</span>
+                                        <span className="font-semibold">{formatCurrency(unit.valor_lista)} UF</span>
+                                    </div>
+                                ))}
+                                <div className="border-t pt-2 mt-2 flex justify-between items-center font-bold">
+                                    <span>Total Escritura:</span>
+                                    <span>{formatCurrency(totalEscritura)} UF</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Columna Derecha: Forma de Pago */}
+                        <div>
+                            <h4 className="text-lg font-semibold mb-3">Forma de Pago</h4>
+                            <div className="space-y-2 text-gray-700">
+                                {/* Encabezados de tabla para la forma de pago */}
+                                <div className="grid grid-cols-5 text-sm font-medium text-gray-500 pb-1 border-b">
+                                    <span className="col-span-2">Glosa</span>
+                                    <span className="text-right">%</span>
+                                    <span className="text-right">Pesos</span>
+                                    <span className="text-right">UF</span>
+                                </div>
+
+                                {/* Fila: Reserva */}
+                                <div className="grid grid-cols-5 items-center">
+                                    <span className="col-span-2">Reserva:</span>
+                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoReserva / totalEscritura) * 100) : formatCurrency(0)}%</span>
+                                    <span className="text-right">{ufToPesos(pagoReserva)}</span>
+                                    <div className="flex justify-end">
+                                        <input
+                                            type="number"
+                                            value={pagoReserva}
+                                            onChange={e => setPagoReserva(parseFloat(e.target.value) || 0)}
+                                            readOnly // Campo de Reserva es readOnly
+                                            className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Fila: Promesa */}
+                                <div className="grid grid-cols-5 items-center">
+                                    <span className="col-span-2">Promesa:</span>
+                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoPromesa / totalEscritura) * 100) : formatCurrency(0)}%</span>
+                                    <span className="text-right">{ufToPesos(pagoPromesa)}</span>
+                                    <div className="flex justify-end">
+                                        <input
+                                            type="number"
+                                            value={pagoPromesa}
+                                            onChange={e => setPagoPromesa(parseFloat(e.target.value) || 0)}
+                                            className="w-24 text-right border rounded-md px-2 py-1"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Fila: Pie */}
+                                <div className="grid grid-cols-5 items-center">
+                                    <span className="col-span-2">Pie:</span>
+                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoPie / totalEscritura) * 100) : formatCurrency(0)}%</span>
+                                    <span className="text-right">{ufToPesos(pagoPie)}</span>
+                                    <div className="flex justify-end">
+                                        <input
+                                            type="number"
+                                            value={pagoPie}
+                                            onChange={e => setPagoPie(parseFloat(e.target.value) || 0)}
+                                            className="w-24 text-right border rounded-md px-2 py-1"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Fila: Crédito Hipotecario (ajustable automáticamente) */}
+                                <div className="grid grid-cols-5 items-center">
+                                    <span className="col-span-2">Crédito Hipotecario:</span>
+                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoCreditoHipotecario / totalEscritura) * 100) : formatCurrency(0)}%</span>
+                                    <span className="text-right">{ufToPesos(pagoCreditoHipotecario)}</span>
+                                    <div className="flex justify-end">
+                                        <input
+                                            type="number"
+                                            value={totalEscritura - (pagoReserva + pagoPromesa + pagoPie + pagoBonoPie)} // Cálculo automático
+                                            readOnly // Crédito Hipotecario es readOnly
+                                            className="w-24 text-right border rounded-md px-2 py-1 bg-gray-100 cursor-not-allowed"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Fila: Bono Pie */}
+                                <div className="grid grid-cols-5 items-center">
+                                    <span className="col-span-2">Bono Pie:</span>
+                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((pagoBonoPie / totalEscritura) * 100) : formatCurrency(0)}%</span>
+                                    <span className="text-right">{ufToPesos(pagoBonoPie)}</span>
+                                    <div className="flex justify-end">
+                                        <input
+                                            type="number"
+                                            value={pagoBonoPie}
+                                            onChange={e => setPagoBonoPie(parseFloat(e.target.value) || 0)}
+                                            className="w-24 text-right border rounded-md px-2 py-1"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                {/* Total Forma de Pago */}
+                                <div className="grid grid-cols-5 items-center font-bold border-t pt-2 mt-2">
+                                    <span className="col-span-2">Total:</span>
+                                    <span className="text-right">{totalEscritura > 0 ? formatCurrency((totalFormaDePago / totalEscritura) * 100) : formatCurrency(0)}%</span>
+                                    <span className="text-right">{ufToPesos(totalFormaDePago)}</span>
+                                    <span className="text-right">{formatCurrency(totalFormaDePago)} UF</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
           </>
         )}
       </main>
