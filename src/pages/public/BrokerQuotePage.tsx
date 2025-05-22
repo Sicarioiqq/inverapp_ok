@@ -265,63 +265,12 @@ const BrokerQuotePage: React.FC = () => {
             <table className="min-w-full">
               <thead className="bg-gray-200">
                 <tr>
-                  ... (código de la tabla)
-                </tr>
-              </thead>
-              <tbody>
-                ...
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Configuración */}
-        {activeTab === 'configuracion' && selectedUnidad && (
-          <div className="bg-white shadow rounded p-6">
-            {/* Sección Cliente */}
-            <div className="bg-blue-50 p-4 rounded mb-6">
-              <h2 className="text-lg font-medium mb-2">Datos del Cliente</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Cliente</label>
-                  <input type="text" value={cliente} onChange={e=>setCliente(e.target.value)} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">RUT</label>
-                  <input type="text" value={rut} onChange={e=>setRut(e.target.value)} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
-                </div>
-              </div>
-            </div>
-
-            {/* Sección Proyecto */}
-            <div className="mb-4">
-              <h3 className="text-md font-semibold">Proyecto</h3>
-              <p>{selectedUnidad.proyecto_nombre}</p>
-            </div>
-
-            {/* Sección Unidad */}
-            <div className="mb-4">
-              <h3 className="text-md font-semibold">Unidad</h3>
-              <p>
-                {selectedUnidad.unidad} ({selectedUnidad.estado_unidad}) — {selectedUnidad.tipologia}, Piso {selectedUnidad.piso ?? '-'}
-              </p>
-              <p>Descuento Neto: {((selectedUnidad.descuento ?? 0)*100 - (commissions[selectedUnidad.proyecto_nombre]||0)).toFixed(2)}%</p>
-              <p>Valor Lista: {selectedUnidad.valor_lista?.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})} UF</p>
-            </div>
-
-            {/* Sección Superficies */}
-            <div>
-              <h3 className="text-md font-semibold">Superficies</h3>
-              <p>Util: {selectedUnidad.sup_util?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</p>
-              <p>Terraza: {selectedUnidad.sup_terraza?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</p>
-              <p>Total: {selectedUnidad.sup_total?.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} m²</p>
-            </div>
-          </div>
-        )}
-      </main>
-      <footer className="text-center py-6 text-sm text-gray-500">© {new Date().getFullYear()} InverAPP - Cotizador Brokers</footer>
-    </div>
-  );
-};
-
-export default BrokerQuotePage;
+                  {(activeTab === 'principales' ? headersPrincipales : headersSecundarios).map(h => (
+                    <th
+                      key={h.key}
+                      className="px-4 py-2 text-left cursor-pointer"
+                      onClick={() => {
+                        if (sortField === h.key) setSortAsc(!sortAsc);
+                        else {
+                          setSortField(h.key);
+                          setSort
