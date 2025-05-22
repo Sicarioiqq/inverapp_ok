@@ -54,7 +54,7 @@ const BrokerQuotePage: React.FC = () => {
   const [cliente, setCliente] = useState('');
   const [rut, setRut] = useState('');
 
-  // validar broker
+  // Validar broker
   useEffect(() => {
     const validate = async () => {
       if (!brokerSlug || !accessToken) {
@@ -80,17 +80,31 @@ const BrokerQuotePage: React.FC = () => {
     validate();
   }, [brokerSlug, accessToken]);
 
-  // cargar todo el stock
+  // Cargar TODO el stock con paginación de 1000 en 1000
   useEffect(() => {
     if (!brokerInfo) return;
     const fetchStock = async () => {
       setLoadingStock(true);
       try {
-        const { data, error: se } = await supabase
-          .from<Unidad>('stock_unidades')
-          .select('*');
-        if (se) throw se;
-        if (data) setStock(data);
+        const pageSize = 1000;
+        let from = 0;
+        const all: Unidad[] = [];
+        while (true) {
+          const to = from + pageSize - 1;
+          const { data, error: se } = await supabase
+            .from<Unidad>('stock_unidades')
+            .select(
+              'id, proyecto_nombre, unidad, tipologia, piso, sup_util, sup_terraza, sup_total, valor_lista, descuento, estado_unidad, tipo_bien'
+            )
+            .range(from, to);
+          if (se) throw se;
+          if (data && data.length) {
+            all.push(...data);
+            if (data.length < pageSize) break;
+            from += pageSize;
+          } else break;
+        }
+        setStock(all);
       } catch (e) {
         console.error('Error loading stock:', e);
       } finally {
@@ -100,7 +114,7 @@ const BrokerQuotePage: React.FC = () => {
     fetchStock();
   }, [brokerInfo]);
 
-  // opciones de filtro
+  // Opciones de filtro
   const proyectos = ['Todos', ...Array.from(new Set(stock.map(u => u.proyecto_nombre))).sort()];
   const tipologias = [
     'Todos',
@@ -113,7 +127,7 @@ const BrokerQuotePage: React.FC = () => {
     ).sort()
   ];
 
-  // filtrar y ordenar
+  // Filtrar y ordenar
   const filtered = stock
     .filter(u => {
       if (activeTab === 'principales') return u.tipo_bien === 'DEPARTAMENTO';
@@ -266,92 +280,16 @@ const BrokerQuotePage: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map(u => {
-                    return (
-                      <tr
-                        key={u.id}
-                        className="border-t hover:bg-gray-50 cursor-pointer"
-                        onClick={() => {
-                          setSelectedUnidad(u);
-                          setActiveTab('configuracion');
-                        }}
-                      >
-                        <td className="px-4 py-2">{u.proyecto_nombre}</td>
-                        <td className="px-4 py-2">{u.unidad}</td>
-                        <td className="px-4 py-2">{u.tipologia}</td>
-                        <td className="px-4 py-2">{u.piso || '-'}</td>
-                        <td className="px-4 py-2 text-right">{u.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className="px-4 py-2 text-right">{u.valor_lista?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
-                        {activeTab === 'principales' && (
-                          <td className="px-4 py-2 text-right">{((u.descuento ?? 0) * 100).toFixed(2)}%</td>
-                        )}
-                        <td className="px-4 py-2">
-                          <span className={`px-2 py-0.5 inline-flex text-xs font-semibold rounded-full ${u.estado_unidad === 'Disponible' ? 'bg-green-100 text-green-800' : u.estado_unidad === 'No Disponible' ? 'bg-gray-100 text-gray-800' : 'bg-yellow-100 text-yellow-800'}`}>{u.estado_unidad}</span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {activeTab === 'configuracion' && (
-          <div className="bg-white shadow rounded p-6">
-            <h2 className="text-2xl font-semibold mb-4">Configuración de Cotización</h2>
-            {selectedUnidad ? (
-              <div className="space-y-6">
-                {/* Cliente */}
-                <div className="bg-blue-50 p-4 rounded">
-                  <label className="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
-                  <input
-                    type="text"
-                    value={cliente}
-                    onChange={e => setCliente(e.target.value)}
-                    placeholder="Ingrese nombre"
-                    className="mt-1 block w-full border-blue-300 bg-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <label className="block text-sm font-medium text-gray-700 mt-4">RUT del Cliente</label>
-                  <input
-                    type="text"
-                    value={rut}
-                    onChange={e => setRut(e.target.value)}
-                    placeholder="Formato 12345678-9"
-                    className="mt-1 block w-full border-blue-300 bg-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                {/* Proyecto */}
-                <section>
-                  <h3 className="text-lg font-medium">Proyecto</h3>
-                  <p className="mt-1">{selectedUnidad.proyecto_nombre}</p>
-                </section>
-                {/* Unidad */}
-                <section>
-                  <h3 className="text-lg font-medium">Unidad</h3>
-                  <p className="mt-1">{selectedUnidad.unidad} ({selectedUnidad.estado_unidad})</p>
-                  <p>Tipología: {selectedUnidad.tipologia}</p>
-                  <p>Piso: {selectedUnidad.piso || '-'}</p>
-                  <p>Descuento: {(selectedUnidad.descuento ?? 0) * 100}%</p>
-                  <p>Valor Lista: {selectedUnidad.valor_lista?.toLocaleString()} UF</p>
-                </section>
-                {/* Superficies */}
-                <section>
-                  <h3 className="text-lg font-medium">Superficies</h3>
-                  <p>Sup. Útil: {selectedUnidad.sup_util?.toLocaleString(undefined, { minimumFractionDigits: 2 })} m²</p>
-                  {selectedUnidad.sup_terraza != null && <p>Sup. Terraza: {selectedUnidad.sup_terraza?.toLocaleString(undefined, { minimumFractionDigits: 2 })} m²</p>}
-                  {selectedUnidad.sup_total != null && <p>Sup. Total: {selectedUnidad.sup_total?.toLocaleString(undefined, { minimumFractionDigits: 2 })} m²</p>}
-                </section>
-              </div>
-            ) : (
-              <p className="text-gray-500">Seleccione una unidad en Principales o Secundarios para configurar.</p>
-            )}
-          </div>
-        )}
-      </main>
-      <footer className="text-center py-6 text-sm text-gray-500">© {new Date().getFullYear()} InverAPP – Cotizador Brokers</footer>
-    </div>
-  );
-};
-
-export default BrokerQuotePage;
+                  filtered.map(u => (
+                    <tr
+                      key={u.id}
+                      className="border-t hover:bg-gray-50 cursor-pointer"
+                      onClick={() => {
+                        setSelectedUnidad(u);
+                        setActiveTab('configuracion');
+                      }}
+                    >
+                      <td className="px-4 py-2">{u.proyecto_nombre}</td>
+                      <td className="px-4 py-2">{u.unidad}</td>
+                      <td className="px-4 py-2">{u.tipologia}</td>
+                      <td className="px-4 py-2">{u.piso || '-'}
