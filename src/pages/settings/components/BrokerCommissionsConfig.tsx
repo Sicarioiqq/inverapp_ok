@@ -80,8 +80,8 @@ const BrokerCommissionsConfig: React.FC = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleInputChange = (project: string, value: string) => {
-    // Allow up to 3 decimal places
-    if (/^(?:100(?:\.[0-9]{1,3})?|\d{1,2}(?:\.[0-9]{1,3})?)?$/.test(value) && selectedBroker) {
+    // Allow up to 3 decimal places with dot or comma
+    if (/^(?:100(?:[.,][0-9]{1,3})?|\d{1,2}(?:[.,][0-9]{1,3})?)?$/.test(value) && selectedBroker) {
       setCommissionInputs(prev => ({
         ...prev,
         [selectedBroker]: { ...(prev[selectedBroker] || {}), [project]: value }
@@ -97,7 +97,8 @@ const BrokerCommissionsConfig: React.FC = () => {
     const deletes: string[] = [];
 
     projects.forEach(project => {
-      const val = commissionInputs[selectedBroker]?.[project] || '';
+      const raw = commissionInputs[selectedBroker]?.[project] || '';
+      const val = raw.replace(',', '.');
       const existing = dbCommissions.find(
         c => c.broker_id === selectedBroker && c.project_name === project
       );
@@ -166,11 +167,11 @@ const BrokerCommissionsConfig: React.FC = () => {
           <label htmlFor="broker-select" className="block text-sm font-medium text-gray-700">Broker</label>
           <select
             id="broker-select"
-            value={selectedBroker || ''}
+            value={selectedBroker||''}
             onChange={e => setSelectedBroker(e.target.value)}
             className="mt-1 block px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500"
           >
-            {brokers.map(b => <option key={b.id} value={b.id}>{b.name || b.id}</option>)}
+            {brokers.map(b => <option key={b.id} value={b.id}>{b.name||b.id}</option>)}
           </select>
         </div>
       </div>
@@ -190,7 +191,7 @@ const BrokerCommissionsConfig: React.FC = () => {
                 <td className="px-4 py-2 text-center">
                   <input
                     type="text"
-                    value={commissionInputs[selectedBroker!]?.[project] || ''}
+                    value={commissionInputs[selectedBroker!]?.[project]||''}
                     onChange={e => handleInputChange(project, e.target.value)}
                     className="w-24 text-right px-2 py-1 border rounded focus:ring-blue-500 focus:border-blue-500"
                     placeholder="%"
