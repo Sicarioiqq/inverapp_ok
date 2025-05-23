@@ -12,6 +12,8 @@ const formatCurrency = (amount: number | null): string => {
 
 const ufToPesos = (uf: number | null, ufValue: number | null): string => {
   if (uf === null || ufValue === null || isNaN(uf) || !isFinite(uf) || isNaN(ufValue) || !isFinite(ufValue)) return '$ 0';
+  // Nota: Aquí se usa el ufValue para la conversión a pesos. Si la reserva en pesos es un valor fijo,
+  // podríamos querer mostrarlo directamente en el PDF como ese valor fijo.
   return new Intl.NumberFormat('es-CL', {
     style: 'currency',
     currency: 'CLP',
@@ -189,6 +191,8 @@ interface BrokerQuotePDFProps {
   totalEscritura: number;
   pagoCreditoHipotecarioCalculado: number;
   totalFormaDePago: number;
+  // Añadimos VALOR_RESERVA_PESOS aquí para pasarlo al PDF
+  VALOR_RESERVA_PESOS: number; 
 }
 
 const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
@@ -213,6 +217,7 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
   totalEscritura,
   pagoCreditoHipotecarioCalculado,
   totalFormaDePago,
+  VALOR_RESERVA_PESOS // Recibimos el valor fijo
 }) => {
   const currentDate = new Date().toLocaleDateString('es-CL');
 
@@ -338,7 +343,7 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
             <View style={Styles.tableRow}>
               <View style={Styles.paymentColGlosa}><Text>Reserva</Text></View>
               <View style={Styles.paymentColPct}><Text>{totalEscritura > 0 ? formatCurrency((pagoReserva / totalEscritura) * 100) : '0.00'}%</Text></View>
-              <View style={Styles.paymentColPesos}><Text>{ufToPesos(pagoReserva, ufValue)}</Text></View>
+              <View style={Styles.paymentColPesos}><Text>{ufToPesos(VALOR_RESERVA_PESOS / (ufValue || 1), ufValue)}</Text></View> {/* Usar VALOR_RESERVA_PESOS directamente aquí */}
               <View style={Styles.paymentColUF}><Text>{formatCurrency(pagoReserva)}</Text></View>
             </View>
             <View style={Styles.tableRow}>
