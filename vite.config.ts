@@ -1,4 +1,3 @@
-// vite.config.ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -7,12 +6,17 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    include: ['base64-js'],
+    include: ['base64-js', 'unicode-trie'],
     exclude: ['lucide-react', '@react-pdf/renderer'],
   },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+    },
+  },
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
     },
   },
 });
