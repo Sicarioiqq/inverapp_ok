@@ -1,30 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
-// Register fonts only once using a flag
-let fontsRegistered = false;
+// Register fonts using Google Fonts CDN which has better CORS support
+Font.register({
+  family: 'Helvetica',
+  src: 'https://fonts.gstatic.com/s/roboto/v29/KFOmCnqEu92Fr1Me5Q.ttf',
+});
 
-if (!fontsRegistered) {
-  Font.register({
-    family: 'Helvetica',
-    fonts: [
-      {
-        src: 'https://fonts.cdnfonts.com/s/29719/Helvetica.woff',
-      }
-    ]
-  });
-
-  Font.register({
-    family: 'Helvetica-Bold',
-    fonts: [
-      {
-        src: 'https://fonts.cdnfonts.com/s/29719/Helvetica-Bold.woff',
-      }
-    ]
-  });
-
-  fontsRegistered = true;
-}
+Font.register({
+  family: 'Helvetica-Bold',
+  src: 'https://fonts.gstatic.com/s/roboto/v29/KFOlCnqEu92Fr1MmWUlvAw.ttf',
+  fontWeight: 'bold',
+});
 
 // Helper function for formatting
 const formatCurrency = (amount: number | null): string => {
