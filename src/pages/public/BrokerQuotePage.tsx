@@ -1,5 +1,3 @@
-// src/pages/public/BrokerQuotePage.tsx
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -675,7 +673,8 @@ const BrokerQuotePage: React.FC = () => {
             <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
                 <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center">
                     <ShieldX className="h-16 w-16 text-red-500 mx-auto mb-4" />
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Acceso Denegado</h1>
+                    <h1 className="text-2xl font-bol
+d text-gray-900 mb-2">Acceso Denegado</h1>
                     <p className="text-gray-600 mb-6">{error}</p>
                     <button
                         onClick={() => window.location.href = '/'}
@@ -1148,8 +1147,7 @@ const BrokerQuotePage: React.FC = () => {
                                             {addedSecondaryUnits.length > 0 && (
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-600">Precio Total Secundarios:</span>
-                                                    <span className="font-medium">{formatCurrency(precio
-TotalSecundarios)} UF</span>
+                                                    <span className="font-medium">{formatCurrency(precioTotalSecundarios)} UF</span>
                                                 </div>
                                             )}
                                             
