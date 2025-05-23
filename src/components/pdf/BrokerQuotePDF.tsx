@@ -1,6 +1,24 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer'; // Importa Image
 
+// Register fonts to prevent potential BindingError related to font loading
+// It's good practice to register fonts explicitly, even standard ones,
+// especially if you encounter rendering issues.
+try {
+  Font.register({
+    family: 'Helvetica',
+    src: 'https://cdn.jsdelivr.net/npm/react-pdf-renderer-helper/fonts/Helvetica.ttf', // Fallback URL
+  });
+  Font.register({
+    family: 'Helvetica-Bold',
+    src: 'https://cdn.jsdelivr.net/npm/react-pdf-renderer-helper/fonts/Helvetica-Bold.ttf', // Fallback URL
+  });
+} catch (error) {
+  console.error("Error registering fonts:", error);
+  // Optionally, you could use a fallback font or display a message
+}
+
+
 // Helper function for formatting
 const formatCurrency = (amount: number | null): string => {
   if (amount === null || isNaN(amount) || !isFinite(amount)) return '0.00';
