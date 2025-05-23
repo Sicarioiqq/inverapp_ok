@@ -102,7 +102,6 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
         }
     };
 
-
     const handlePolicyChange = (
         projectName: string,
         field: keyof ProjectCommercialPolicy,
@@ -132,7 +131,7 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                 return updatedPolicies;
             } else {
                 const newPolicy: ProjectCommercialPolicy = {
-                    id: '',
+                    id: '', // This will be ignored during insert
                     project_name: projectName,
                     monto_reserva_pesos: 0,
                     bono_pie_max_pct: 0,
@@ -154,8 +153,12 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
         setError(null);
         try {
             const policyToSave = {
-                ...policy,
+                project_name: policy.project_name,
+                monto_reserva_pesos: policy.monto_reserva_pesos,
                 bono_pie_max_pct: policy.bono_pie_max_pct / 100, // Convert percentage to decimal for storage
+                fecha_tope: policy.fecha_tope,
+                observaciones: policy.observaciones,
+                comuna: policy.comuna
             };
 
             if (policy.id) {
@@ -353,18 +356,17 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <button
-                                                onClick={() => handleSavePolicy(policy || {
-                                                    id: '',
+                                                onClick={() => handleSavePolicy({
+                                                    id: policy?.id || '',
                                                     project_name: projectName,
                                                     monto_reserva_pesos: currentMontoReserva,
                                                     bono_pie_max_pct: currentBonoMaxPct,
                                                     fecha_tope: currentFechaTope,
                                                     observaciones: currentObservaciones,
                                                     comuna: currentComuna,
-                                                    created_at: new Date().toISOString(),
+                                                    created_at: policy?.created_at || new Date().toISOString(),
                                                     updated_at: new Date().toISOString(),
                                                 })}
-                                                // Deshabilitar solo si esta fila está guardando
                                                 className={`text-indigo-600 hover:text-indigo-900 ml-2 p-2 rounded-full ${isSavingThisRow ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 disabled={isSavingThisRow}
                                                 title={isNew ? 'Guardar política' : 'Actualizar política'}
@@ -374,7 +376,6 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                                             {policy?.id && (
                                                 <button
                                                     onClick={() => handleDeletePolicy(policy.id, projectName)}
-                                                    // Deshabilitar solo si esta fila está guardando
                                                     className={`text-red-600 hover:text-red-900 ml-2 p-2 rounded-full ${isSavingThisRow ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                     disabled={isSavingThisRow}
                                                     title="Eliminar política"
