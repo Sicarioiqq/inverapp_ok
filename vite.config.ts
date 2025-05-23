@@ -1,15 +1,15 @@
 // vite.config.ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import path from 'path'; // <--- AÑADIR ESTA LÍNEA
+import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    exclude: ['lucide-react'],
+    exclude: ['lucide-react', '@react-pdf/renderer'],
   },
-  resolve: { // <--- AÑADIR ESTA SECCIÓN COMPLETA
+  resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
