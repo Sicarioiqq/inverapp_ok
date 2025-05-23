@@ -1,5 +1,3 @@
-// src/pages/settings/components/ProjectCommercialPolicyConfig.tsx
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
@@ -103,7 +101,6 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                d1.getDate() === d2.getDate();
     };
 
-
     const handlePolicyChange = (
         projectName: string,
         field: keyof ProjectCommercialPolicy,
@@ -132,8 +129,7 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                     comuna: null,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
-                    // Initialize other fields with defaults or null
-                    ...{ [field]: value } // Apply the specific change
+                    [field]: value
                 };
                 return [...prevPolicies, newPolicy];
             }
@@ -144,10 +140,14 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
         setSaving(true);
         setError(null);
         try {
-            // Convert bono_pie_max_pct back to a storable format if needed (e.g., 0.15)
+            // Convert bono_pie_max_pct to decimal for storage
             const policyToSave = {
-                ...policy,
-                bono_pie_max_pct: policy.bono_pie_max_pct / 100, // Convert percentage to decimal for storage
+                project_name: policy.project_name,
+                monto_reserva_pesos: policy.monto_reserva_pesos,
+                bono_pie_max_pct: policy.bono_pie_max_pct / 100,
+                fecha_tope: policy.fecha_tope,
+                observaciones: policy.observaciones,
+                comuna: policy.comuna
             };
 
             if (policy.id) {
@@ -164,7 +164,7 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                 const { data, error: insertError } = await supabase
                     .from('project_commercial_policies')
                     .insert(policyToSave)
-                    .select(); // Select the inserted data to get the new ID
+                    .select();
 
                 if (insertError) throw insertError;
                 if (data && data.length > 0) {
@@ -329,15 +329,15 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <button
-                                                onClick={() => handleSavePolicy(policy || {
-                                                    id: '',
+                                                onClick={() => handleSavePolicy({
+                                                    id: policy?.id || '',
                                                     project_name: projectName,
                                                     monto_reserva_pesos: currentMontoReserva,
-                                                    bono_pie_max_pct: currentBonoMaxPct / 100, // Convert back for saving
+                                                    bono_pie_max_pct: currentBonoMaxPct,
                                                     fecha_tope: currentFechaTope,
                                                     observaciones: currentObservaciones,
                                                     comuna: currentComuna,
-                                                    created_at: new Date().toISOString(),
+                                                    created_at: policy?.created_at || new Date().toISOString(),
                                                     updated_at: new Date().toISOString(),
                                                 })}
                                                 className={`text-indigo-600 hover:text-indigo-900 ml-2 p-2 rounded-full ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
