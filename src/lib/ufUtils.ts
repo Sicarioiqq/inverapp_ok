@@ -47,12 +47,16 @@ export const fetchUFValueFromAPI = async (): Promise<number | null> => {
     const data = await response.json();
     
     if (data && data.UFs && data.UFs.length > 0) {
-      const ufValue = parseFloat(data.UFs[0].Valor.replace('.', '').replace(',', '.'));
+      // Convert the UF value from string to number
+      // The format is typically "12.345,67" which needs to be converted to 12345.67
+      const ufValueStr = data.UFs[0].Valor;
+      const ufValue = parseFloat(ufValueStr.replace('.', '').replace(',', '.'));
       
-      // Store the UF value in the database
-      await storeUFValue(ufValue);
-      
-      return ufValue;
+      if (!isNaN(ufValue)) {
+        // Store the UF value in the database
+        await storeUFValue(ufValue);
+        return ufValue;
+      }
     }
     
     // If CMF API doesn't return valid data, try backup API
@@ -81,10 +85,11 @@ export const fetchUFValueFromBackupAPI = async (): Promise<number | null> => {
     if (data && data.serie && data.serie.length > 0) {
       const ufValue = data.serie[0].valor;
       
-      // Store the UF value in the database
-      await storeUFValue(ufValue);
-      
-      return ufValue;
+      if (!isNaN(ufValue)) {
+        // Store the UF value in the database
+        await storeUFValue(ufValue);
+        return ufValue;
+      }
     }
     
     return null;
