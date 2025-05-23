@@ -235,10 +235,14 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
   let actualDeptDiscountUF = precioDescuentoDepartamento;
 
   // Define the path to your logo image
-  // For local files, react-pdf expects them to be accessible via a public URL or base64 encoded.
-  // Assuming 'logoinversiones.png' is placed in the 'public' folder of your Vite/React project,
-  // it would be accessible at '/logoinversiones.png' relative to the root.
-  const logoPath = '/logoinversiones.png'; 
+  // IMPORTANT: For react-pdf to correctly display images, they should generally be accessible via a public URL.
+  // If 'logoinversiones.png' is located at 'src/pages/public/logoinversiones.png',
+  // and your build system places content from 'src/pages/public' into a corresponding
+  // 'pages/public' directory in your build output, then this relative path might work.
+  // However, the most reliable method is to place the image directly in your project's
+  // root 'public' folder (e.g., 'your-project-root/public/logoinversiones.png')
+  // and then use the path '/logoinversiones.png'.
+  const logoPath = '../../pages/public/logoinversiones.png'; 
 
   return (
     <Document>
