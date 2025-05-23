@@ -45,7 +45,7 @@ const baseStyles = {
     padding: 5,
     textAlign: 'right',
   },
-  tableColSmallRight: { // A general base small right-aligned style for merging
+  tableColSmallRight: { // A general base small right-aligned style for merging (for percentages)
     borderStyle: 'solid',
     borderColor: '#bfbfbf',
     borderWidth: 1,
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   },
   table: {
     display: 'table',
-    width: 'auto',
+    width: 'auto', // Use 'auto' to allow table to fit content, or '100%' for full width
     marginBottom: 10,
   },
   tableRow: {
@@ -104,25 +104,33 @@ const styles = StyleSheet.create({
     ...baseStyles.tableCol, // Merge base column properties
   },
 
-  // Specific column widths for Prices table
-  pricesColHeader: {
-    ...baseStyles.tableColHeader, // Merge base header properties
-  },
-  pricesColItem: { width: '25%', ...baseStyles.tableCol }, // ÍTEM
-  pricesColListPrice: { width: '15%', ...baseStyles.tableColRight }, // PRECIO LISTA (UF)
-  pricesColDiscountPct: { width: '10%', ...baseStyles.tableColSmallRight }, // DSCTO. %
-  pricesColDiscountUF: { width: '15%', ...baseStyles.tableColRight }, // DSCTO. (UF)
-  pricesColNetPriceUF: { width: '15%', ...baseStyles.tableColRight }, // PRECIO NETO (UF)
-  pricesColNetPriceCLP: { width: '20%', ...baseStyles.tableColRight }, // PRECIO NETO ($)
+  // Specific column styles for Prices table
+  // Headers
+  pricesHeaderItem: { width: '25%', ...baseStyles.tableColHeader }, // ÍTEM
+  pricesHeaderListPrice: { width: '15%', ...baseStyles.tableColHeader }, // PRECIO LISTA (UF)
+  pricesHeaderDiscountPct: { width: '10%', ...baseStyles.tableColHeader }, // DSCTO. %
+  pricesHeaderDiscountUF: { width: '15%', ...baseStyles.tableColHeader }, // DSCTO. (UF)
+  pricesHeaderNetPriceUF: { width: '15%', ...baseStyles.tableColHeader }, // PRECIO NETO (UF)
+  pricesHeaderNetPriceCLP: { width: '20%', ...baseStyles.tableColHeader }, // PRECIO NETO ($)
+  // Data cells
+  pricesColItem: { width: '25%', ...baseStyles.tableCol },
+  pricesColListPrice: { width: '15%', ...baseStyles.tableColRight },
+  pricesColDiscountPct: { width: '10%', ...baseStyles.tableColSmallRight },
+  pricesColDiscountUF: { width: '15%', ...baseStyles.tableColRight },
+  pricesColNetPriceUF: { width: '15%', ...baseStyles.tableColRight },
+  pricesColNetPriceCLP: { width: '20%', ...baseStyles.tableColRight },
 
-  // Specific column widths for Payment Method table
-  paymentColHeader: {
-    ...baseStyles.tableColHeader, // Merge base header properties
-  },
-  paymentColGlosa: { width: '35%', ...baseStyles.tableCol }, // GLOSA
-  paymentColPct: { width: '10%', ...baseStyles.tableColSmallRight }, // %
-  paymentColPesos: { width: '25%', ...baseStyles.tableColRight }, // PESOS
-  paymentColUF: { width: '30%', ...baseStyles.tableColRight }, // UF
+  // Specific column styles for Payment Method table
+  // Headers
+  paymentHeaderGlosa: { width: '35%', ...baseStyles.tableColHeader }, // GLOSA
+  paymentHeaderPct: { width: '10%', ...baseStyles.tableColHeader }, // %
+  paymentHeaderPesos: { width: '25%', ...baseStyles.tableColHeader }, // PESOS
+  paymentHeaderUF: { width: '30%', ...baseStyles.tableColHeader }, // UF
+  // Data cells
+  paymentColGlosa: { width: '35%', ...baseStyles.tableCol },
+  paymentColPct: { width: '10%', ...baseStyles.tableColSmallRight },
+  paymentColPesos: { width: '25%', ...baseStyles.tableColRight },
+  paymentColUF: { width: '30%', ...baseStyles.tableColRight },
 
 
   totalRow: {
@@ -272,14 +280,16 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
         <View style={Styles.section}>
           <Text style={Styles.subHeader}>III. PRECIOS</Text>
           <View style={Styles.table}>
+            {/* Table Headers */}
             <View style={Styles.tableRow}>
-              <View style={Styles.pricesColHeader}><Text>ÍTEM</Text></View>
-              <View style={Styles.pricesColHeader}><Text>PRECIO LISTA (UF)</Text></View>
-              <View style={Styles.pricesColHeader}><Text>DSCTO. %</Text></View>
-              <View style={Styles.pricesColHeader}><Text>DSCTO. (UF)</Text></View>
-              <View style={Styles.pricesColHeader}><Text>PRECIO NETO (UF)</Text></View>
-              <View style={Styles.pricesColHeader}><Text>PRECIO NETO ($)</Text></View>
+              <View style={Styles.pricesHeaderItem}><Text>ÍTEM</Text></View>
+              <View style={Styles.pricesHeaderListPrice}><Text>PRECIO LISTA (UF)</Text></View>
+              <View style={Styles.pricesHeaderDiscountPct}><Text>DSCTO. %</Text></View>
+              <View style={Styles.pricesHeaderDiscountUF}><Text>DSCTO. (UF)</Text></View>
+              <View style={Styles.pricesHeaderNetPriceUF}><Text>PRECIO NETO (UF)</Text></View>
+              <View style={Styles.pricesHeaderNetPriceCLP}><Text>PRECIO NETO ($)</Text></View>
             </View>
+            {/* Department Row */}
             {selectedUnidad && (
               <View style={Styles.tableRow}>
                 <View style={Styles.pricesColItem}><Text>Departamento {selectedUnidad.unidad}</Text></View>
@@ -290,6 +300,7 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
                 <View style={Styles.pricesColNetPriceCLP}><Text>{ufToPesos(precioDepartamentoConDescuento, ufValue)}</Text></View>
               </View>
             )}
+            {/* Added Secondary Units Rows */}
             {addedSecondaryUnits.map(unit => (
               <View style={Styles.tableRow} key={unit.id}>
                 <View style={Styles.pricesColItem}><Text>{unit.tipo_bien} {unit.unidad}</Text></View>
@@ -300,6 +311,7 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
                 <View style={Styles.pricesColNetPriceCLP}><Text>{ufToPesos(unit.valor_lista, ufValue)}</Text></View>
               </View>
             ))}
+            {/* Total Row */}
             <View style={Styles.tableRow}>
                 <View style={Styles.pricesColItem}><Text style={Styles.boldText}>TOTAL ESCRITURA</Text></View>
                 <View style={Styles.pricesColListPrice}><Text></Text></View>
@@ -315,12 +327,14 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
         <View style={Styles.section}>
           <Text style={Styles.subHeader}>IV. FORMA DE PAGO</Text>
           <View style={Styles.table}>
+            {/* Table Headers */}
             <View style={Styles.tableRow}>
-              <View style={Styles.paymentColHeader}><Text style={Styles.paymentColGlosa}>GLOSA</Text></View>
-              <View style={Styles.paymentColHeader}><Text style={Styles.paymentColPct}>%</Text></View>
-              <View style={Styles.paymentColHeader}><Text style={Styles.paymentColPesos}>PESOS</Text></View>
-              <View style={Styles.paymentColHeader}><Text style={Styles.paymentColUF}>UF</Text></View>
+              <View style={Styles.paymentHeaderGlosa}><Text>GLOSA</Text></View>
+              <View style={Styles.paymentHeaderPct}><Text>%</Text></View>
+              <View style={Styles.paymentHeaderPesos}><Text>PESOS</Text></View>
+              <View style={Styles.paymentHeaderUF}><Text>UF</Text></View>
             </View>
+            {/* Payment Rows */}
             <View style={Styles.tableRow}>
               <View style={Styles.paymentColGlosa}><Text>Reserva</Text></View>
               <View style={Styles.paymentColPct}><Text>{totalEscritura > 0 ? formatCurrency((pagoReserva / totalEscritura) * 100) : '0.00'}%</Text></View>
@@ -353,6 +367,7 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
                 <View style={Styles.paymentColUF}><Text>{formatCurrency(pagoBonoPieCotizacion)}</Text></View>
               </View>
             )}
+            {/* Total Row */}
             <View style={Styles.tableRow}>
                 <View style={Styles.paymentColGlosa}><Text style={Styles.boldText}>TOTAL</Text></View>
                 <View style={Styles.paymentColPct}><Text style={Styles.boldText}>{totalEscritura > 0 ? formatCurrency((totalFormaDePago / totalEscritura) * 100) : '0.00'}%</Text></View>
