@@ -1,19 +1,17 @@
 import React, { useState } from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
-// Register fonts using absolute paths
+// Register fonts using relative paths and lazy loading
 Font.register({
   family: 'Helvetica',
-  fonts: [
-    {
-      src: 'public/fonts/Helvetica.ttf',
-      fontWeight: 'normal'
-    },
-    {
-      src: 'public/fonts/Helvetica-Bold.ttf',
-      fontWeight: 'bold'
-    }
-  ]
+  src: '/fonts/Helvetica.ttf',
+  fontWeight: 'normal'
+});
+
+Font.register({
+  family: 'Helvetica',
+  src: '/fonts/Helvetica-Bold.ttf',
+  fontWeight: 'bold'
 });
 
 // Helper function for formatting
