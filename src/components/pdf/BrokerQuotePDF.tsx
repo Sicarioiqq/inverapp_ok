@@ -1,16 +1,30 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
-// Register fonts using a simpler approach without checking registration
-Font.register({
-  family: 'Helvetica',
-  src: 'https://cdn.jsdelivr.net/npm/react-pdf-renderer-helper/fonts/Helvetica.ttf',
-});
+// Register fonts only once using a flag
+let fontsRegistered = false;
 
-Font.register({
-  family: 'Helvetica-Bold',
-  src: 'https://cdn.jsdelivr.net/npm/react-pdf-renderer-helper/fonts/Helvetica-Bold.ttf',
-});
+if (!fontsRegistered) {
+  Font.register({
+    family: 'Helvetica',
+    fonts: [
+      {
+        src: 'https://fonts.cdnfonts.com/s/29719/Helvetica.woff',
+      }
+    ]
+  });
+
+  Font.register({
+    family: 'Helvetica-Bold',
+    fonts: [
+      {
+        src: 'https://fonts.cdnfonts.com/s/29719/Helvetica-Bold.woff',
+      }
+    ]
+  });
+
+  fontsRegistered = true;
+}
 
 // Helper function for formatting
 const formatCurrency = (amount: number | null): string => {
@@ -31,7 +45,6 @@ const ufToPesos = (uf: number | null, ufValue: number | null): string => {
   }).format(uf * ufValue);
 };
 
-// Define base styles as separate objects/constants BEFORE StyleSheet.create
 const baseStyles = {
   tableCol: {
     borderStyle: 'solid',
@@ -65,7 +78,6 @@ const baseStyles = {
   },
 };
 
-// Create styles using the baseStyles
 const styles = StyleSheet.create({
   page: {
     padding: 30,
