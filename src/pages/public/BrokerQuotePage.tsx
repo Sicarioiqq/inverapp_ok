@@ -417,7 +417,7 @@ const BrokerQuotePage: React.FC = () => {
                                                     {projectCommercialPolicy.fecha_tope ? new Date(projectCommercialPolicy.fecha_tope).toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
                                                 </span></p>
                                                 <p className="flex items-center mt-1"><Tag className="h-4 w-4 mr-1 text-gray-500" /> Bono Pie Máximo (Política): <span className="font-semibold ml-1">
-                                                    {projectCommercialPolicy.bono_pie_max_pct !== null ? ${(projectCommercialPolicy.bono_pie_max_pct * 100).toFixed(2)}% : 'N/A'}
+                                                    {projectCommercialPolicy.bono_pie_max_pct !== null ? `${(projectCommercialPolicy.bono_pie_max_pct * 100).toFixed(2)}%` : 'N/A'}
                                                 </span></p>
                                                 {projectCommercialPolicy.comuna && (
                                                     <p className="mt-1">Comuna: <span className="font-semibold">{projectCommercialPolicy.comuna}</span></p>
