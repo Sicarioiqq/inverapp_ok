@@ -12,6 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      'brotli': path.resolve(__dirname, './src/lib/brotli-shim.js')
     },
   },
   build: {
