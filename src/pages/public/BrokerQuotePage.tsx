@@ -124,10 +124,16 @@ const BrokerQuotePage: React.FC = () => {
     const pagoCreditoHipotecarioCalculado = totalEscritura - pagoReserva - pagoPromesa - pagoPie - pagoBonoPieCotizacion;
     const totalFormaDePago = pagoReserva + pagoPromesa + pagoPie + pagoCreditoHipotecarioCalculado + pagoBonoPieCotizacion;
 
-    // [Previous implementation continues unchanged...]
-
     return (
-        // [Previous JSX implementation remains unchanged...]
+        <div className="min-h-screen bg-gray-100">
+            <div className="container mx-auto px-4 py-8">
+                <h1 className="text-2xl font-bold mb-6">Cotizador</h1>
+                {/* Placeholder for actual implementation */}
+                <div className="bg-white rounded-lg shadow p-6">
+                    <p>Implementación pendiente</p>
+                </div>
+            </div>
+        </div>
     );
 };
 
