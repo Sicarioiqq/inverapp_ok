@@ -62,7 +62,20 @@ type Tab = 'principales' | 'secundarios' | 'configuracion';
 type QuotationType = 'descuento' | 'bono' | 'mix';
 
 const BrokerQuotePage: React.FC = () => {
-    // ... (previous state declarations remain unchanged)
+    const { brokerSlug } = useParams<{ brokerSlug: string }>();
+    const navigate = useNavigate();
+
+    // State declarations
+    const [isValidating, setIsValidating] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [brokerInfo, setBrokerInfo] = useState<BrokerInfo | null>(null);
+    const [ufValue, setUfValue] = useState<number>(0);
+    const [stock, setStock] = useState<Unidad[]>([]);
+    const [stockLoadDate, setStockLoadDate] = useState<string>('');
+    const [brokerCommissions, setBrokerCommissions] = useState<BrokerProjectCommission[]>([]);
+    const [loadingUf, setLoadingUf] = useState(true);
+    const [loadingStock, setLoadingStock] = useState(true);
+    const [loadingCommissions, setLoadingCommissions] = useState(true);
 
     // Efecto para la carga inicial de datos (validación de broker, UF, stock, comisiones)
     useEffect(() => {
@@ -96,7 +109,7 @@ const BrokerQuotePage: React.FC = () => {
                 if (ufData) setUfValue(ufData.valor);
                 else setError('Valor de UF no disponible.');
 
-                // 3. Cargar Stock de Unidades - FIXED: Changed table name from 'unidades' to 'stock_unidades'
+                // 3. Cargar Stock de Unidades
                 setLoadingStock(true);
                 const { data: stockData, error: stockError } = await supabase
                     .from('stock_unidades')
@@ -128,18 +141,50 @@ const BrokerQuotePage: React.FC = () => {
             }
         };
 
-        if (brokerSlug && accessToken) {
+        if (brokerSlug) {
             initializePage();
         } else {
-            setError('Faltan parámetros de acceso (slug o token).');
+            setError('Faltan parámetros de acceso (slug).');
             setIsValidating(false);
             setLoadingUf(false);
             setLoadingStock(false);
             setLoadingCommissions(false);
         }
-    }, [brokerSlug, accessToken, navigate]);
+    }, [brokerSlug, navigate]);
 
-    // ... (rest of the component code remains unchanged)
+    // Return loading state
+    if (isValidating) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <Loader2 className="w-8 h-8 animate-spin" />
+                <span className="ml-2">Validando acceso...</span>
+            </div>
+        );
+    }
+
+    // Return error state
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen">
+                <ShieldX className="w-16 h-16 text-red-500 mb-4" />
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">Error de Acceso</h1>
+                <p className="text-gray-600">{error}</p>
+            </div>
+        );
+    }
+
+    // Return main content
+    return (
+        <div className="min-h-screen bg-gray-100">
+            {/* Add your main content here */}
+            <div className="container mx-auto px-4 py-8">
+                <h1 className="text-2xl font-bold mb-4">
+                    Cotizador {brokerInfo?.name}
+                </h1>
+                {/* Add the rest of your component content */}
+            </div>
+        </div>
+    );
 };
 
 export default BrokerQuotePage;
