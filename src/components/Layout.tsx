@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { useAuthStore } from '../stores/authStore';
+import { useUFStore } from '../stores/ufStore';
 import { supabase, checkSupabaseConnection } from '../lib/supabase';
 import { Bell, Search, Menu, UserCircle } from 'lucide-react';
 import SearchResults from './SearchResults';
@@ -33,6 +34,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [pendingTasksCount, setPendingTasksCount] = useState<number>(0);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const { signOut, session, error: authError } = useAuthStore();
+  const { ufValue, fetchUFValue } = useUFStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -97,6 +99,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
+
+  // Fetch UF value when component mounts
+  useEffect(() => {
+    fetchUFValue();
+    
+    // Set up a timer to refresh the UF value every hour
+    const intervalId = setInterval(fetchUFValue, 3600000); // 1 hour in milliseconds
+    
+    return () => clearInterval(intervalId);
+  }, [fetchUFValue]);
 
   const fetchUserProfile = async () => {
     try {
@@ -380,6 +392,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     )}
                   </div>
                 </div>
+                
+                {/* UF Value Display */}
+                {ufValue && (
+                  <div className="hidden md:flex items-center mx-4 px-3 py-1 bg-blue-50 rounded-md">
+                    <span className="text-sm font-medium text-blue-700">
+                      UF: $ {ufValue.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
                 
                 {/* Notifications */}
                 <button
