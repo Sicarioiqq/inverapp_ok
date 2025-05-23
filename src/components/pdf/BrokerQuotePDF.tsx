@@ -1,18 +1,25 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer'; // Importa Image
 
-// Register fonts to prevent potential BindingError related to font loading
-// It's good practice to register fonts explicitly, even standard ones,
-// especially if you encounter rendering issues.
+// Register fonts to prevent potential BindingError related to font loading.
+// It's crucial to register fonts outside the component to ensure they are
+// registered only once when the module is loaded, not on every re-render.
+// We also add a try-catch block and a check to prevent re-registration errors.
 try {
-  Font.register({
-    family: 'Helvetica',
-    src: 'https://cdn.jsdelivr.net/npm/react-pdf-renderer-helper/fonts/Helvetica.ttf', // Fallback URL
-  });
-  Font.register({
-    family: 'Helvetica-Bold',
-    src: 'https://cdn.jsdelivr.net/npm/react-pdf-renderer-helper/fonts/Helvetica-Bold.ttf', // Fallback URL
-  });
+  // Check if 'Helvetica' is already registered before attempting to register
+  if (!Font.getRegisteredFonts().includes('Helvetica')) {
+    Font.register({
+      family: 'Helvetica',
+      src: 'https://cdn.jsdelivr.net/npm/react-pdf-renderer-helper/fonts/Helvetica.ttf', // Fallback URL
+    });
+  }
+  // Check if 'Helvetica-Bold' is already registered before attempting to register
+  if (!Font.getRegisteredFonts().includes('Helvetica-Bold')) {
+    Font.register({
+      family: 'Helvetica-Bold',
+      src: 'https://cdn.jsdelivr.net/npm/react-pdf-renderer-helper/fonts/Helvetica-Bold.ttf', // Fallback URL
+    });
+  }
 } catch (error) {
   console.error("Error registering fonts:", error);
   // Optionally, you could use a fallback font or display a message
