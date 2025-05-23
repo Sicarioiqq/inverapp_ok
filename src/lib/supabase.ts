@@ -22,56 +22,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   // Add retry logic for failed requests
   db: {
     schema: 'public'
-  },
-  // Add custom fetch with timeout
-  fetch: (url, options) => {
-    const timeout = 15000; // 15 seconds timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-    return fetch(url, {
-      ...options,
-      signal: controller.signal
-    })
-      .then(response => {
-        clearTimeout(timeoutId);
-        return response;
-      })
-      .catch(error => {
-        clearTimeout(timeoutId);
-        if (error.name === 'AbortError') {
-          throw new Error('Request timeout: Could not connect to Supabase');
-        }
-        throw error;
-      });
   }
 });
 
-// Add a helper function to check connection with retries
-export const checkSupabaseConnection = async (retries = 3, delay = 1000) => {
-  let lastError;
-  
-  for (let i = 0; i < retries; i++) {
-    try {
-      const { data, error } = await supabase.from('roles').select('id').limit(1);
-      if (error) throw error;
-      console.log('Supabase connection successful');
-      return { success: true, message: 'Connection successful' };
-    } catch (error) {
-      lastError = error;
-      console.warn(`Supabase connection attempt ${i + 1} failed:`, error.message);
-      if (i < retries - 1) {
-        await new Promise(resolve => setTimeout(resolve, delay * (i + 1))); // Exponential backoff
-      }
-    }
+// Add a helper function to check connection
+export const checkSupabaseConnection = async () => {
+  try {
+    const { data, error } = await supabase.from('roles').select('id').limit(1);
+    if (error) throw error;
+    return { success: true, message: 'Connection successful' };
+  } catch (error) {
+    console.error('Supabase connection error:', error);
+    return { success: false, message: error.message || 'Connection failed' };
   }
-
-  console.error('Supabase connection failed after retries:', lastError);
-  return { 
-    success: false, 
-    message: `Connection failed: ${lastError?.message || 'Unknown error'}`,
-    error: lastError 
-  };
 };
 
 // Helper functions for date formatting with Chile timezone
