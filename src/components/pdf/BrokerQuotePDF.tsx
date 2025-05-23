@@ -59,13 +59,13 @@ const styles = StyleSheet.create({
   page: {
     padding: 30,
     fontFamily: 'Helvetica', // Default font
-    fontSize: 10,
+    fontSize: 9, // Reduced from 10 to 9
   },
   section: {
     marginBottom: 10,
   },
   header: {
-    fontSize: 18,
+    fontSize: 16, // Reduced from 18 to 16
     textAlign: 'center',
     marginBottom: 20,
     fontFamily: 'Helvetica-Bold',
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     objectFit: 'contain', // Ensure the image fits within the bounds without distortion
   },
   subHeader: {
-    fontSize: 12,
+    fontSize: 11, // Reduced from 12 to 11
     fontFamily: 'Helvetica-Bold',
     marginBottom: 5,
     borderBottomWidth: 1,
