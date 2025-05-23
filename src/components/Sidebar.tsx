@@ -1,7 +1,7 @@
 // src/pages/settings/components/ProjectCommercialPolicyConfig.tsx
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'react-hot-toast';
 import { PlusCircle, Save, XCircle, Loader2 } from 'lucide-react';
 import { differenceInCalendarMonths, parseISO, isPast, isSameDay } from 'date-fns';
