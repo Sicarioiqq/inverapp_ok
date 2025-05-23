@@ -91,6 +91,22 @@ const BrokerQuotePage: React.FC = () => {
     const [pagoPiePct, setPagoPiePct] = useState<number>(0);
     const [pagoBonoPieCotizacion, setPagoBonoPieCotizacion] = useState<number>(0);
 
+    // Definición de totalEscritura usando useMemo
+    const totalEscritura = useMemo(() => {
+        if (!selectedUnidad || selectedUnidad.valor_lista === null) {
+            return 0;
+        }
+
+        // Calculate the price of the main unit after the applied discount
+        // discountAmount is expected to be a percentage (e.g., 5 for 5%)
+        const primaryUnitValueAfterDiscount = selectedUnidad.valor_lista * (1 - (discountAmount / 100));
+
+        // Sum the value of all added secondary units
+        const secondaryUnitsTotal = addedSecondaryUnits.reduce((sum, unit) => sum + (unit.valor_lista ?? 0), 0);
+
+        return primaryUnitValueAfterDiscount + secondaryUnitsTotal;
+    }, [selectedUnidad, discountAmount, addedSecondaryUnits]);
+
 
     // ELIMINAR ESTA CONSTANTE FIJA
     // const VALOR_RESERVA_PESOS = 100000;
