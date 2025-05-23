@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
     include: ['base64-js', 'unicode-trie'],
-    exclude: ['lucide-react', '@react-pdf/renderer'],
+    exclude: ['lucide-react', '@react-pdf/renderer', 'brotli'],
   },
   resolve: {
     alias: {
