@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
-// Register fonts using Google Fonts CDN which has better CORS support
+// Register fonts using local files
 Font.register({
   family: 'Helvetica',
-  src: 'https://fonts.gstatic.com/s/roboto/v29/KFOmCnqEu92Fr1Me5Q.ttf',
-});
-
-Font.register({
-  family: 'Helvetica-Bold',
-  src: 'https://fonts.gstatic.com/s/roboto/v29/KFOlCnqEu92Fr1MmWUlvAw.ttf',
-  fontWeight: 'bold',
+  fonts: [
+    {
+      src: '/fonts/Helvetica.ttf',
+    },
+    {
+      src: '/fonts/Helvetica-Bold.ttf',
+      fontWeight: 'bold',
+    }
+  ]
 });
 
 // Helper function for formatting
@@ -47,7 +49,8 @@ const baseStyles = {
     backgroundColor: '#f2f2f2',
     textAlign: 'center',
     padding: 5,
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: 'Helvetica',
+    fontWeight: 'bold',
   },
   tableColRight: {
     borderStyle: 'solid',
@@ -78,7 +81,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 20,
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: 'Helvetica',
+    fontWeight: 'bold',
   },
   logo: {
     width: 150,
@@ -89,7 +93,8 @@ const styles = StyleSheet.create({
   },
   subHeader: {
     fontSize: 11,
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: 'Helvetica',
+    fontWeight: 'bold',
     marginBottom: 5,
     borderBottomWidth: 1,
     borderBottomColor: '#000',
@@ -99,7 +104,8 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   boldText: {
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: 'Helvetica',
+    fontWeight: 'bold',
   },
   table: {
     display: 'table',
@@ -149,7 +155,8 @@ const styles = StyleSheet.create({
     borderTopColor: '#000',
     marginTop: 5,
     paddingTop: 5,
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: 'Helvetica',
+    fontWeight: 'bold',
     fontSize: 11,
   },
   footer: {
@@ -169,7 +176,8 @@ const styles = StyleSheet.create({
   quotationNumber: {
     textAlign: 'right',
     fontSize: 10,
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: 'Helvetica',
+    fontWeight: 'bold',
     marginBottom: 5,
   }
 });
