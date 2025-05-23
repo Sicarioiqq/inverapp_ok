@@ -71,6 +71,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontFamily: 'Helvetica-Bold',
   },
+  },
+  logo: { // Nuevo estilo para el logo
+    width: 100, // Ajusta el ancho según sea necesario
+    height: 50, // Ajusta la altura según sea necesario
+    marginBottom: 10,
+    alignSelf: 'center', // Centra el logo horizontalmente
+  },
   subHeader: {
     fontSize: 12,
     fontFamily: 'Helvetica-Bold',
@@ -215,6 +222,10 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
   totalFormaDePago,
 }) => {
   const currentDate = new Date().toLocaleDateString('es-CL');
+
+  // URL de tu logo
+  const logoUrl = 'https://tmnvywghaegsomhdzibp.supabase.co/storage/v1/object/sign/imagenes/logoinversiones.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5XzMyNDBhMzNiLWM3MTctNGE1NS05ZTE4LWI0ZWJmNWUyNGE4NiJ9.eyJ1cmwiOiJpbWFnZW5lcy9sb2dvaW52ZXJzaW9uZXMucG5nIiwiaWF0IjoxNzQ3OTU5NzI2LCJleHAiOjIzNzg2Nzk3MjZ9._qSaykNIMv9oICnvA9ndgwlTyGAW-mbCfADca-npUOc'; // Reemplaza con la URL real de tu logo
+
 
   // Determine the effective discount percentage for the department for display in the price table
   let effectiveDeptDiscountPct = 0;
