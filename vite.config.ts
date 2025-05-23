@@ -7,7 +7,7 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    exclude: ['lucide-react', '@react-pdf/renderer'],
+    exclude: ['lucide-react', '@react-pdf/renderer', 'base64-js'],
   },
   resolve: {
     alias: {
