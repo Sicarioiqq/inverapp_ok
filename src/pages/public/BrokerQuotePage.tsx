@@ -1,4 +1,3 @@
-// src/pages/public/BrokerQuotePage.tsx
 import React, { useState, useEffect, useMemo } from 'react'; // Importar useMemo
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -102,36 +101,70 @@ const BrokerQuotePage: React.FC = () => {
   // pagoCreditoHipotecario se calculará automáticamente
   const [pagoBonoPieCotizacion, setPagoBonoPieCotizacion] = useState<number>(0); // Este es el monto del bono pie en UF que aparece en la sección "Forma de Pago"
 
+  // Estado para el ID de usuario de Supabase
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Constante para el valor fijo de la reserva en pesos
   const VALOR_RESERVA_PESOS = 100000;
 
 
-  // Validar broker
+  // Validar broker y autenticar usuario
   useEffect(() => {
-    const validate = async () => {
-      if (!brokerSlug || !accessToken) {
-        setError('Acceso inválido.');
+    const validateAndAuth = async () => {
+      if (!brokerSlug || !accessToken) { // accessToken is still needed for broker validation
+        setError('Acceso inválido: No se proporcionó el slug del broker o el token de acceso.');
         setIsValidating(false);
         return;
       }
+
       try {
+        // 1. Validar el broker usando el slug y el token de acceso público
         const { data, error: fe } = await supabase
           .from('brokers')
           .select('id, name')
           .eq('slug', brokerSlug)
-          .eq('public_access_token', accessToken)
+          .eq('public_access_token', accessToken) // Usar accessToken para validación del broker
           .single();
-        if (fe || !data) throw new Error('No autorizado');
+
+        if (fe || !data) {
+          throw new Error('No autorizado: Broker o token inválido.');
+        }
         setBrokerInfo(data as BrokerInfo);
+
+        // 2. Autenticar en Supabase de forma anónima para obtener un user_id para guardar la cotización
+        // Esto no requiere un login explícito del usuario final.
+        const { data: anonymousAuthData, error: anonymousAuthError } = await supabase.auth.signInAnonymously();
+        if (anonymousAuthError) {
+          throw new Error(`Error al iniciar sesión anónimamente para guardar cotizaciones: ${anonymousAuthError.message}`);
+        }
+        setUserId(anonymousAuthData.user?.id || null);
+
       } catch (e: any) {
+        console.error("Error en validación del broker o autenticación anónima:", e.message);
         setError(e.message);
+        // Si hay un error crítico aquí (ej. broker inválido), no se debería permitir continuar
+        // Pero si es solo un error de signInAnonymously, podemos intentar continuar sin userId para guardar
+        // aunque el requisito es tener un userId. Así que el error debería ser fatal si no se obtiene userId.
       } finally {
         setIsValidating(false);
       }
     };
-    validate();
-  }, [brokerSlug, accessToken]);
+    validateAndAuth();
+
+    // El listener de auth state change sigue siendo útil para reaccionar a cambios si ocurren,
+    // aunque con signInAnonymously el user_id debería ser estable.
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        setUserId(session.user.id);
+      } else {
+        setUserId(null);
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [brokerSlug, accessToken]); // Dependencias: brokerSlug y accessToken
 
   // Cargar TODO el stock con paginación de 1000 en 1000
   useEffect(() => {
@@ -566,7 +599,7 @@ const BrokerQuotePage: React.FC = () => {
   };
 
   // Función para convertir UF a Pesos (con 0 decimales para pesos)
-  const ufToPesos = (uf: number | null): string => {
+  const ufToPesos = (uf: number | null, ufValue: number | null): string => {
     // Manejar null, NaN, Infinity explícitamente
     if (uf === null || ufValue === null || isNaN(uf) || !isFinite(uf) || isNaN(ufValue) || !isFinite(ufValue)) return '$ 0';
     return new Intl.NumberFormat('es-CL', {
@@ -580,11 +613,59 @@ const BrokerQuotePage: React.FC = () => {
   // Memoized value for the max percentage allowed for Bono Pie in mix mode.
   const maxBonoPctAllowed = useMemo(() => {
     if (!selectedUnidad || selectedUnidad.valor_lista === null || selectedUnidad.valor_lista === 0 || totalEscritura <= 0) {
-        return 100; 
+        return 100;  
     }
     const calculatedMaxPct = (initialTotalAvailableBono / totalEscritura) * 100;
     return parseFloat(calculatedMaxPct.toFixed(2));
   }, [initialTotalAvailableBono, totalEscritura, selectedUnidad]);
+
+  // Función para guardar la cotización en Supabase
+  const saveQuotation = async () => {
+    if (!brokerInfo || !userId || !selectedUnidad) {
+      console.error("Cannot save quotation: Missing broker info, user ID, or selected unit.");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('quotations')
+        .insert([
+          {
+            broker_id: brokerInfo.id,
+            user_id: userId,
+            client_name: cliente,
+            client_rut: rut,
+            uf_value: ufValue,
+            selected_unit: selectedUnidad, // JSONB
+            added_secondary_units: addedSecondaryUnits, // JSONB
+            quotation_type: quotationType,
+            discount_amount: discountAmount,
+            bono_amount: bonoAmount,
+            payment_reserve: pagoReserva,
+            payment_promise: pagoPromesa,
+            payment_promise_pct: pagoPromesaPct,
+            payment_downpayment: pagoPie,
+            payment_downpayment_pct: pagoPiePct,
+            payment_bono_downpayment: pagoBonoPieCotizacion,
+            base_department_price: precioBaseDepartamento,
+            discount_department_price: precioDescuentoDepartamento,
+            net_department_price: precioDepartamentoConDescuento,
+            total_secondary_units_price: precioTotalSecundarios,
+            total_deed_price: totalEscritura,
+            calculated_mortgage_credit: pagoCreditoHipotecarioCalculado,
+            total_payment_form: totalFormaDePago,
+          },
+        ]);
+
+      if (error) {
+        throw error;
+      }
+      console.log('Cotización guardada exitosamente:', data);
+    } catch (error: any) {
+      console.error('Error al guardar la cotización:', error.message);
+      // Aquí podrías mostrar un mensaje al usuario sobre el error
+    }
+  };
 
 
   if (isValidating || loadingCommissions || loadingUf) // Esperar también a que carguen las comisiones y la UF
@@ -629,6 +710,9 @@ const BrokerQuotePage: React.FC = () => {
               <span>UF: $ {ufValue.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             ) : (
               <span className="text-sm text-gray-500">Cargando UF...</span>
+            )}
+            {userId && (
+              <span className="ml-4 text-sm text-gray-500">User ID: {userId}</span>
             )}
           </div>
         </div>
@@ -829,7 +913,7 @@ const BrokerQuotePage: React.FC = () => {
                             selectedUnidad.descuento,
                             selectedUnidad.proyecto_nombre
                           )! * 100) : (selectedUnidad.descuento ?? 0) * 100).toFixed(2)
-                        }%
+                          }%
                         </span>
                       </p>
                     </div>
@@ -888,7 +972,7 @@ const BrokerQuotePage: React.FC = () => {
                                           setInitialTotalAvailableBono(parseFloat(calculatedInitialTotalBonoUF.toFixed(2))); // Siempre calcular y guardar este
 
                                           if (newQuotationType === 'descuento') {
-                                              setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2))); 
+                                              setDiscountAmount(parseFloat(((initialAdjustedDiscount ?? 0) * 100).toFixed(2)));  
                                               setBonoAmount(0);
                                               setBonoAmountPct(0);
                                               setTempBonoAmountPctInput('0.00'); // Resetear input temporal
@@ -897,7 +981,7 @@ const BrokerQuotePage: React.FC = () => {
                                               setDiscountAmount(0);
                                               setBonoAmount(parseFloat(calculatedInitialTotalBonoUF.toFixed(2)));
                                               // bonoAmountPct se calculará en el useEffect principal
-                                              setBonoAmountPct(0); 
+                                              setBonoAmountPct(0);  
                                               setTempBonoAmountPctInput('0.00'); // Resetear input temporal
                                               setPagoBonoPieCotizacion(parseFloat(calculatedInitialTotalBonoUF.toFixed(2)));
                                           } else if (newQuotationType === 'mix') {
@@ -930,7 +1014,7 @@ const BrokerQuotePage: React.FC = () => {
                                           readOnly={true} // Se hace readOnly para que refleje el valor automático
                                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm
                                           focus:border-blue-500 focus:ring-blue-500
-                                          bg-gray-100 cursor-not-allowed" 
+                                          bg-gray-100 cursor-not-allowed"  
                                           step="0.01" // Permite input de 2 decimales
                                       />
                                   </div>
@@ -958,7 +1042,7 @@ const BrokerQuotePage: React.FC = () => {
                                               value={parseFloat(discountAmount.toFixed(2))} // Mostrar con 2 decimales
                                               readOnly={true} // El descuento en mix es readOnly
                                               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500
-                                              bg-gray-100 cursor-not-allowed" 
+                                              bg-gray-100 cursor-not-allowed"  
                                               step="0.01"
                                           />
                                       </div>
@@ -1207,7 +1291,7 @@ const BrokerQuotePage: React.FC = () => {
                                             type="text" // Cambiado a text para usar formatCurrency
                                             value={formatCurrency(pagoBonoPieCotizacion)} // Usar formatCurrency para mostrar 2 decimales
                                             // Solo editable si es 'bono' puro. En 'mix', el valor se sincroniza desde la configuración.
-                                            readOnly={quotationType === 'mix'} 
+                                            readOnly={quotationType === 'mix'}  
                                             className={`w-24 text-right border rounded-md px-2 py-1 ${quotationType === 'mix' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                             // El onChange de este input ya no es necesario si se controla desde la configuración en 'mix'
                                             // Si `quotationType === 'bono'`, este input sí es editable y no necesita un handler para afectar otros campos.
@@ -1259,6 +1343,8 @@ const BrokerQuotePage: React.FC = () => {
                                     />
                                 }
                                 fileName={`Cotizacion_${cliente.replace(/\s/g, '_') || 'Cliente'}_${selectedUnidad.unidad}.pdf`}
+                                // Al hacer clic en el enlace de descarga, también guardamos la cotización
+                                onClick={saveQuotation}
                             >
                                 {({ blob, url, loading, error }) => (
                                     <button
