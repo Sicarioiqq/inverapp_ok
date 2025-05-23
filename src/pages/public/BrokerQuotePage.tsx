@@ -129,6 +129,37 @@ const BrokerQuotePage: React.FC = () => {
     const [pagoPiePct, setPagoPiePct] = useState<number>(0);
     const [pagoBonoPieCotizacion, setPagoBonoPieCotizacion] = useState<number>(0);
 
+    // Calculate prices
+    const precioBaseDepartamento = selectedUnidad?.valor_lista || 0;
+    
+    const precioDescuentoDepartamento = useMemo(() => {
+        if (!selectedUnidad?.valor_lista) return 0;
+        return selectedUnidad.valor_lista * (discountAmount / 100);
+    }, [selectedUnidad, discountAmount]);
+    
+    const precioDepartamentoConDescuento = useMemo(() => {
+        if (!selectedUnidad?.valor_lista) return 0;
+        return selectedUnidad.valor_lista - precioDescuentoDepartamento;
+    }, [selectedUnidad, precioDescuentoDepartamento]);
+    
+    const precioTotalSecundarios = useMemo(() => {
+        return addedSecondaryUnits.reduce((sum, unit) => sum + (unit.valor_lista || 0), 0);
+    }, [addedSecondaryUnits]);
+    
+    const totalEscritura = useMemo(() => {
+        return precioDepartamentoConDescuento + precioTotalSecundarios;
+    }, [precioDepartamentoConDescuento, precioTotalSecundarios]);
+
+    // Calculate credit payment
+    const pagoCreditoHipotecarioCalculado = useMemo(() => {
+        return totalEscritura - pagoReserva - pagoPromesa - pagoPie - pagoBonoPieCotizacion;
+    }, [totalEscritura, pagoReserva, pagoPromesa, pagoPie, pagoBonoPieCotizacion]);
+
+    // Calculate total payment form
+    const totalFormaDePago = useMemo(() => {
+        return pagoReserva + pagoPromesa + pagoPie + pagoCreditoHipotecarioCalculado + pagoBonoPieCotizacion;
+    }, [pagoReserva, pagoPromesa, pagoPie, pagoCreditoHipotecarioCalculado, pagoBonoPieCotizacion]);
+
     // Validate broker and load data
     useEffect(() => {
         const validateBroker = async () => {
@@ -496,28 +527,7 @@ const BrokerQuotePage: React.FC = () => {
         setAddedSecondaryUnits(addedSecondaryUnits.filter(unit => unit.id !== unitId));
     };
 
-    // Calculate prices
-    const precioBaseDepartamento = selectedUnidad?.valor_lista || 0;
-    
-    const precioDescuentoDepartamento = useMemo(() => {
-        if (!selectedUnidad?.valor_lista) return 0;
-        return selectedUnidad.valor_lista * (discountAmount / 100);
-    }, [selectedUnidad, discountAmount]);
-    
-    const precioDepartamentoConDescuento = useMemo(() => {
-        if (!selectedUnidad?.valor_lista) return 0;
-        return selectedUnidad.valor_lista - precioDescuentoDepartamento;
-    }, [selectedUnidad, precioDescuentoDepartamento]);
-    
-    const precioTotalSecundarios = useMemo(() => {
-        return addedSecondaryUnits.reduce((sum, unit) => sum + (unit.valor_lista || 0), 0);
-    }, [addedSecondaryUnits]);
-    
-    const totalEscritura = useMemo(() => {
-        return precioDepartamentoConDescuento + precioTotalSecundarios;
-    }, [precioDepartamentoConDescuento, precioTotalSecundarios]);
-
-    // Calculate payment amounts
+    // Update payment percentages when totalEscritura changes
     useEffect(() => {
         if (totalEscritura > 0) {
             // Update promesa percentage
@@ -532,16 +542,6 @@ const BrokerQuotePage: React.FC = () => {
             setPagoPiePct(0);
         }
     }, [pagoPromesa, pagoPie, totalEscritura]);
-
-    // Calculate credit payment
-    const pagoCreditoHipotecarioCalculado = useMemo(() => {
-        return totalEscritura - pagoReserva - pagoPromesa - pagoPie - pagoBonoPieCotizacion;
-    }, [totalEscritura, pagoReserva, pagoPromesa, pagoPie, pagoBonoPieCotizacion]);
-
-    // Calculate total payment form
-    const totalFormaDePago = useMemo(() => {
-        return pagoReserva + pagoPromesa + pagoPie + pagoCreditoHipotecarioCalculado + pagoBonoPieCotizacion;
-    }, [pagoReserva, pagoPromesa, pagoPie, pagoCreditoHipotecarioCalculado, pagoBonoPieCotizacion]);
 
     // Funciones para manejar la edición bidireccional de Promesa y Pie
     const handlePromesaChange = (type: 'uf' | 'pct', value: string) => {
@@ -1148,7 +1148,8 @@ const BrokerQuotePage: React.FC = () => {
                                             {addedSecondaryUnits.length > 0 && (
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-600">Precio Total Secundarios:</span>
-                                                    <span className="font-medium">{formatCurrency(precioTotalSecundarios)} UF</span>
+                                                    <span className="font-medium">{formatCurrency(precio
+TotalSecundarios)} UF</span>
                                                 </div>
                                             )}
                                             
