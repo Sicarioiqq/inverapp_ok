@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { PlusCircle, Save, XCircle, Loader2 } from 'lucide-react';
-import { differenceInCalendarMonths, parseISO, addMonths, isPast, format, isSameDay } from 'date-fns';
-import { es } from 'date-fns/locale'; // Para formatear fechas en español
+import { differenceInCalendarMonths, parseISO, isPast, isSameDay } from 'date-fns';
+import { es } from 'date-fns/locale'; // No se usa directamente aquí, pero es buena práctica mantenerlo si se usa en otros lugares.
 
 interface ProjectCommercialPolicy {
     id: string;
@@ -27,7 +27,8 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
     const [projectNames, setProjectNames] = useState<string[]>([]);
     const [policies, setPolicies] = useState<ProjectCommercialPolicy[]>([]);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    // Cambiado: `savingStates` para manejar el estado de guardado/eliminación por proyecto
+    const [savingStates, setSavingStates] = useState<Set<string>>(new Set());
     const [error, setError] = useState<string | null>(null);
 
     // Fetch unique project names and existing policies
@@ -81,28 +82,26 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
         if (!fechaTope) return 0;
         try {
             const today = new Date();
-            const targetDate = parseISO(fechaTope); // Convert string to Date object
+            const targetDate = parseISO(fechaTope);
             
-            // Check if targetDate is in the past, or if it's today but effectively past (e.g., less than 1 full month remaining)
-            // Use end of day for comparison to be more forgiving for "today"
             const endOfDayTarget = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59);
 
             if (isPast(endOfDayTarget) && !isSameDay(targetDate, today)) {
-                return 1; // If date is past, indicate 1 month remaining
+                return 1;
             }
             
-            // Calculate months from the start of the current month to the start of the target month
             const startOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
             const startOfTargetMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
             
             const monthsDiff = differenceInCalendarMonths(startOfTargetMonth, startOfCurrentMonth);
 
-            return Math.max(1, monthsDiff + 1); // Ensure at least 1 month, and count the current month
+            return Math.max(1, monthsDiff + 1);
         } catch (e) {
             console.error("Error calculating months remaining for date:", fechaTope, e);
-            return 1; // Fallback to 1 in case of invalid date
+            return 1;
         }
     };
+
 
     const handlePolicyChange = (
         projectName: string,
@@ -112,21 +111,19 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
         setPolicies(prevPolicies => {
             const existingPolicyIndex = prevPolicies.findIndex(p => p.project_name === projectName);
 
-            // Sanitize number inputs: ensure they are numbers and handle empty string
             let processedValue = value;
             if (field === 'monto_reserva_pesos' || field === 'bono_pie_max_pct') {
                 if (value === '') {
-                    processedValue = 0; // Treat empty string as 0 for number fields
+                    processedValue = 0;
                 } else {
                     processedValue = parseFloat(value);
                     if (isNaN(processedValue)) {
-                        processedValue = 0; // Fallback for invalid number input
+                        processedValue = 0;
                     }
                 }
             }
 
             if (existingPolicyIndex > -1) {
-                // Update existing policy
                 const updatedPolicies = [...prevPolicies];
                 updatedPolicies[existingPolicyIndex] = {
                     ...updatedPolicies[existingPolicyIndex],
@@ -134,9 +131,8 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                 };
                 return updatedPolicies;
             } else {
-                // Add new policy for a project not yet configured
                 const newPolicy: ProjectCommercialPolicy = {
-                    id: '', // This will be set by Supabase on insert
+                    id: '',
                     project_name: projectName,
                     monto_reserva_pesos: 0,
                     bono_pie_max_pct: 0,
@@ -153,21 +149,16 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
     };
 
     const handleSavePolicy = async (policy: ProjectCommercialPolicy) => {
-        setSaving(true);
+        // Añadir el nombre del proyecto al set de estados de guardado
+        setSavingStates(prev => new Set(prev).add(policy.project_name));
         setError(null);
         try {
-            // Convert bono_pie_max_pct back to a decimal for storage
             const policyToSave = {
-                project_name: policy.project_name,
-                monto_reserva_pesos: policy.monto_reserva_pesos,
-                bono_pie_max_pct: policy.bono_pie_max_pct / 100,
-                fecha_tope: policy.fecha_tope,
-                observaciones: policy.observaciones,
-                comuna: policy.comuna
+                ...policy,
+                bono_pie_max_pct: policy.bono_pie_max_pct / 100, // Convert percentage to decimal for storage
             };
 
             if (policy.id) {
-                // Update existing policy
                 const { error: updateError } = await supabase
                     .from('project_commercial_policies')
                     .update(policyToSave)
@@ -176,7 +167,6 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                 if (updateError) throw updateError;
                 toast.success(`Política para ${policy.project_name} actualizada.`);
             } else {
-                // Insert new policy without id field (let Supabase generate it)
                 const { data, error: insertError } = await supabase
                     .from('project_commercial_policies')
                     .insert(policyToSave)
@@ -184,12 +174,9 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
 
                 if (insertError) throw insertError;
                 if (data && data.length > 0) {
-                    // Update local state with the new policy including the generated id
                     setPolicies(prevPolicies =>
                         prevPolicies.map(p =>
-                            p.project_name === policy.project_name
-                                ? { ...p, id: data[0].id }
-                                : p
+                            p.project_name === policy.project_name ? { ...p, id: data[0].id } : p
                         )
                     );
                     toast.success(`Política para ${policy.project_name} guardada.`);
@@ -200,7 +187,12 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
             setError(`Error al guardar política para ${policy.project_name}: ${err.message || 'Desconocido'}`);
             toast.error(`Error al guardar política para ${policy.project_name}: ${err.message || 'Desconocido'}`);
         } finally {
-            setSaving(false);
+            // Eliminar el nombre del proyecto del set de estados de guardado
+            setSavingStates(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(policy.project_name);
+                return newSet;
+            });
         }
     };
 
@@ -208,7 +200,8 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
         if (!window.confirm(`¿Estás seguro de que quieres eliminar la política para ${projectName}?`)) {
             return;
         }
-        setSaving(true);
+        // Añadir el nombre del proyecto al set de estados de guardado
+        setSavingStates(prev => new Set(prev).add(projectName));
         setError(null);
         try {
             const { error: deleteError } = await supabase
@@ -225,7 +218,12 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
             setError(`Error al eliminar política para ${projectName}: ${err.message || 'Desconocido'}`);
             toast.error(`Error al eliminar política para ${projectName}: ${err.message || 'Desconocido'}`);
         } finally {
-            setSaving(false);
+            // Eliminar el nombre del proyecto del set de estados de guardado
+            setSavingStates(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(projectName);
+                return newSet;
+            });
         }
     };
 
@@ -285,8 +283,9 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                             {projectNames.map(projectName => {
                                 const policy = getPolicyForProject(projectName);
                                 const isNew = !policy?.id;
+                                // Verificar si esta fila está actualmente en proceso de guardado/eliminación
+                                const isSavingThisRow = savingStates.has(projectName);
 
-                                // If policy exists, use its values, otherwise use defaults
                                 const currentMontoReserva = policy?.monto_reserva_pesos ?? 0;
                                 const currentBonoMaxPct = policy?.bono_pie_max_pct ?? 0;
                                 const currentFechaTope = policy?.fecha_tope || '';
@@ -306,6 +305,7 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                                                 className="border rounded-md p-1 w-28 text-right"
                                                 min="0"
                                                 step="1"
+                                                disabled={isSavingThisRow} // Deshabilitar si la fila está guardando
                                             />
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -317,6 +317,7 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                                                 step="0.01"
                                                 min="0"
                                                 max="100"
+                                                disabled={isSavingThisRow} // Deshabilitar si la fila está guardando
                                             />
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -325,6 +326,7 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                                                 value={currentFechaTope}
                                                 onChange={(e) => handlePolicyChange(projectName, 'fecha_tope', e.target.value || null)}
                                                 className="border rounded-md p-1 w-36"
+                                                disabled={isSavingThisRow} // Deshabilitar si la fila está guardando
                                             />
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -338,6 +340,7 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                                                 value={currentComuna}
                                                 onChange={(e) => handlePolicyChange(projectName, 'comuna', e.target.value)}
                                                 className="border rounded-md p-1 w-32"
+                                                disabled={isSavingThisRow} // Deshabilitar si la fila está guardando
                                             />
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -345,6 +348,7 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                                                 value={currentObservaciones}
                                                 onChange={(e) => handlePolicyChange(projectName, 'observaciones', e.target.value)}
                                                 className="border rounded-md p-1 w-48 h-16 resize-y"
+                                                disabled={isSavingThisRow} // Deshabilitar si la fila está guardando
                                             />
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -360,20 +364,22 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                                                     created_at: new Date().toISOString(),
                                                     updated_at: new Date().toISOString(),
                                                 })}
-                                                className={`text-indigo-600 hover:text-indigo-900 ml-2 p-2 rounded-full ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                disabled={saving}
+                                                // Deshabilitar solo si esta fila está guardando
+                                                className={`text-indigo-600 hover:text-indigo-900 ml-2 p-2 rounded-full ${isSavingThisRow ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                disabled={isSavingThisRow}
                                                 title={isNew ? 'Guardar política' : 'Actualizar política'}
                                             >
-                                                <Save className="h-5 w-5" />
+                                                {isSavingThisRow ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
                                             </button>
                                             {policy?.id && (
                                                 <button
                                                     onClick={() => handleDeletePolicy(policy.id, projectName)}
-                                                    className={`text-red-600 hover:text-red-900 ml-2 p-2 rounded-full ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                    disabled={saving}
+                                                    // Deshabilitar solo si esta fila está guardando
+                                                    className={`text-red-600 hover:text-red-900 ml-2 p-2 rounded-full ${isSavingThisRow ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    disabled={isSavingThisRow}
                                                     title="Eliminar política"
                                                 >
-                                                    <XCircle className="h-5 w-5" />
+                                                    {isSavingThisRow ? <Loader2 className="h-5 w-5 animate-spin" /> : <XCircle className="h-5 w-5" />}
                                                 </button>
                                             )}
                                         </td>
