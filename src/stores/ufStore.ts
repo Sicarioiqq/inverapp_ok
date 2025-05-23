@@ -18,11 +18,20 @@ export const useUFStore = create<UFState>((set) => ({
     try {
       set({ loading: true, error: null });
       const value = await fetchLatestUFValue();
-      set({ 
-        ufValue: value, 
-        loading: false,
-        lastUpdated: new Date()
-      });
+      
+      if (value) {
+        console.log('UF value fetched:', value);
+        set({ 
+          ufValue: value, 
+          loading: false,
+          lastUpdated: new Date()
+        });
+      } else {
+        set({
+          error: 'No se pudo obtener el valor de la UF',
+          loading: false
+        });
+      }
     } catch (err: any) {
       console.error('Error fetching UF value:', err);
       set({ 

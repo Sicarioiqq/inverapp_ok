@@ -73,6 +73,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     checkConnection();
   }, []);
 
+  // Fetch UF value when component mounts
+  useEffect(() => {
+    fetchUFValue();
+    
+    // Set up a timer to refresh the UF value every hour
+    const intervalId = setInterval(fetchUFValue, 3600000); // 1 hour in milliseconds
+    
+    return () => clearInterval(intervalId);
+  }, [fetchUFValue]);
+
   useEffect(() => {
     // Handle click outside to close search results
     const handleClickOutside = (event: MouseEvent) => {
@@ -99,16 +109,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
-
-  // Fetch UF value when component mounts
-  useEffect(() => {
-    fetchUFValue();
-    
-    // Set up a timer to refresh the UF value every hour
-    const intervalId = setInterval(fetchUFValue, 3600000); // 1 hour in milliseconds
-    
-    return () => clearInterval(intervalId);
-  }, [fetchUFValue]);
 
   const fetchUserProfile = async () => {
     try {
@@ -281,7 +281,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           .maybeSingle();
           
         // Only add if not already in results
-        if (!results.some(r => r.id === apartment.id && r.type === 'reservation')) {
+        if (!results.some(r => 
+          r.id === apartment.id && 
+          r.type === 'reservation'
+        )) {
           results.push({
             id: apartment.id,
             type: 'apartment',
