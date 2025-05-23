@@ -1,30 +1,16 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer'; // Importa Image
+import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
-// Register fonts to prevent potential BindingError related to font loading.
-// It's crucial to register fonts outside the component to ensure they are
-// registered only once when the module is loaded, not on every re-render.
-// We also add a try-catch block and a check to prevent re-registration errors.
-try {
-  // Check if 'Helvetica' is already registered before attempting to register
-  if (!Font.getRegisteredFonts().includes('Helvetica')) {
-    Font.register({
-      family: 'Helvetica',
-      src: 'https://cdn.jsdelivr.net/npm/react-pdf-renderer-helper/fonts/Helvetica.ttf', // Fallback URL
-    });
-  }
-  // Check if 'Helvetica-Bold' is already registered before attempting to register
-  if (!Font.getRegisteredFonts().includes('Helvetica-Bold')) {
-    Font.register({
-      family: 'Helvetica-Bold',
-      src: 'https://cdn.jsdelivr.net/npm/react-pdf-renderer-helper/fonts/Helvetica-Bold.ttf', // Fallback URL
-    });
-  }
-} catch (error) {
-  console.error("Error registering fonts:", error);
-  // Optionally, you could use a fallback font or display a message
-}
+// Register fonts using a simpler approach without checking registration
+Font.register({
+  family: 'Helvetica',
+  src: 'https://cdn.jsdelivr.net/npm/react-pdf-renderer-helper/fonts/Helvetica.ttf',
+});
 
+Font.register({
+  family: 'Helvetica-Bold',
+  src: 'https://cdn.jsdelivr.net/npm/react-pdf-renderer-helper/fonts/Helvetica-Bold.ttf',
+});
 
 // Helper function for formatting
 const formatCurrency = (amount: number | null): string => {
@@ -47,13 +33,13 @@ const ufToPesos = (uf: number | null, ufValue: number | null): string => {
 
 // Define base styles as separate objects/constants BEFORE StyleSheet.create
 const baseStyles = {
-  tableCol: { // A general base style for merging
+  tableCol: {
     borderStyle: 'solid',
     borderColor: '#bfbfbf',
     borderWidth: 1,
     padding: 5,
   },
-  tableColHeader: { // A general base header style for merging
+  tableColHeader: {
     borderStyle: 'solid',
     borderColor: '#bfbfbf',
     borderBottomColor: '#000',
@@ -63,14 +49,14 @@ const baseStyles = {
     padding: 5,
     fontFamily: 'Helvetica-Bold',
   },
-  tableColRight: { // A general base right-aligned style for merging
+  tableColRight: {
     borderStyle: 'solid',
     borderColor: '#bfbfbf',
     borderWidth: 1,
     padding: 5,
     textAlign: 'right',
   },
-  tableColSmallRight: { // A general base small right-aligned style for merging (for percentages)
+  tableColSmallRight: {
     borderStyle: 'solid',
     borderColor: '#bfbfbf',
     borderWidth: 1,
@@ -83,27 +69,27 @@ const baseStyles = {
 const styles = StyleSheet.create({
   page: {
     padding: 30,
-    fontFamily: 'Helvetica', // Default font
-    fontSize: 9, // Reduced from 10 to 9
+    fontFamily: 'Helvetica',
+    fontSize: 9,
   },
   section: {
     marginBottom: 10,
   },
   header: {
-    fontSize: 16, // Reduced from 18 to 16
+    fontSize: 16,
     textAlign: 'center',
     marginBottom: 20,
     fontFamily: 'Helvetica-Bold',
   },
-  logo: { // Nuevo estilo para el logo
-    width: 150, // Ajusta el ancho según sea necesario
-    height: 75, // Ajusta la altura según sea necesario
+  logo: {
+    width: 150,
+    height: 75,
     marginBottom: 10,
-    alignSelf: 'center', // Centra el logo horizontalmente
-    objectFit: 'contain', // Ensure the image fits within the bounds without distortion
+    alignSelf: 'center',
+    objectFit: 'contain',
   },
   subHeader: {
-    fontSize: 11, // Reduced from 12 to 11
+    fontSize: 11,
     fontFamily: 'Helvetica-Bold',
     marginBottom: 5,
     borderBottomWidth: 1,
@@ -118,32 +104,29 @@ const styles = StyleSheet.create({
   },
   table: {
     display: 'table',
-    width: 'auto', // Use 'auto' to allow table to fit content, or '100%' for full width
+    width: 'auto',
     marginBottom: 10,
   },
   tableRow: {
     flexDirection: 'row',
   },
   
-  // Specific column widths for Unit Characteristics table
   unitTableColHeader: {
-    width: '14.28%', // 100% / 7 columns
-    ...baseStyles.tableColHeader, // Merge base header properties
+    width: '14.28%',
+    ...baseStyles.tableColHeader,
   },
   unitTableCol: {
-    width: '14.28%', // 100% / 7 columns
-    ...baseStyles.tableCol, // Merge base column properties
+    width: '14.28%',
+    ...baseStyles.tableCol,
   },
 
-  // Specific column styles for Prices table
-  // Headers
-  pricesHeaderItem: { width: '25%', ...baseStyles.tableColHeader }, // ÍTEM
-  pricesHeaderListPrice: { width: '15%', ...baseStyles.tableColHeader }, // PRECIO LISTA (UF)
-  pricesHeaderDiscountPct: { width: '10%', ...baseStyles.tableColHeader }, // DSCTO. %
-  pricesHeaderDiscountUF: { width: '15%', ...baseStyles.tableColHeader }, // DSCTO. (UF)
-  pricesHeaderNetPriceUF: { width: '15%', ...baseStyles.tableColHeader }, // PRECIO NETO (UF)
-  pricesHeaderNetPriceCLP: { width: '20%', ...baseStyles.tableColHeader }, // PRECIO NETO ($)
-  // Data cells
+  pricesHeaderItem: { width: '25%', ...baseStyles.tableColHeader },
+  pricesHeaderListPrice: { width: '15%', ...baseStyles.tableColHeader },
+  pricesHeaderDiscountPct: { width: '10%', ...baseStyles.tableColHeader },
+  pricesHeaderDiscountUF: { width: '15%', ...baseStyles.tableColHeader },
+  pricesHeaderNetPriceUF: { width: '15%', ...baseStyles.tableColHeader },
+  pricesHeaderNetPriceCLP: { width: '20%', ...baseStyles.tableColHeader },
+  
   pricesColItem: { width: '25%', ...baseStyles.tableCol },
   pricesColListPrice: { width: '15%', ...baseStyles.tableColRight },
   pricesColDiscountPct: { width: '10%', ...baseStyles.tableColSmallRight },
@@ -151,13 +134,11 @@ const styles = StyleSheet.create({
   pricesColNetPriceUF: { width: '15%', ...baseStyles.tableColRight },
   pricesColNetPriceCLP: { width: '20%', ...baseStyles.tableColRight },
 
-  // Specific column styles for Payment Method table
-  // Headers
-  paymentHeaderGlosa: { width: '35%', ...baseStyles.tableColHeader }, // GLOSA
-  paymentHeaderPct: { width: '10%', ...baseStyles.tableColHeader }, // %
-  paymentHeaderPesos: { width: '25%', ...baseStyles.tableColHeader }, // PESOS
-  paymentHeaderUF: { width: '30%', ...baseStyles.tableColHeader }, // UF
-  // Data cells
+  paymentHeaderGlosa: { width: '35%', ...baseStyles.tableColHeader },
+  paymentHeaderPct: { width: '10%', ...baseStyles.tableColHeader },
+  paymentHeaderPesos: { width: '25%', ...baseStyles.tableColHeader },
+  paymentHeaderUF: { width: '30%', ...baseStyles.tableColHeader },
+  
   paymentColGlosa: { width: '35%', ...baseStyles.tableCol },
   paymentColPct: { width: '10%', ...baseStyles.tableColSmallRight },
   paymentColPesos: { width: '25%', ...baseStyles.tableColRight },
@@ -194,24 +175,23 @@ const styles = StyleSheet.create({
   }
 });
 
-// Alias for easier use in JSX - now this is safe as 'styles' is fully defined
 const Styles = styles;
 
 interface BrokerQuotePDFProps {
   cliente: string;
   rut: string;
   ufValue: number | null;
-  selectedUnidad: any; // Using 'any' for simplicity, ideally use 'Unidad' interface
-  addedSecondaryUnits: any[]; // Using 'any[]' for simplicity
+  selectedUnidad: any;
+  addedSecondaryUnits: any[];
   quotationType: 'descuento' | 'bono' | 'mix';
-  discountAmount: number; // Discount in %
-  bonoAmount: number; // Bono in UF (configuration)
+  discountAmount: number;
+  bonoAmount: number;
   pagoReserva: number;
   pagoPromesa: number;
   pagoPromesaPct: number;
   pagoPie: number;
   pagoPiePct: number;
-  pagoBonoPieCotizacion: number; // Bono in UF (payment form)
+  pagoBonoPieCotizacion: number;
   precioBaseDepartamento: number;
   precioDescuentoDepartamento: number;
   precioDepartamentoConDescuento: number;
@@ -229,13 +209,13 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
   addedSecondaryUnits,
   quotationType,
   discountAmount,
-  bonoAmount, // This is the configuration bono amount
+  bonoAmount,
   pagoReserva,
   pagoPromesa,
   pagoPromesaPct,
   pagoPie,
   pagoPiePct,
-  pagoBonoPieCotizacion, // This is the actual bono being applied in payment form
+  pagoBonoPieCotizacion,
   precioBaseDepartamento,
   precioDescuentoDepartamento,
   precioDepartamentoConDescuento,
@@ -246,29 +226,23 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 }) => {
   const currentDate = new Date().toLocaleDateString('es-CL');
 
-  // Determine the effective discount percentage for the department for display in the price table
   let effectiveDeptDiscountPct = 0;
   if (selectedUnidad?.valor_lista && selectedUnidad.valor_lista > 0) {
     if (quotationType === 'descuento' || quotationType === 'mix') {
-      effectiveDeptDiscountPct = discountAmount; // This is already the % to display
-    } else { // 'bono' type, no direct % discount shown on department
+      effectiveDeptDiscountPct = discountAmount;
+    } else {
       effectiveDeptDiscountPct = 0;
     }
   }
 
-  // Calculate the actual discount UF applied to the department for the price table
   let actualDeptDiscountUF = precioDescuentoDepartamento;
 
-  // Define the path to your logo image
-  // Now that the image is in the root public folder, the path is simply '/logoinversiones.png'
-  const logoPath = '/logoinversiones.png'; 
+  const logoPath = '/logoinversiones.png';
 
   return (
     <Document>
       <Page size="A4" style={Styles.page}>
-        {/* Header Section */}
         <View style={{ marginBottom: 20 }}>
-          {/* Add the Image component for the logo */}
           <Image src={logoPath} style={Styles.logo} />
           <Text style={[Styles.header, { marginTop: 10 }]}>COTIZACIÓN DE PROPIEDAD</Text>
           <Text style={Styles.dateInfo}>Fecha: {currentDate}</Text>
@@ -276,14 +250,12 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
           <Text style={Styles.dateInfo}>UF: $ {ufValue ? ufValue.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}</Text>
         </View>
 
-        {/* Client Information */}
         <View style={Styles.section}>
           <Text style={Styles.subHeader}>I. INFORMACIÓN DEL CLIENTE</Text>
           <Text style={Styles.text}><Text style={Styles.boldText}>SEÑOR(A):</Text> {cliente || 'N/A'}</Text>
           <Text style={Styles.text}><Text style={Styles.boldText}>RUT:</Text> {rut || 'N/A'}</Text>
         </View>
 
-        {/* Unit Characteristics */}
         {selectedUnidad && (
           <View style={Styles.section}>
             <Text style={Styles.subHeader}>II. CARACTERÍSTICAS DE LA PROPIEDAD</Text>
@@ -310,11 +282,9 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
           </View>
         )}
 
-        {/* Prices Section */}
         <View style={Styles.section}>
           <Text style={Styles.subHeader}>III. PRECIOS</Text>
           <View style={Styles.table}>
-            {/* Table Headers */}
             <View style={Styles.tableRow}>
               <View style={Styles.pricesHeaderItem}><Text>ÍTEM</Text></View>
               <View style={Styles.pricesHeaderListPrice}><Text>PRECIO LISTA (UF)</Text></View>
@@ -323,7 +293,6 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
               <View style={Styles.pricesHeaderNetPriceUF}><Text>PRECIO NETO (UF)</Text></View>
               <View style={Styles.pricesHeaderNetPriceCLP}><Text>PRECIO NETO ($)</Text></View>
             </View>
-            {/* Department Row */}
             {selectedUnidad && (
               <View style={Styles.tableRow}>
                 <View style={Styles.pricesColItem}><Text>Departamento {selectedUnidad.unidad}</Text></View>
@@ -334,18 +303,16 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
                 <View style={Styles.pricesColNetPriceCLP}><Text>{ufToPesos(precioDepartamentoConDescuento, ufValue)}</Text></View>
               </View>
             )}
-            {/* Added Secondary Units Rows */}
             {addedSecondaryUnits.map(unit => (
               <View style={Styles.tableRow} key={unit.id}>
                 <View style={Styles.pricesColItem}><Text>{unit.tipo_bien} {unit.unidad}</Text></View>
                 <View style={Styles.pricesColListPrice}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
-                <View style={Styles.pricesColDiscountPct}><Text>0.00%</Text></View> {/* Secundarios no tienen descuento en este contexto */}
+                <View style={Styles.pricesColDiscountPct}><Text>0.00%</Text></View>
                 <View style={Styles.pricesColDiscountUF}><Text>0.00</Text></View>
                 <View style={Styles.pricesColNetPriceUF}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
                 <View style={Styles.pricesColNetPriceCLP}><Text>{ufToPesos(unit.valor_lista, ufValue)}</Text></View>
               </View>
             ))}
-            {/* Total Row */}
             <View style={Styles.tableRow}>
                 <View style={Styles.pricesColItem}><Text style={Styles.boldText}>TOTAL ESCRITURA</Text></View>
                 <View style={Styles.pricesColListPrice}><Text></Text></View>
@@ -357,18 +324,15 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
           </View>
         </View>
 
-        {/* Payment Method Section */}
         <View style={Styles.section}>
           <Text style={Styles.subHeader}>IV. FORMA DE PAGO</Text>
           <View style={Styles.table}>
-            {/* Table Headers */}
             <View style={Styles.tableRow}>
               <View style={Styles.paymentHeaderGlosa}><Text>GLOSA</Text></View>
               <View style={Styles.paymentHeaderPct}><Text>%</Text></View>
               <View style={Styles.paymentHeaderPesos}><Text>PESOS</Text></View>
               <View style={Styles.paymentHeaderUF}><Text>UF</Text></View>
             </View>
-            {/* Payment Rows */}
             <View style={Styles.tableRow}>
               <View style={Styles.paymentColGlosa}><Text>Reserva</Text></View>
               <View style={Styles.paymentColPct}><Text>{totalEscritura > 0 ? formatCurrency((pagoReserva / totalEscritura) * 100) : '0.00'}%</Text></View>
@@ -401,7 +365,6 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
                 <View style={Styles.paymentColUF}><Text>{formatCurrency(pagoBonoPieCotizacion)}</Text></View>
               </View>
             )}
-            {/* Total Row */}
             <View style={Styles.tableRow}>
                 <View style={Styles.paymentColGlosa}><Text style={Styles.boldText}>TOTAL</Text></View>
                 <View style={Styles.paymentColPct}><Text style={Styles.boldText}>{totalEscritura > 0 ? formatCurrency((totalFormaDePago / totalEscritura) * 100) : '0.00'}%</Text></View>
@@ -411,7 +374,6 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
           </View>
         </View>
 
-        {/* Notes Section */}
         <View style={Styles.section}>
           <Text style={Styles.subHeader}>V. NOTAS</Text>
           <Text style={Styles.text}>1.- Cotización provisoria, información debe ser validada con cotización formal emitida por la inmobiliaria.</Text>
@@ -420,7 +382,6 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
           <Text style={Styles.text}>4.- Por no ser una cotización formal, los precios y condiciones pueden variar sin previo aviso.</Text>
         </View>
 
-        {/* Footer */}
         <Text style={Styles.footer} fixed>
           Generada por InverAPP - {currentDate}
         </Text>
