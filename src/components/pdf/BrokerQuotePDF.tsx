@@ -1,24 +1,16 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
-// Move font registration outside component and add guard
-const fontsRegistered = false;
-const registerFonts = () => {
-  if (!fontsRegistered) {
-    Font.register({
-      family: 'Helvetica',
-      src: '/fonts/Helvetica.ttf'
-    });
+// Register fonts once at module level
+Font.register({
+  family: 'Helvetica',
+  src: '/fonts/Helvetica.ttf'
+});
 
-    Font.register({
-      family: 'Helvetica-Bold',
-      src: '/fonts/Helvetica-Bold.ttf'
-    });
-  }
-};
-
-// Register fonts immediately
-registerFonts();
+Font.register({
+  family: 'Helvetica-Bold',
+  src: '/fonts/Helvetica-Bold.ttf'
+});
 
 // Helper function for formatting
 const formatCurrency = (amount: number | null): string => {
