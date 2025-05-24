@@ -395,7 +395,7 @@ const BrokerQuotePage: React.FC = () => {
     const montoDescuentoDisponible = precioOriginal - precioConComision;
     
     // Available discount percentage
-    const porcentajeDescuentoDisponible = (montoDescuentoDisponible / precioOriginal) * 1000;
+    const porcentajeDescuentoDisponible = (montoDescuentoDisponible / precioOriginal) * 100;
     
     return Math.max(0, porcentajeDescuentoDisponible);
   };
