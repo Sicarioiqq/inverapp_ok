@@ -379,7 +379,28 @@ const BrokerQuotePage: React.FC = () => {
   // Convierte 'unidad.descuento' y 'commission_rate' (enteros) a fracciones antes de calcular
   // ----------------------------------------------------------------------------
   // Cálculo de descuento disponible para el broker
-    const calculateBrokerDiscount = (unidad: StockUnidad): number => {
+  const calculateBrokerDiscount = (unidad: StockUnidad): number => {
+    const precioOriginal = unidad.valor_lista;
+    // Convierte el descuento de la unidad (entero %) a fracción
+    const originalDiscountFrac = (unidad.descuento ?? 0);
+    // Convierte la comisión del broker (entero %) a fracción
+    const commissionFrac       = ((brokerCommissionRate ?? 0) / 100);
+
+    // Precio mínimo tras aplicar descuento base
+    const precioMinimo   = precioOriginal * (1 - originalDiscountFrac);
+    // Comisión en UF sobre el precio mínimo
+    const comisionBroker = precioMinimo * commissionFrac;
+
+    // Precio tras sumar mínima + comisión
+    const precioConComision = precioMinimo + comisionBroker;
+    // Monto disponible para descuento real
+    const montoDescuentoDisponible = precioOriginal - precioConComision;
+
+    // Fracción de descuento disponible
+    const descuentoDisponibleFrac = montoDescuentoDisponible / precioOriginal;
+    // Convertir a porcentaje entero
+    return Math.max(0, Math.round(descuentoDisponibleFrac * 100));
+  };
   
   // Handle unit selection
   const handleSelectUnidad = (unidad: StockUnidad) => {
@@ -541,31 +562,31 @@ const BrokerQuotePage: React.FC = () => {
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab('principales')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+              className={whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'principales' 
                   ? 'border-blue-500 text-blue-600' 
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              }}
             >
               Principales
             </button>
             <button
               onClick={() => setActiveTab('secundarios')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+              className={whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'secundarios' 
                   ? 'border-blue-500 text-blue-600' 
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              }}
             >
               Secundarios
             </button>
             <button
               onClick={() => setActiveTab('configuracion')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+              className={whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'configuracion' 
                   ? 'border-blue-500 text-blue-600' 
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              }}
             >
               Configuración Cotización
             </button>
@@ -923,7 +944,7 @@ const BrokerQuotePage: React.FC = () => {
                     <div className="relative">
                       <input
                         type="text"
-                        value={selectedUnidad ? `${selectedUnidad.proyecto_nombre} - ${selectedUnidad.unidad} (${selectedUnidad.tipologia || selectedUnidad.tipo_bien})` : ''}
+                        value={selectedUnidad ? ${selectedUnidad.proyecto_nombre} - ${selectedUnidad.unidad} (${selectedUnidad.tipologia || selectedUnidad.tipo_bien}) : ''}
                         onClick={() => setShowUnidadesDropdown(true)}
                         placeholder="Seleccione una unidad..."
                         className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
@@ -1544,7 +1565,7 @@ const BrokerQuotePage: React.FC = () => {
                             totalFormaDePago={totalFormaDePago}
                           />
                         }
-                        fileName={`Cotizacion_${selectedUnidad.proyecto_nombre}_${selectedUnidad.unidad}.pdf`}
+                        fileName={Cotizacion_${selectedUnidad.proyecto_nombre}_${selectedUnidad.unidad}.pdf}
                         className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
                         {({ blob, url, loading, error }) => (
@@ -1597,4 +1618,3 @@ const BrokerQuotePage: React.FC = () => {
 };
 
 export default BrokerQuotePage;
-
