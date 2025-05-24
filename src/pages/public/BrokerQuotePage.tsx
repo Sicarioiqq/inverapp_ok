@@ -766,7 +766,7 @@ const BrokerQuotePage: React.FC = () => {
                             {formatCurrency(unidad.valor_lista || 0)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600 text-right">
-                            {Math.round(brokerDiscount)}%*100
+                            {Math.round(brokerDiscount)}%
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center">
                             <button
