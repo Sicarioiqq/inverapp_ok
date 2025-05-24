@@ -241,12 +241,35 @@ const BrokerQuotePage: React.FC = () => {
         if (broker) {
           const commissionRate = await fetchBrokerCommissionRate(broker.id, selectedUnidad.proyecto_nombre);
           setBrokerCommissionRate(commissionRate);
+          
+          // Set discount amount based on the unit's discount
+          if (selectedUnidad.descuento !== null) {
+            // Calculate broker discount
+            const brokerDiscount = calculateBrokerDiscount(selectedUnidad);
+            setDiscountAmount(brokerDiscount);
+          }
         }
       }
     };
     
     fetchPolicy();
   }, [selectedUnidad, ufValue, broker]);
+  
+  // Update discount or bono amount when quotationType changes
+  useEffect(() => {
+    if (selectedUnidad) {
+      if (quotationType === 'descuento' || quotationType === 'mix') {
+        // Set discount to the calculated broker discount
+        const brokerDiscount = calculateBrokerDiscount(selectedUnidad);
+        setDiscountAmount(brokerDiscount);
+      } else if (quotationType === 'bono') {
+        // Convert discount to bono amount
+        const brokerDiscount = calculateBrokerDiscount(selectedUnidad);
+        const bonoValue = (brokerDiscount / 100) * selectedUnidad.valor_lista;
+        setBonoAmount(parseFloat(bonoValue.toFixed(2)));
+      }
+    }
+  }, [quotationType, selectedUnidad]);
   
   // Get unique projects for filtering
   const uniqueProjects = useMemo(() => {
@@ -377,7 +400,7 @@ const BrokerQuotePage: React.FC = () => {
   
   // Calculate available discount for broker
   const calculateBrokerDiscount = (unidad: StockUnidad): number => {
-    if (!brokerCommissionRate || !unidad.descuento) return unidad.descuento || 0;
+    if (!brokerCommissionRate || unidad.descuento === null) return 0;
     
     // Original price
     const precioOriginal = unidad.valor_lista;
@@ -415,6 +438,9 @@ const BrokerQuotePage: React.FC = () => {
     setPagoPiePct(0);
     setPagoBonoPieCotizacion(0);
     setAddedSecondaryUnits([]);
+    
+    // Set default quotation type to 'descuento'
+    setQuotationType('descuento');
   };
   
   // Add secondary unit
@@ -1293,7 +1319,7 @@ const BrokerQuotePage: React.FC = () => {
                         </div>
                       </div>
                       
-                      {/* Discount Amount */}
+                      {/* Discount Amount - Read-only when quotationType is 'descuento' */}
                       {(quotationType === 'descuento' || quotationType === 'mix') && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1306,15 +1332,23 @@ const BrokerQuotePage: React.FC = () => {
                               max="100"
                               step="0.01"
                               value={discountAmount}
-                              onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                              onChange={(e) => {
+                                // Only allow changes if not in 'descuento' mode
+                                if (quotationType !== 'descuento') {
+                                  setDiscountAmount(parseFloat(e.target.value) || 0);
+                                }
+                              }}
+                              readOnly={quotationType === 'descuento'}
+                              className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                                quotationType === 'descuento' ? 'bg-gray-100' : ''
+                              }`}
                             />
                             <span className="ml-2">%</span>
                           </div>
                         </div>
                       )}
                       
-                      {/* Bono Amount */}
+                      {/* Bono Amount - Read-only when quotationType is 'bono' */}
                       {(quotationType === 'bono' || quotationType === 'mix') && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1325,8 +1359,16 @@ const BrokerQuotePage: React.FC = () => {
                             min="0"
                             step="0.01"
                             value={bonoAmount}
-                            onChange={(e) => setBonoAmount(parseFloat(e.target.value) || 0)}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            onChange={(e) => {
+                              // Only allow changes if not in 'bono' mode
+                              if (quotationType !== 'bono') {
+                                setBonoAmount(parseFloat(e.target.value) || 0);
+                              }
+                            }}
+                            readOnly={quotationType === 'bono'}
+                            className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                              quotationType === 'bono' ? 'bg-gray-100' : ''
+                            }`}
                           />
                         </div>
                       )}
