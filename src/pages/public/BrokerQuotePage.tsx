@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
 import { useUFStore } from '../../stores/ufStore';
-import { Building, Home, DollarSign, Calculator, Download, Check, X, Search, ChevronDown, ChevronUp, Plus, AlertTriangle } from 'lucide-react';
+import { Building, Home, DollarSign, Calculator, Download, Check, X, Search, ChevronDown, ChevronUp, Plus, AlertTriangle, Settings, Package } from 'lucide-react';
 
 // Interfaces
 interface StockUnidad {
@@ -38,6 +38,9 @@ interface ProjectCommercialPolicy {
   observaciones: string | null;
   comuna: string | null;
 }
+
+// Tab type
+type TabType = 'principales' | 'secundarios' | 'configuracion';
 
 // Validate broker access
 const validateBroker = async (slug: string, token: string): Promise<Broker | null> => {
@@ -97,6 +100,7 @@ const BrokerQuotePage: React.FC = () => {
   const [showUnidadesDropdown, setShowUnidadesDropdown] = useState(false);
   const [showSecondaryUnitsDropdown, setShowSecondaryUnitsDropdown] = useState(false);
   const [commercialPolicy, setCommercialPolicy] = useState<ProjectCommercialPolicy | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>('principales');
   
   // Form state
   const [clientName, setClientName] = useState('');
@@ -179,17 +183,29 @@ const BrokerQuotePage: React.FC = () => {
     fetchPolicy();
   }, [selectedUnidad, ufValue]);
   
-  // Filter units based on search term
+  // Filter units based on search term and active tab
   const filteredUnidades = useMemo(() => {
-    if (!searchTerm.trim()) return unidades;
+    let filtered = unidades;
     
-    return unidades.filter(unidad => 
-      unidad.proyecto_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      unidad.unidad.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      unidad.tipologia?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      unidad.tipo_bien.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [unidades, searchTerm]);
+    // Filter by tipo_bien based on active tab
+    if (activeTab === 'principales') {
+      filtered = filtered.filter(unidad => unidad.tipo_bien === 'DEPARTAMENTO');
+    } else if (activeTab === 'secundarios') {
+      filtered = filtered.filter(unidad => unidad.tipo_bien !== 'DEPARTAMENTO');
+    }
+    
+    // Apply search filter if there's a search term
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(unidad => 
+        unidad.proyecto_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        unidad.unidad.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        unidad.tipologia?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        unidad.tipo_bien.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    return filtered;
+  }, [unidades, searchTerm, activeTab]);
   
   // Filter secondary units (parking, storage) based on selected unit's project
   const availableSecondaryUnits = useMemo(() => {
@@ -246,6 +262,7 @@ const BrokerQuotePage: React.FC = () => {
     setSelectedUnidad(unidad);
     setShowUnidadesDropdown(false);
     setSearchTerm('');
+    setActiveTab('configuracion');
     
     // Reset payment values when changing unit
     setPagoReserva(0);
@@ -369,75 +386,185 @@ const BrokerQuotePage: React.FC = () => {
       </header>
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Unit Selection and Client Info */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Unit Selection Card */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Home className="h-5 w-5 text-blue-500 mr-2" />
-                Selección de Unidad
-              </h2>
-              
-              <div className="space-y-4">
-                {/* Unit Selector */}
-                <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Unidad Principal
-                  </label>
+        {/* Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('principales')}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'principales'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Home className="h-5 w-5 inline-block mr-2" />
+              Principales
+            </button>
+            <button
+              onClick={() => setActiveTab('secundarios')}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'secundarios'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Package className="h-5 w-5 inline-block mr-2" />
+              Secundarios
+            </button>
+            <button
+              onClick={() => setActiveTab('configuracion')}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'configuracion'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } ${!selectedUnidad ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={!selectedUnidad}
+            >
+              <Settings className="h-5 w-5 inline-block mr-2" />
+              Configuración Cotización
+            </button>
+          </nav>
+        </div>
+        
+        {/* Search Bar */}
+        {(activeTab === 'principales' || activeTab === 'secundarios') && (
+          <div className="mb-6">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder={`Buscar ${activeTab === 'principales' ? 'departamento' : 'estacionamiento o bodega'}...`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+        )}
+        
+        {/* Tab Content */}
+        {(activeTab === 'principales' || activeTab === 'secundarios') && (
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proyecto</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Piso</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sup. Útil</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Precio UF</th>
+                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredUnidades.length > 0 ? (
+                  filteredUnidades.map((unidad) => (
+                    <tr key={unidad.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{unidad.proyecto_nombre}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{unidad.unidad}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{unidad.tipologia || unidad.tipo_bien}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{unidad.piso || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{formatCurrency(unidad.sup_util || 0)} m²</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatCurrency(unidad.valor_lista || 0)} UF</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                        <button
+                          onClick={() => handleSelectUnidad(unidad)}
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                          Seleccionar
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
+                      No se encontraron unidades disponibles
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+        
+        {activeTab === 'configuracion' && selectedUnidad && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column - Unit Selection and Client Info */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Unit Selection Card */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Home className="h-5 w-5 text-blue-500 mr-2" />
+                  Selección de Unidad
+                </h2>
+                
+                <div className="space-y-4">
+                  {/* Unit Selector */}
                   <div className="relative">
-                    <input
-                      type="text"
-                      value={selectedUnidad ? `${selectedUnidad.proyecto_nombre} - ${selectedUnidad.unidad} (${selectedUnidad.tipologia || selectedUnidad.tipo_bien})` : ''}
-                      onClick={() => setShowUnidadesDropdown(true)}
-                      placeholder="Seleccione una unidad..."
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
-                      readOnly
-                    />
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                      <ChevronDown className="h-5 w-5 text-gray-400" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Unidad Principal
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={selectedUnidad ? `${selectedUnidad.proyecto_nombre} - ${selectedUnidad.unidad} (${selectedUnidad.tipologia || selectedUnidad.tipo_bien})` : ''}
+                        onClick={() => setShowUnidadesDropdown(true)}
+                        placeholder="Seleccione una unidad..."
+                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
+                        readOnly
+                      />
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <ChevronDown className="h-5 w-5 text-gray-400" />
+                      </div>
                     </div>
+                    
+                    {showUnidadesDropdown && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">
+                        <div className="p-2 sticky top-0 bg-white border-b">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                            <input
+                              type="text"
+                              placeholder="Buscar unidad..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        </div>
+                        
+                        <ul className="py-1">
+                          {unidades
+                            .filter(unidad => unidad.tipo_bien === 'DEPARTAMENTO')
+                            .filter(unidad => 
+                              unidad.proyecto_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              unidad.unidad.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              (unidad.tipologia && unidad.tipologia.toLowerCase().includes(searchTerm.toLowerCase()))
+                            )
+                            .map(unidad => (
+                              <li key={unidad.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSelectUnidad(unidad)}
+                                  className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                                >
+                                  <div className="font-medium">{unidad.proyecto_nombre} - {unidad.unidad}</div>
+                                  <div className="text-sm text-gray-500">
+                                    {unidad.tipologia || unidad.tipo_bien} | {formatCurrency(unidad.valor_lista)} UF
+                                  </div>
+                                </button>
+                              </li>
+                            ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                   
-                  {showUnidadesDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">
-                      <div className="p-2 sticky top-0 bg-white border-b">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                          <input
-                            type="text"
-                            placeholder="Buscar unidad..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-                      
-                      <ul className="py-1">
-                        {filteredUnidades
-                          .filter(unidad => unidad.tipo_bien === 'DEPARTAMENTO')
-                          .map(unidad => (
-                            <li key={unidad.id}>
-                              <button
-                                type="button"
-                                onClick={() => handleSelectUnidad(unidad)}
-                                className="w-full text-left px-4 py-2 hover:bg-gray-100"
-                              >
-                                <div className="font-medium">{unidad.proyecto_nombre} - {unidad.unidad}</div>
-                                <div className="text-sm text-gray-500">
-                                  {unidad.tipologia || unidad.tipo_bien} | {formatCurrency(unidad.valor_lista)} UF
-                                </div>
-                              </button>
-                            </li>
-                          ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Secondary Units */}
-                {selectedUnidad && (
+                  {/* Secondary Units */}
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <label className="block text-sm font-medium text-gray-700">
@@ -497,47 +624,45 @@ const BrokerQuotePage: React.FC = () => {
                       <p className="text-sm text-gray-500 italic">No hay unidades secundarias seleccionadas</p>
                     )}
                   </div>
-                )}
+                </div>
               </div>
-            </div>
-            
-            {/* Client Information Card */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Datos del Cliente
-              </h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre del Cliente
-                  </label>
-                  <input
-                    type="text"
-                    value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                    placeholder="Ingrese nombre"
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
+              {/* Client Information Card */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Datos del Cliente
+                </h2>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    RUT del Cliente
-                  </label>
-                  <input
-                    type="text"
-                    value={clientRut}
-                    onChange={(e) => setClientRut(e.target.value)}
-                    placeholder="Ingrese RUT"
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nombre del Cliente
+                    </label>
+                    <input
+                      type="text"
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      placeholder="Ingrese nombre"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      RUT del Cliente
+                    </label>
+                    <input
+                      type="text"
+                      value={clientRut}
+                      onChange={(e) => setClientRut(e.target.value)}
+                      placeholder="Ingrese RUT"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            {/* Unit Information Card */}
-            {selectedUnidad && (
+              
+              {/* Unit Information Card */}
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                   <Home className="h-5 w-5 text-blue-500 mr-2" />
@@ -620,432 +745,428 @@ const BrokerQuotePage: React.FC = () => {
                   </div>
                 </div>
               </div>
-            )}
-            
-            {/* Commercial Policy Card */}
-            {selectedUnidad && commercialPolicy && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <DollarSign className="h-5 w-5 text-blue-500 mr-2" />
-                  Política Comercial
-                </h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Monto Reserva
-                    </label>
-                    <div className="mt-1 text-gray-900">
-                      {formatCLP(commercialPolicy.monto_reserva_pesos)}
-                    </div>
-                  </div>
+              
+              {/* Commercial Policy Card */}
+              {commercialPolicy && (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <DollarSign className="h-5 w-5 text-blue-500 mr-2" />
+                    Política Comercial
+                  </h2>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Bono Pie Máximo
-                    </label>
-                    <div className="mt-1 text-gray-900">
-                      {(commercialPolicy.bono_pie_max_pct * 100).toFixed(2)}%
-                    </div>
-                  </div>
-                  
-                  {commercialPolicy.fecha_tope && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
-                        Fecha Tope
+                        Monto Reserva
                       </label>
                       <div className="mt-1 text-gray-900">
-                        {new Date(commercialPolicy.fecha_tope).toLocaleDateString('es-CL')}
+                        {formatCLP(commercialPolicy.monto_reserva_pesos)}
                       </div>
                     </div>
-                  )}
-                  
-                  {commercialPolicy.comuna && (
+                    
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
-                        Comuna
+                        Bono Pie Máximo
                       </label>
                       <div className="mt-1 text-gray-900">
-                        {commercialPolicy.comuna}
+                        {(commercialPolicy.bono_pie_max_pct * 100).toFixed(2)}%
+                      </div>
+                    </div>
+                    
+                    {commercialPolicy.fecha_tope && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Fecha Tope
+                        </label>
+                        <div className="mt-1 text-gray-900">
+                          {new Date(commercialPolicy.fecha_tope).toLocaleDateString('es-CL')}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {commercialPolicy.comuna && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Comuna
+                        </label>
+                        <div className="mt-1 text-gray-900">
+                          {commercialPolicy.comuna}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {commercialPolicy.observaciones && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Observaciones
+                      </label>
+                      <div className="mt-1 text-sm text-gray-700 bg-gray-50 p-3 rounded-md">
+                        {commercialPolicy.observaciones}
                       </div>
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+            
+            {/* Right Column - Pricing and Payment */}
+            <div className="space-y-6">
+              {/* Pricing Card */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <DollarSign className="h-5 w-5 text-blue-500 mr-2" />
+                  Precios
+                </h2>
                 
-                {commercialPolicy.observaciones && (
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Observaciones
+                <div className="space-y-4">
+                  {/* Quotation Type */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tipo de Cotización
                     </label>
-                    <div className="mt-1 text-sm text-gray-700 bg-gray-50 p-3 rounded-md">
-                      {commercialPolicy.observaciones}
+                    <div className="flex space-x-4">
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          value="descuento"
+                          checked={quotationType === 'descuento'}
+                          onChange={() => setQuotationType('descuento')}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">Descuento</span>
+                      </label>
+                      
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          value="bono"
+                          checked={quotationType === 'bono'}
+                          onChange={() => setQuotationType('bono')}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">Bono</span>
+                      </label>
+                      
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          value="mix"
+                          checked={quotationType === 'mix'}
+                          onChange={() => setQuotationType('mix')}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">Mixto</span>
+                      </label>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-          
-          {/* Right Column - Pricing and Payment */}
-          <div className="space-y-6">
-            {selectedUnidad && (
-              <>
-                {/* Pricing Card */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <DollarSign className="h-5 w-5 text-blue-500 mr-2" />
-                    Precios
-                  </h2>
                   
-                  <div className="space-y-4">
-                    {/* Quotation Type */}
+                  {/* Discount Amount */}
+                  {(quotationType === 'descuento' || quotationType === 'mix') && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Tipo de Cotización
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Porcentaje de Descuento
                       </label>
-                      <div className="flex space-x-4">
-                        <label className="inline-flex items-center">
-                          <input
-                            type="radio"
-                            value="descuento"
-                            checked={quotationType === 'descuento'}
-                            onChange={() => setQuotationType('descuento')}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                          />
-                          <span className="ml-2 text-sm text-gray-700">Descuento</span>
-                        </label>
-                        
-                        <label className="inline-flex items-center">
-                          <input
-                            type="radio"
-                            value="bono"
-                            checked={quotationType === 'bono'}
-                            onChange={() => setQuotationType('bono')}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                          />
-                          <span className="ml-2 text-sm text-gray-700">Bono</span>
-                        </label>
-                        
-                        <label className="inline-flex items-center">
-                          <input
-                            type="radio"
-                            value="mix"
-                            checked={quotationType === 'mix'}
-                            onChange={() => setQuotationType('mix')}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                          />
-                          <span className="ml-2 text-sm text-gray-700">Mixto</span>
-                        </label>
+                      <div className="flex items-center">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={discountAmount}
+                          onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        />
+                        <span className="ml-2">%</span>
                       </div>
                     </div>
-                    
-                    {/* Discount Amount */}
-                    {(quotationType === 'descuento' || quotationType === 'mix') && (
+                  )}
+                  
+                  {/* Bono Amount */}
+                  {(quotationType === 'bono' || quotationType === 'mix') && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Monto Bono (UF)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={bonoAmount}
+                        onChange={(e) => setBonoAmount(parseFloat(e.target.value) || 0)}
+                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Price Summary */}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-500">Precio Base Departamento:</span>
+                        <span className="text-sm font-medium">{formatCurrency(precioBaseDepartamento)} UF</span>
+                      </div>
+                      
+                      {precioDescuentoDepartamento > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-500">Descuento ({discountAmount}%):</span>
+                          <span className="text-sm font-medium text-red-600">-{formatCurrency(precioDescuentoDepartamento)} UF</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-500">Precio Departamento con Descuento:</span>
+                        <span className="text-sm font-medium">{formatCurrency(precioDepartamentoConDescuento)} UF</span>
+                      </div>
+                      
+                      {precioTotalSecundarios > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-500">Precio Unidades Secundarias:</span>
+                          <span className="text-sm font-medium">{formatCurrency(precioTotalSecundarios)} UF</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between pt-2 border-t border-gray-200">
+                        <span className="text-sm font-medium text-gray-700">Precio Total Escrituración:</span>
+                        <span className="text-sm font-bold">{formatCurrency(totalEscritura)} UF</span>
+                      </div>
+                      
+                      {ufValue && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-500">Equivalente en Pesos:</span>
+                          <span className="text-sm text-gray-500">{formatCLP(totalEscritura * ufValue)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Payment Form Card */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Calculator className="h-5 w-5 text-blue-500 mr-2" />
+                  Forma de Pago
+                </h2>
+                
+                <div className="space-y-4">
+                  {/* Reservation Payment */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Reserva (UF)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={pagoReserva}
+                      onChange={(e) => setPagoReserva(parseFloat(e.target.value) || 0)}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  {/* Promise Payment */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Promesa
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Porcentaje de Descuento
-                        </label>
                         <div className="flex items-center">
                           <input
                             type="number"
                             min="0"
                             max="100"
                             step="0.01"
-                            value={discountAmount}
-                            onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                            value={pagoPromesaPct}
+                            onChange={(e) => handlePromesaPctChange(parseFloat(e.target.value) || 0)}
                             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                           />
                           <span className="ml-2">%</span>
                         </div>
                       </div>
-                    )}
-                    
-                    {/* Bono Amount */}
-                    {(quotationType === 'bono' || quotationType === 'mix') && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Monto Bono (UF)
-                        </label>
                         <input
                           type="number"
                           min="0"
                           step="0.01"
-                          value={bonoAmount}
-                          onChange={(e) => setBonoAmount(parseFloat(e.target.value) || 0)}
+                          value={pagoPromesa}
+                          onChange={(e) => handlePromesaChange(parseFloat(e.target.value) || 0)}
                           className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         />
                       </div>
-                    )}
-                    
-                    {/* Price Summary */}
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Precio Base Departamento:</span>
-                          <span className="text-sm font-medium">{formatCurrency(precioBaseDepartamento)} UF</span>
+                    </div>
+                  </div>
+                  
+                  {/* Down Payment */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Pie
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={pagoPiePct}
+                            onChange={(e) => handlePiePctChange(parseFloat(e.target.value) || 0)}
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          />
+                          <span className="ml-2">%</span>
                         </div>
-                        
-                        {precioDescuentoDepartamento > 0 && (
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-500">Descuento ({discountAmount}%):</span>
-                            <span className="text-sm font-medium text-red-600">-{formatCurrency(precioDescuentoDepartamento)} UF</span>
-                          </div>
-                        )}
-                        
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Precio Departamento con Descuento:</span>
-                          <span className="text-sm font-medium">{formatCurrency(precioDepartamentoConDescuento)} UF</span>
-                        </div>
-                        
-                        {precioTotalSecundarios > 0 && (
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-500">Precio Unidades Secundarias:</span>
-                            <span className="text-sm font-medium">{formatCurrency(precioTotalSecundarios)} UF</span>
-                          </div>
-                        )}
-                        
-                        <div className="flex justify-between pt-2 border-t border-gray-200">
-                          <span className="text-sm font-medium text-gray-700">Precio Total Escrituración:</span>
-                          <span className="text-sm font-bold">{formatCurrency(totalEscritura)} UF</span>
-                        </div>
-                        
-                        {ufValue && (
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-500">Equivalente en Pesos:</span>
-                            <span className="text-sm text-gray-500">{formatCLP(totalEscritura * ufValue)}</span>
-                          </div>
-                        )}
+                      </div>
+                      <div>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={pagoPie}
+                          onChange={(e) => handlePieChange(parseFloat(e.target.value) || 0)}
+                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        />
                       </div>
                     </div>
                   </div>
-                </div>
-                
-                {/* Payment Form Card */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <Calculator className="h-5 w-5 text-blue-500 mr-2" />
-                    Forma de Pago
-                  </h2>
                   
-                  <div className="space-y-4">
-                    {/* Reservation Payment */}
+                  {/* Bono Pie */}
+                  {commercialPolicy && commercialPolicy.bono_pie_max_pct > 0 && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Reserva (UF)
+                        Bono Pie (UF) - Máx {(commercialPolicy.bono_pie_max_pct * 100).toFixed(2)}%
                       </label>
                       <input
                         type="number"
                         min="0"
+                        max={totalEscritura * commercialPolicy.bono_pie_max_pct}
                         step="0.01"
-                        value={pagoReserva}
-                        onChange={(e) => setPagoReserva(parseFloat(e.target.value) || 0)}
+                        value={pagoBonoPieCotizacion}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          const maxBono = totalEscritura * commercialPolicy.bono_pie_max_pct;
+                          setPagoBonoPieCotizacion(Math.min(value, maxBono));
+                        }}
                         className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       />
-                    </div>
-                    
-                    {/* Promise Payment */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Promesa
-                      </label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <div className="flex items-center">
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.01"
-                              value={pagoPromesaPct}
-                              onChange={(e) => handlePromesaPctChange(parseFloat(e.target.value) || 0)}
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                            />
-                            <span className="ml-2">%</span>
-                          </div>
-                        </div>
-                        <div>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={pagoPromesa}
-                            onChange={(e) => handlePromesaChange(parseFloat(e.target.value) || 0)}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Down Payment */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Pie
-                      </label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <div className="flex items-center">
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.01"
-                              value={pagoPiePct}
-                              onChange={(e) => handlePiePctChange(parseFloat(e.target.value) || 0)}
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                            />
-                            <span className="ml-2">%</span>
-                          </div>
-                        </div>
-                        <div>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={pagoPie}
-                            onChange={(e) => handlePieChange(parseFloat(e.target.value) || 0)}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Bono Pie */}
-                    {commercialPolicy && commercialPolicy.bono_pie_max_pct > 0 && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Bono Pie (UF) - Máx {(commercialPolicy.bono_pie_max_pct * 100).toFixed(2)}%
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          max={totalEscritura * commercialPolicy.bono_pie_max_pct}
-                          step="0.01"
-                          value={pagoBonoPieCotizacion}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            const maxBono = totalEscritura * commercialPolicy.bono_pie_max_pct;
-                            setPagoBonoPieCotizacion(Math.min(value, maxBono));
-                          }}
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                        {pagoBonoPieCotizacion > 0 && (
-                          <p className="mt-1 text-xs text-gray-500">
-                            {((pagoBonoPieCotizacion / totalEscritura) * 100).toFixed(2)}% del total
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    
-                    {/* Mortgage Credit */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Crédito Hipotecario (UF)
-                      </label>
-                      <input
-                        type="number"
-                        value={pagoCreditoHipotecarioCalculado}
-                        className="block w-full rounded-md bg-gray-100 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        readOnly
-                      />
-                      {pagoCreditoHipotecarioCalculado > 0 && (
+                      {pagoBonoPieCotizacion > 0 && (
                         <p className="mt-1 text-xs text-gray-500">
-                          {((pagoCreditoHipotecarioCalculado / totalEscritura) * 100).toFixed(2)}% del total
+                          {((pagoBonoPieCotizacion / totalEscritura) * 100).toFixed(2)}% del total
                         </p>
                       )}
                     </div>
-                    
-                    {/* Payment Summary */}
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-700">Total Forma de Pago:</span>
-                        <span className="font-bold text-lg">{formatCurrency(totalFormaDePago)} UF</span>
-                      </div>
-                      
-                      {Math.abs(totalFormaDePago - totalEscritura) > 0.01 && (
-                        <div className="mt-2 p-2 bg-red-50 text-red-600 rounded-md text-sm">
-                          <div className="flex items-center">
-                            <AlertTriangle className="h-4 w-4 mr-1" />
-                            <span>
-                              La forma de pago no coincide con el precio total.
-                              Diferencia: {formatCurrency(Math.abs(totalFormaDePago - totalEscritura))} UF
-                            </span>
-                          </div>
-                        </div>
-                      )}
+                  )}
+                  
+                  {/* Mortgage Credit */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Crédito Hipotecario (UF)
+                    </label>
+                    <input
+                      type="number"
+                      value={pagoCreditoHipotecarioCalculado}
+                      className="block w-full rounded-md bg-gray-100 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      readOnly
+                    />
+                    {pagoCreditoHipotecarioCalculado > 0 && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        {((pagoCreditoHipotecarioCalculado / totalEscritura) * 100).toFixed(2)}% del total
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Payment Summary */}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-700">Total Forma de Pago:</span>
+                      <span className="font-bold text-lg">{formatCurrency(totalFormaDePago)} UF</span>
                     </div>
+                    
+                    {Math.abs(totalFormaDePago - totalEscritura) > 0.01 && (
+                      <div className="mt-2 p-2 bg-red-50 text-red-600 rounded-md text-sm">
+                        <div className="flex items-center">
+                          <AlertTriangle className="h-4 w-4 mr-1" />
+                          <span>
+                            La forma de pago no coincide con el precio total.
+                            Diferencia: {formatCurrency(Math.abs(totalFormaDePago - totalEscritura))} UF
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
+              </div>
+              
+              {/* Generate PDF Button */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Generar Cotización
+                </h2>
                 
-                {/* Generate PDF Button */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                    Generar Cotización
-                  </h2>
-                  
-                  {clientName && clientRut && Math.abs(totalFormaDePago - totalEscritura) <= 0.01 ? (
-                    <PDFDownloadLink
-                      document={
-                        <BrokerQuotePDF
-                          cliente={clientName}
-                          rut={clientRut}
-                          ufValue={ufValue}
-                          selectedUnidad={selectedUnidad}
-                          addedSecondaryUnits={addedSecondaryUnits}
-                          quotationType={quotationType}
-                          discountAmount={discountAmount}
-                          bonoAmount={bonoAmount}
-                          pagoReserva={pagoReserva}
-                          pagoPromesa={pagoPromesa}
-                          pagoPromesaPct={pagoPromesaPct}
-                          pagoPie={pagoPie}
-                          pagoPiePct={pagoPiePct}
-                          pagoBonoPieCotizacion={pagoBonoPieCotizacion}
-                          precioBaseDepartamento={precioBaseDepartamento}
-                          precioDescuentoDepartamento={precioDescuentoDepartamento}
-                          precioDepartamentoConDescuento={precioDepartamentoConDescuento}
-                          precioTotalSecundarios={precioTotalSecundarios}
-                          totalEscritura={totalEscritura}
-                          pagoCreditoHipotecarioCalculado={pagoCreditoHipotecarioCalculado}
-                          totalFormaDePago={totalFormaDePago}
-                        />
-                      }
-                      fileName={`Cotizacion_${selectedUnidad.proyecto_nombre}_${selectedUnidad.unidad}.pdf`}
-                      className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      {({ blob, url, loading, error }) => (
-                        <>
-                          <Download className="h-5 w-5 mr-2" />
-                          {loading ? 'Generando PDF...' : 'Descargar Cotización PDF'}
-                        </>
-                      )}
-                    </PDFDownloadLink>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-400 cursor-not-allowed"
-                    >
-                      <Download className="h-5 w-5 mr-2" />
-                      Descargar Cotización PDF
-                    </button>
-                  )}
-                  
-                  {(!clientName || !clientRut) && (
-                    <p className="mt-2 text-sm text-amber-600">
-                      Debe ingresar el nombre y RUT del cliente.
-                    </p>
-                  )}
-                  
-                  {Math.abs(totalFormaDePago - totalEscritura) > 0.01 && (
-                    <p className="mt-2 text-sm text-red-600">
-                      La forma de pago debe coincidir con el precio total.
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
+                {clientName && clientRut && Math.abs(totalFormaDePago - totalEscritura) <= 0.01 ? (
+                  <PDFDownloadLink
+                    document={
+                      <BrokerQuotePDF
+                        cliente={clientName}
+                        rut={clientRut}
+                        ufValue={ufValue}
+                        selectedUnidad={selectedUnidad}
+                        addedSecondaryUnits={addedSecondaryUnits}
+                        quotationType={quotationType}
+                        discountAmount={discountAmount}
+                        bonoAmount={bonoAmount}
+                        pagoReserva={pagoReserva}
+                        pagoPromesa={pagoPromesa}
+                        pagoPromesaPct={pagoPromesaPct}
+                        pagoPie={pagoPie}
+                        pagoPiePct={pagoPiePct}
+                        pagoBonoPieCotizacion={pagoBonoPieCotizacion}
+                        precioBaseDepartamento={precioBaseDepartamento}
+                        precioDescuentoDepartamento={precioDescuentoDepartamento}
+                        precioDepartamentoConDescuento={precioDepartamentoConDescuento}
+                        precioTotalSecundarios={precioTotalSecundarios}
+                        totalEscritura={totalEscritura}
+                        pagoCreditoHipotecarioCalculado={pagoCreditoHipotecarioCalculado}
+                        totalFormaDePago={totalFormaDePago}
+                      />
+                    }
+                    fileName={`Cotizacion_${selectedUnidad.proyecto_nombre}_${selectedUnidad.unidad}.pdf`}
+                    className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    {({ blob, url, loading, error }) => (
+                      <>
+                        <Download className="h-5 w-5 mr-2" />
+                        {loading ? 'Generando PDF...' : 'Descargar Cotización PDF'}
+                      </>
+                    )}
+                  </PDFDownloadLink>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-400 cursor-not-allowed"
+                  >
+                    <Download className="h-5 w-5 mr-2" />
+                    Descargar Cotización PDF
+                  </button>
+                )}
+                
+                {(!clientName || !clientRut) && (
+                  <p className="mt-2 text-sm text-amber-600">
+                    Debe ingresar el nombre y RUT del cliente.
+                  </p>
+                )}
+                
+                {Math.abs(totalFormaDePago - totalEscritura) > 0.01 && (
+                  <p className="mt-2 text-sm text-red-600">
+                    La forma de pago debe coincidir con el precio total.
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </main>
       
       {/* Footer */}
