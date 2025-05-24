@@ -381,26 +381,25 @@ const BrokerQuotePage: React.FC = () => {
   // Cálculo de descuento disponible para el broker
   const calculateBrokerDiscount = (unidad: StockUnidad): number => {
     const precioOriginal = unidad.valor_lista;
-    // Convierte los valores enteros de descuento y comisión a fracciones
+    // Convierte el descuento de la unidad (entero %) a fracción
     const originalDiscountFrac = (unidad.descuento ?? 0) / 100;
-    const commissionFrac       = (commissionRatesMap[unidad.proyecto_nombre] ?? 0) / 100;
+    // Convierte la comisión del broker (entero %) a fracción
+    const commissionFrac       = ((brokerCommissionRate ?? 0) / 100);
 
     // Precio mínimo tras aplicar descuento base
     const precioMinimo   = precioOriginal * (1 - originalDiscountFrac);
     // Comisión en UF sobre el precio mínimo
     const comisionBroker = precioMinimo * commissionFrac;
 
-    // Precio que suma mínima + comisión
+    // Precio tras sumar mínima + comisión
     const precioConComision = precioMinimo + comisionBroker;
     // Monto disponible para descuento real
     const montoDescuentoDisponible = precioOriginal - precioConComision;
 
     // Fracción de descuento disponible
     const descuentoDisponibleFrac = montoDescuentoDisponible / precioOriginal;
-    // Convertir a porcentaje
-    const porcentajeDescuentoDisponible = descuentoDisponibleFrac * 100;
-
-    return Math.max(0, porcentajeDescuentoDisponible);
+    // Convertir a porcentaje entero
+    return Math.max(0, Math.round(descuentoDisponibleFrac * 100));
   };
   
   // Handle unit selection
