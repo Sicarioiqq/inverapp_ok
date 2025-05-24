@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
 import { useParams } from 'react-router-dom';
+import { useUFStore } from '../../stores/ufStore';
 import { 
   Search, 
   Building, 
@@ -48,6 +49,9 @@ const BrokerQuotePage: React.FC = () => {
   // Parámetros de la URL
   const { brokerSlug, accessToken } = useParams<{ brokerSlug: string; accessToken: string }>();
   
+  // UF Store
+  const { ufValue, fetchUFValue } = useUFStore();
+  
   // Estados para datos
   const [broker, setBroker] = useState<any>(null);
   const [stockUnidades, setStockUnidades] = useState<StockUnidad[]>([]);
@@ -55,7 +59,6 @@ const BrokerQuotePage: React.FC = () => {
   const [selectedUnidad, setSelectedUnidad] = useState<StockUnidad | null>(null);
   const [addedSecondaryUnits, setAddedSecondaryUnits] = useState<StockUnidad[]>([]);
   const [commercialPolicy, setCommercialPolicy] = useState<ProjectCommercialPolicy | null>(null);
-  const [ufValue, setUfValue] = useState<number | null>(null);
   
   // Estados para UI
   const [loading, setLoading] = useState(true);
@@ -90,7 +93,7 @@ const BrokerQuotePage: React.FC = () => {
   // Cargar valor UF
   useEffect(() => {
     fetchUFValue();
-  }, []);
+  }, [fetchUFValue]);
   
   // Actualizar unidades filtradas cuando cambian los filtros
   useEffect(() => {
@@ -166,26 +169,6 @@ const BrokerQuotePage: React.FC = () => {
       setError(err.message);
     } finally {
       setLoading(false);
-    }
-  };
-  
-  // Obtener valor UF actual
-  const fetchUFValue = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('valores_financieros')
-        .select('valor')
-        .eq('nombre', 'UF')
-        .order('fecha', { ascending: false })
-        .limit(1)
-        .single();
-      
-      if (error) throw error;
-      setUFValue(data.valor);
-    } catch (err) {
-      console.error('Error al obtener valor UF:', err);
-      // Valor UF por defecto en caso de error
-      setUFValue(36500);
     }
   };
   
