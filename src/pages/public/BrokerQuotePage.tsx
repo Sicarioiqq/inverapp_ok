@@ -382,7 +382,7 @@ const BrokerQuotePage: React.FC = () => {
   const calculateBrokerDiscount = (unidad: StockUnidad): number => {
     const precioOriginal = unidad.valor_lista;
     // Convierte el descuento de la unidad (entero %) a fracción
-    const originalDiscountFrac = (unidad.descuento ?? 0) / 100;
+    const originalDiscountFrac = (unidad.descuento ?? 0);
     // Convierte la comisión del broker (entero %) a fracción
     const commissionFrac       = ((brokerCommissionRate ?? 0) / 100);
 
