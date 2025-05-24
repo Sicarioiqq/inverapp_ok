@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
 import { useUFStore } from '../../stores/ufStore';
-import { Building, Home, DollarSign, Calculator, Download, Check, X, Search, ChevronDown, ChevronUp, AlertTriangle, Plus } from 'lucide-react';
+import { Building, Home, DollarSign, Calculator, Download, Check, X, Search, ChevronDown, ChevronUp, AlertTriangle, Plus, Filter, ArrowUpDown } from 'lucide-react';
 
 // Interfaces
 interface StockUnidad {
@@ -94,9 +94,14 @@ const BrokerQuotePage: React.FC = () => {
   const [selectedUnidad, setSelectedUnidad] = useState<StockUnidad | null>(null);
   const [addedSecondaryUnits, setAddedSecondaryUnits] = useState<StockUnidad[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showUnidadesDropdown, setShowUnidadesDropdown] = useState(false);
   const [showSecondaryUnitsDropdown, setShowSecondaryUnitsDropdown] = useState(false);
   const [commercialPolicy, setCommercialPolicy] = useState<ProjectCommercialPolicy | null>(null);
+  
+  // Filtering and sorting state
+  const [projectFilter, setProjectFilter] = useState<string>('');
+  const [tipologiaFilter, setTipologiaFilter] = useState<string>('');
+  const [sortField, setSortField] = useState<keyof StockUnidad>('valor_lista');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Form state
   const [clientName, setClientName] = useState('');
@@ -179,17 +184,68 @@ const BrokerQuotePage: React.FC = () => {
     fetchPolicy();
   }, [selectedUnidad, ufValue]);
   
-  // Filter units based on search term
+  // Get unique projects for filtering
+  const uniqueProjects = useMemo(() => {
+    const projects = [...new Set(unidades.map(u => u.proyecto_nombre))];
+    return projects.sort();
+  }, [unidades]);
+  
+  // Get unique tipologias for filtering
+  const uniqueTipologias = useMemo(() => {
+    const tipologias = [...new Set(unidades
+      .filter(u => u.tipo_bien === 'DEPARTAMENTO' && u.tipologia)
+      .map(u => u.tipologia))];
+    return tipologias.sort();
+  }, [unidades]);
+  
+  // Filter units based on search term and filters
   const filteredUnidades = useMemo(() => {
-    if (!searchTerm.trim()) return unidades;
-    
-    return unidades.filter(unidad => 
-      unidad.proyecto_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      unidad.unidad.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      unidad.tipologia?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      unidad.tipo_bien.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [unidades, searchTerm]);
+    return unidades.filter(unidad => {
+      // Filter by tipo_bien = DEPARTAMENTO
+      if (unidad.tipo_bien !== 'DEPARTAMENTO') return false;
+      
+      // Filter by project if selected
+      if (projectFilter && unidad.proyecto_nombre !== projectFilter) return false;
+      
+      // Filter by tipologia if selected
+      if (tipologiaFilter && unidad.tipologia !== tipologiaFilter) return false;
+      
+      // Filter by search term
+      if (searchTerm.trim()) {
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          unidad.proyecto_nombre.toLowerCase().includes(searchLower) ||
+          unidad.unidad.toLowerCase().includes(searchLower) ||
+          (unidad.tipologia && unidad.tipologia.toLowerCase().includes(searchLower))
+        );
+      }
+      
+      return true;
+    });
+  }, [unidades, searchTerm, projectFilter, tipologiaFilter]);
+  
+  // Sort filtered units
+  const sortedUnidades = useMemo(() => {
+    return [...filteredUnidades].sort((a, b) => {
+      let valueA = a[sortField];
+      let valueB = b[sortField];
+      
+      // Handle string comparison
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        valueA = valueA.toLowerCase();
+        valueB = valueB.toLowerCase();
+      }
+      
+      // Handle null/undefined values
+      if (valueA == null) return sortDirection === 'asc' ? -1 : 1;
+      if (valueB == null) return sortDirection === 'asc' ? 1 : -1;
+      
+      // Compare values
+      if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
+      if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredUnidades, sortField, sortDirection]);
   
   // Filter secondary units (parking, storage) based on selected unit's project
   const availableSecondaryUnits = useMemo(() => {
@@ -244,7 +300,6 @@ const BrokerQuotePage: React.FC = () => {
   // Handle unit selection
   const handleSelectUnidad = (unidad: StockUnidad) => {
     setSelectedUnidad(unidad);
-    setShowUnidadesDropdown(false);
     setSearchTerm('');
     
     // Reset payment values when changing unit
@@ -288,6 +343,16 @@ const BrokerQuotePage: React.FC = () => {
   const handlePieChange = (value: number) => {
     setPagoPie(value);
     setPagoPiePct(parseFloat(((value / totalEscritura) * 100).toFixed(2)));
+  };
+  
+  // Handle sort change
+  const handleSortChange = (field: keyof StockUnidad) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
   };
   
   // Format currency
@@ -372,135 +437,6 @@ const BrokerQuotePage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Unit Selection and Client Info */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Unit Selection Card */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Home className="h-5 w-5 text-blue-500 mr-2" />
-                Selección de Unidad
-              </h2>
-              
-              <div className="space-y-4">
-                {/* Unit Selector */}
-                <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Unidad Principal
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={selectedUnidad ? `${selectedUnidad.proyecto_nombre} - ${selectedUnidad.unidad} (${selectedUnidad.tipologia || selectedUnidad.tipo_bien})` : ''}
-                      onClick={() => setShowUnidadesDropdown(true)}
-                      placeholder="Seleccione una unidad..."
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
-                      readOnly
-                    />
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                      <ChevronDown className="h-5 w-5 text-gray-400" />
-                    </div>
-                  </div>
-                  
-                  {showUnidadesDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">
-                      <div className="p-2 sticky top-0 bg-white border-b">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                          <input
-                            type="text"
-                            placeholder="Buscar unidad..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-                      
-                      <ul className="py-1">
-                        {filteredUnidades
-                          .filter(unidad => unidad.tipo_bien === 'DEPARTAMENTO')
-                          .map(unidad => (
-                            <li key={unidad.id}>
-                              <button
-                                type="button"
-                                onClick={() => handleSelectUnidad(unidad)}
-                                className="w-full text-left px-4 py-2 hover:bg-gray-100"
-                              >
-                                <div className="font-medium">{unidad.proyecto_nombre} - {unidad.unidad}</div>
-                                <div className="text-sm text-gray-500">
-                                  {unidad.tipologia || unidad.tipo_bien} | {formatCurrency(unidad.valor_lista)} UF
-                                </div>
-                              </button>
-                            </li>
-                          ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Secondary Units */}
-                {selectedUnidad && (
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Unidades Secundarias
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setShowSecondaryUnitsDropdown(!showSecondaryUnitsDropdown)}
-                        className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
-                        disabled={availableSecondaryUnits.length === 0}
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Agregar
-                      </button>
-                    </div>
-                    
-                    {showSecondaryUnitsDropdown && availableSecondaryUnits.length > 0 && (
-                      <div className="relative z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-40 overflow-auto">
-                        <ul className="py-1">
-                          {availableSecondaryUnits.map(unit => (
-                            <li key={unit.id}>
-                              <button
-                                type="button"
-                                onClick={() => handleAddSecondaryUnit(unit)}
-                                className="w-full text-left px-4 py-2 hover:bg-gray-100"
-                              >
-                                <div className="font-medium">{unit.tipo_bien} {unit.unidad}</div>
-                                <div className="text-sm text-gray-500">
-                                  {formatCurrency(unit.valor_lista)} UF
-                                </div>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    
-                    {addedSecondaryUnits.length > 0 ? (
-                      <div className="mt-2 space-y-2">
-                        {addedSecondaryUnits.map(unit => (
-                          <div key={unit.id} className="flex justify-between items-center p-2 bg-gray-50 rounded-md">
-                            <div>
-                              <div className="font-medium">{unit.tipo_bien} {unit.unidad}</div>
-                              <div className="text-sm text-gray-500">{formatCurrency(unit.valor_lista)} UF</div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSecondaryUnit(unit.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <X className="h-5 w-5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">No hay unidades secundarias seleccionadas</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            
             {/* Client Information Card */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
@@ -533,6 +469,231 @@ const BrokerQuotePage: React.FC = () => {
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
+              </div>
+            </div>
+            
+            {/* Stock Table Card */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Home className="h-5 w-5 text-blue-500 mr-2" />
+                Stock Disponible
+              </h2>
+              
+              {/* Filters */}
+              <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Buscar
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                    <input
+                      type="text"
+                      placeholder="Buscar unidad..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Proyecto
+                  </label>
+                  <select
+                    value={projectFilter}
+                    onChange={(e) => setProjectFilter(e.target.value)}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value="">Todos los proyectos</option>
+                    {uniqueProjects.map(project => (
+                      <option key={project} value={project}>{project}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipología
+                  </label>
+                  <select
+                    value={tipologiaFilter}
+                    onChange={(e) => setTipologiaFilter(e.target.value)}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value="">Todas las tipologías</option>
+                    {uniqueTipologias.map(tipologia => (
+                      <option key={tipologia} value={tipologia}>{tipologia}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              {/* Stock Table */}
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          className="flex items-center"
+                          onClick={() => handleSortChange('proyecto_nombre')}
+                        >
+                          Proyecto
+                          {sortField === 'proyecto_nombre' && (
+                            <span className="ml-1">
+                              {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </span>
+                          )}
+                        </button>
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          className="flex items-center"
+                          onClick={() => handleSortChange('unidad')}
+                        >
+                          Unidad
+                          {sortField === 'unidad' && (
+                            <span className="ml-1">
+                              {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </span>
+                          )}
+                        </button>
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          className="flex items-center"
+                          onClick={() => handleSortChange('tipologia')}
+                        >
+                          Tipología
+                          {sortField === 'tipologia' && (
+                            <span className="ml-1">
+                              {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </span>
+                          )}
+                        </button>
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          className="flex items-center"
+                          onClick={() => handleSortChange('piso')}
+                        >
+                          Piso
+                          {sortField === 'piso' && (
+                            <span className="ml-1">
+                              {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </span>
+                          )}
+                        </button>
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          className="flex items-center"
+                          onClick={() => handleSortChange('orientacion')}
+                        >
+                          Orient.
+                          {sortField === 'orientacion' && (
+                            <span className="ml-1">
+                              {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </span>
+                          )}
+                        </button>
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          className="flex items-center justify-end w-full"
+                          onClick={() => handleSortChange('sup_util')}
+                        >
+                          Sup. Útil
+                          {sortField === 'sup_util' && (
+                            <span className="ml-1">
+                              {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </span>
+                          )}
+                        </button>
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          className="flex items-center justify-end w-full"
+                          onClick={() => handleSortChange('valor_lista')}
+                        >
+                          Precio UF
+                          {sortField === 'valor_lista' && (
+                            <span className="ml-1">
+                              {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </span>
+                          )}
+                        </button>
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Acción
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {sortedUnidades.length > 0 ? (
+                      sortedUnidades.map((unidad) => (
+                        <tr 
+                          key={unidad.id} 
+                          className={`hover:bg-gray-50 ${selectedUnidad?.id === unidad.id ? 'bg-blue-50' : ''}`}
+                        >
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                            {unidad.proyecto_nombre}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                            {unidad.unidad}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                            {unidad.tipologia || 'N/A'}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                            {unidad.piso || 'N/A'}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                            {unidad.orientacion || 'N/A'}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-right">
+                            {formatCurrency(unidad.sup_util)} m²
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-right">
+                            {formatCurrency(unidad.valor_lista)}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleSelectUnidad(unidad)}
+                              className={`inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded ${
+                                selectedUnidad?.id === unidad.id
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                              }`}
+                            >
+                              {selectedUnidad?.id === unidad.id ? (
+                                <>
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Seleccionada
+                                </>
+                              ) : (
+                                'Seleccionar'
+                              )}
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={8} className="px-3 py-4 text-sm text-gray-500 text-center">
+                          No se encontraron unidades que coincidan con los filtros.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="mt-2 text-xs text-gray-500 text-right">
+                Mostrando {sortedUnidades.length} de {filteredUnidades.length} unidades
               </div>
             </div>
             
@@ -681,6 +842,70 @@ const BrokerQuotePage: React.FC = () => {
                       {commercialPolicy.observaciones}
                     </div>
                   </div>
+                )}
+              </div>
+            )}
+            
+            {/* Secondary Units */}
+            {selectedUnidad && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <Home className="h-5 w-5 text-blue-500 mr-2" />
+                    Unidades Secundarias
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setShowSecondaryUnitsDropdown(!showSecondaryUnitsDropdown)}
+                    className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
+                    disabled={availableSecondaryUnits.length === 0}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Agregar
+                  </button>
+                </div>
+                
+                {showSecondaryUnitsDropdown && availableSecondaryUnits.length > 0 && (
+                  <div className="mb-4 relative z-10 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-40 overflow-auto">
+                    <ul className="py-1">
+                      {availableSecondaryUnits.map(unit => (
+                        <li key={unit.id}>
+                          <button
+                            type="button"
+                            onClick={() => handleAddSecondaryUnit(unit)}
+                            className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                          >
+                            <div className="font-medium">{unit.tipo_bien} {unit.unidad}</div>
+                            <div className="text-sm text-gray-500">
+                              {formatCurrency(unit.valor_lista)} UF
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {addedSecondaryUnits.length > 0 ? (
+                  <div className="space-y-2">
+                    {addedSecondaryUnits.map(unit => (
+                      <div key={unit.id} className="flex justify-between items-center p-2 bg-gray-50 rounded-md">
+                        <div>
+                          <div className="font-medium">{unit.tipo_bien} {unit.unidad}</div>
+                          <div className="text-sm text-gray-500">{formatCurrency(unit.valor_lista)} UF</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSecondaryUnit(unit.id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-5 w-5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 italic">No hay unidades secundarias seleccionadas</p>
                 )}
               </div>
             )}
