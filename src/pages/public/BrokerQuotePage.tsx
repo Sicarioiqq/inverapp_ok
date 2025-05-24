@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
 import { useUFStore } from '../../stores/ufStore';
-import { Building, Home, DollarSign, Calculator, Download, Check, X, Search, ChevronDown, ChevronUp, ArrowUp, ArrowDown } from 'lucide-react';
+import { Building, Home, DollarSign, Calculator, Download, Check, X, Search, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Plus, AlertTriangle } from 'lucide-react';
 
 // Interfaces
 interface StockUnidad {
@@ -1372,65 +1372,4 @@ const BrokerQuotePage: React.FC = () => {
                             {loading ? 'Generando PDF...' : 'Descargar Cotización PDF'}
                           </>
                         )}
-                      </PDFDownloadLink>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled
-                        className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-400 cursor-not-allowed"
-                      >
-                        <Download className="h-5 w-5 mr-2" />
-                        Descargar Cotización PDF
-                      </button>
-                    )}
-                    
-                    {(!clientName || !clientRut) && (
-                      <p className="mt-2 text-sm text-amber-600">
-                        Debe ingresar el nombre y RUT del cliente.
-                      </p>
-                    )}
-                    
-                    {Math.abs(totalFormaDePago - totalEscritura) > 0.01 && (
-                      <p className="mt-2 text-sm text-red-600">
-                        La forma de pago debe coincidir con el precio total.
-                      </p>
-                    )}
-                  </div>
-                </>
-              )}
-              
-              {!selectedUnidad && (
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <div className="text-center py-8">
-                    <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No hay unidad seleccionada</h3>
-                    <p className="text-gray-500 mb-4">
-                      Por favor, seleccione una unidad principal para comenzar la cotización.
-                    </p>
-                    <button
-                      onClick={() => setActiveTab('principales')}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-                    >
-                      Seleccionar Unidad
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </main>
-      
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <p className="text-center text-sm text-gray-500">
-            © {new Date().getFullYear()} {broker.business_name}. Todos los derechos reservados.
-          </p>
-        </div>
-      </footer>
-    </div>
-  );
-};
-
-export default BrokerQuotePage;
+                      </PD
