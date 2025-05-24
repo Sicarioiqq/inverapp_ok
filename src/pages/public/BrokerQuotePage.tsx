@@ -375,28 +375,31 @@ const BrokerQuotePage: React.FC = () => {
     return pagoReserva + pagoPromesa + pagoPie + pagoCreditoHipotecarioCalculado + pagoBonoPieCotizacion;
   }, [pagoReserva, pagoPromesa, pagoPie, pagoCreditoHipotecarioCalculado, pagoBonoPieCotizacion]);
   
-  // Calculate available discount for broker
+// CÁMBIO IMPORTANTE: dentro de esta función definimos originalDiscountFrac y commissionFrac (enteros ▸ fracciones)
+  // Convierte 'unidad.descuento' y 'commission_rate' (enteros) a fracciones antes de calcular
+  // ----------------------------------------------------------------------------
+  // Cálculo de descuento disponible para el broker
   const calculateBrokerDiscount = (unidad: StockUnidad): number => {
-    if (!brokerCommissionRate || !unidad.descuento) return unidad.descuento || 0;
-    
-    // Original price
     const precioOriginal = unidad.valor_lista;
-    
-    // Minimum price after discount
-    const precioMinimo = precioOriginal * (1 - (unidad.descuento / 100));
-    
-    // Broker commission amount
-    const comisionBroker = precioMinimo * (brokerCommissionRate / 100);
-    
-    // Price with commission
+    // Convierte los valores enteros de descuento y comisión a fracciones
+    const originalDiscountFrac = (unidad.descuento ?? 0) / 100;
+    const commissionFrac       = (commissionRatesMap[unidad.proyecto_nombre] ?? 0) / 100;
+
+    // Precio mínimo tras aplicar descuento base
+    const precioMinimo   = precioOriginal * (1 - originalDiscountFrac);
+    // Comisión en UF sobre el precio mínimo
+    const comisionBroker = precioMinimo * commissionFrac;
+
+    // Precio que suma mínima + comisión
     const precioConComision = precioMinimo + comisionBroker;
-    
-    // Available discount amount
+    // Monto disponible para descuento real
     const montoDescuentoDisponible = precioOriginal - precioConComision;
-    
-    // Available discount percentage
-    const porcentajeDescuentoDisponible = (montoDescuentoDisponible / precioOriginal) * 100;
-    
+
+    // Fracción de descuento disponible
+    const descuentoDisponibleFrac = montoDescuentoDisponible / precioOriginal;
+    // Convertir a porcentaje
+    const porcentajeDescuentoDisponible = descuentoDisponibleFrac * 100;
+
     return Math.max(0, porcentajeDescuentoDisponible);
   };
   
