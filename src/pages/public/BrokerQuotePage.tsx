@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
 import { useUFStore } from '../../stores/ufStore';
-import { Building, Home, DollarSign, Calculator, Download, Check, X, Search, ChevronDown, ChevronUp, Filter, Trash2, Plus, ArrowUp, ArrowDown, Percent } from 'lucide-react';
+import { Building, Home, DollarSign, Calculator, Download, Check, X, Search, ChevronDown, ChevronUp, Percent } from 'lucide-react';
 
 // Interfaces
 interface StockUnidad {
@@ -20,7 +20,7 @@ interface StockUnidad {
   sup_total: number;
   valor_lista: number;
   estado_unidad: string;
-  descuento?: number; // Discount percentage for this unit
+  descuento?: number; // Added for broker commission rate
 }
 
 interface Broker {
@@ -110,6 +110,25 @@ const fetchBrokerCommissionRate = async (brokerId: string, projectName: string):
   }
 };
 
+// Format deadline date
+const formatDeadlineDate = (dateString: string | null): string => {
+  if (!dateString) return 'No especificada';
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const date = new Date(dateString);
+  date.setHours(0, 0, 0, 0);
+  
+  // If date is today or in the past, return "INMEDIATA"
+  if (date <= today) {
+    return "INMEDIATA";
+  }
+  
+  // Otherwise, format the date
+  return new Intl.DateTimeFormat('es-CL').format(date);
+};
+
 // Main component
 const BrokerQuotePage: React.FC = () => {
   const { brokerSlug, accessToken } = useParams<{ brokerSlug: string; accessToken: string }>();
@@ -129,9 +148,9 @@ const BrokerQuotePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'principales' | 'secundarios' | 'configuracion'>('principales');
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [selectedTipologia, setSelectedTipologia] = useState<string>('');
-  const [sortField, setSortField] = useState<string>('');
+  const [sortField, setSortField] = useState<string>('unidad');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [brokerCommissionRate, setBrokerCommissionRate] = useState<number | null>(null);
+  const [brokerCommissions, setBrokerCommissions] = useState<Record<string, number>>({});
   
   // Form state
   const [clientName, setClientName] = useState('');
@@ -165,8 +184,8 @@ const BrokerQuotePage: React.FC = () => {
         const validatedBroker = await validateBroker(brokerSlug, accessToken);
         setBroker(validatedBroker);
         
-        // Fetch all available units using pagination to get all records
-        await fetchAllUnits();
+        // Fetch available units
+        await fetchAllUnits(validatedBroker.id);
         
       } catch (err: any) {
         console.error('Error initializing page:', err);
@@ -178,64 +197,63 @@ const BrokerQuotePage: React.FC = () => {
     
     initializePage();
   }, [brokerSlug, accessToken]);
-
-  // Function to fetch all units with pagination
-  const fetchAllUnits = async () => {
+  
+  // Fetch all units with pagination
+  const fetchAllUnits = async (brokerId: string) => {
     try {
+      const PAGE_SIZE = 1000;
       let allUnits: StockUnidad[] = [];
       let page = 0;
-      const PAGE_SIZE = 1000; // Supabase max per request
+      let hasMore = true;
       
-      while (true) {
+      while (hasMore) {
         const from = page * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
         
-        const { data, error, count } = await supabase
+        const { data, error } = await supabase
           .from('stock_unidades')
-          .select('*', { count: 'exact' })
+          .select('*')
           .eq('estado_unidad', 'Disponible')
           .range(from, to);
           
         if (error) throw error;
         
-        if (data && data.length > 0) {
-          // Fetch broker commission rates for each project in this batch
-          const uniqueProjects = [...new Set(data.map(unit => unit.proyecto_nombre))];
-          
-          // Get commission rates for all projects for this broker
+        if (data.length === 0) {
+          hasMore = false;
+        } else {
+          // Fetch commission rates for each project
+          const projectNames = Array.from(new Set(data.map(unit => unit.proyecto_nombre)));
           const commissionRates: Record<string, number> = {};
           
-          if (broker) {
-            for (const projectName of uniqueProjects) {
-              const rate = await fetchBrokerCommissionRate(broker.id, projectName);
-              if (rate !== null) {
-                commissionRates[projectName] = rate;
-              }
+          for (const projectName of projectNames) {
+            const rate = await fetchBrokerCommissionRate(brokerId, projectName);
+            if (rate !== null) {
+              commissionRates[projectName] = rate;
             }
           }
           
-          // Add discount information to each unit
-          const unitsWithDiscount = data.map(unit => ({
+          // Add commission rates to units
+          const unitsWithCommission = data.map(unit => ({
             ...unit,
             descuento: commissionRates[unit.proyecto_nombre] || 0
           }));
           
-          allUnits = [...allUnits, ...unitsWithDiscount];
-          
-          // If we got fewer records than the page size, we've reached the end
-          if (data.length < PAGE_SIZE) {
-            break;
-          }
-          
+          allUnits = [...allUnits, ...unitsWithCommission];
           page++;
-        } else {
-          break;
         }
       }
       
+      setBrokerCommissions(Object.fromEntries(
+        allUnits
+          .filter((unit, index, self) => 
+            index === self.findIndex(u => u.proyecto_nombre === unit.proyecto_nombre)
+          )
+          .map(unit => [unit.proyecto_nombre, unit.descuento || 0])
+      ));
+      
       setUnidades(allUnits);
     } catch (error) {
-      console.error('Error fetching all units:', error);
+      console.error('Error fetching units:', error);
       throw error;
     }
   };
@@ -254,133 +272,59 @@ const BrokerQuotePage: React.FC = () => {
             setPagoReserva(parseFloat((policy.monto_reserva_pesos / ufValue).toFixed(2)));
           }
           
+          // Set default discount based on broker commission rate
+          if (selectedUnidad.descuento) {
+            setDiscountAmount(selectedUnidad.descuento);
+          }
+          
           // Set default bono pie max percentage
           if (policy.bono_pie_max_pct) {
             // This is stored as decimal in DB (e.g., 0.15 for 15%)
+            const maxBonoPct = policy.bono_pie_max_pct * 100;
             setPagoBonoPieCotizacion(0); // Initialize to 0, user can adjust up to max
           }
-        }
-        
-        // Fetch broker commission rate for this project
-        if (broker) {
-          const rate = await fetchBrokerCommissionRate(broker.id, selectedUnidad.proyecto_nombre);
-          setBrokerCommissionRate(rate);
         }
       }
     };
     
     fetchPolicy();
-  }, [selectedUnidad, ufValue, broker]);
+  }, [selectedUnidad, ufValue]);
   
-  // Get unique projects for filtering
-  const uniqueProjects = useMemo(() => {
-    return [...new Set(unidades.map(u => u.proyecto_nombre))].sort();
-  }, [unidades]);
-  
-  // Get unique tipologias for the selected project
-  const uniqueTipologias = useMemo(() => {
-    if (!selectedProject) return [];
-    return [...new Set(
-      unidades
-        .filter(u => u.proyecto_nombre === selectedProject && u.tipo_bien === 'DEPARTAMENTO' && u.tipologia)
-        .map(u => u.tipologia)
-    )].sort();
-  }, [unidades, selectedProject]);
-  
-  // Filter units based on search term and filters
+  // Filter units based on search term, project and tipologia
   const filteredUnidades = useMemo(() => {
     let filtered = unidades;
     
-    // Filter by project
     if (selectedProject) {
-      filtered = filtered.filter(u => u.proyecto_nombre === selectedProject);
+      filtered = filtered.filter(unidad => unidad.proyecto_nombre === selectedProject);
     }
     
-    // Filter by tipologia (only for DEPARTAMENTO)
-    if (selectedTipologia && selectedProject) {
-      filtered = filtered.filter(u => u.tipologia === selectedTipologia);
+    if (selectedTipologia) {
+      filtered = filtered.filter(unidad => unidad.tipologia === selectedTipologia);
     }
     
-    // Filter by tipo_bien based on active tab
-    if (activeTab === 'principales') {
-      filtered = filtered.filter(u => u.tipo_bien === 'DEPARTAMENTO');
-    } else if (activeTab === 'secundarios') {
-      filtered = filtered.filter(u => u.tipo_bien !== 'DEPARTAMENTO');
-    }
-    
-    // Filter by search term
     if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(u => 
-        u.proyecto_nombre.toLowerCase().includes(term) ||
-        u.unidad.toLowerCase().includes(term) ||
-        (u.tipologia && u.tipologia.toLowerCase().includes(term)) ||
-        u.tipo_bien.toLowerCase().includes(term)
+      filtered = filtered.filter(unidad => 
+        unidad.proyecto_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        unidad.unidad.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        unidad.tipologia?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        unidad.tipo_bien.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     
     return filtered;
-  }, [unidades, selectedProject, selectedTipologia, activeTab, searchTerm]);
+  }, [unidades, searchTerm, selectedProject, selectedTipologia]);
   
-  // Sort filtered units
-  const sortedUnidades = useMemo(() => {
-    if (!sortField) return filteredUnidades;
-    
-    return [...filteredUnidades].sort((a, b) => {
-      let valueA, valueB;
-      
-      // Get the values to compare based on the sort field
-      switch (sortField) {
-        case 'proyecto_nombre':
-          valueA = a.proyecto_nombre;
-          valueB = b.proyecto_nombre;
-          break;
-        case 'unidad':
-          valueA = a.unidad;
-          valueB = b.unidad;
-          break;
-        case 'tipo_bien':
-          valueA = a.tipo_bien;
-          valueB = b.tipo_bien;
-          break;
-        case 'tipologia':
-          valueA = a.tipologia || '';
-          valueB = b.tipologia || '';
-          break;
-        case 'piso':
-          valueA = a.piso || '';
-          valueB = b.piso || '';
-          break;
-        case 'sup_util':
-          valueA = a.sup_util || 0;
-          valueB = b.sup_util || 0;
-          break;
-        case 'valor_lista':
-          valueA = a.valor_lista || 0;
-          valueB = b.valor_lista || 0;
-          break;
-        case 'descuento':
-          valueA = a.descuento || 0;
-          valueB = b.descuento || 0;
-          break;
-        default:
-          return 0;
-      }
-      
-      // Compare the values
-      let result;
-      if (typeof valueA === 'string' && typeof valueB === 'string') {
-        result = valueA.localeCompare(valueB);
-      } else {
-        result = (valueA as number) - (valueB as number);
-      }
-      
-      // Apply sort direction
-      return sortDirection === 'asc' ? result : -result;
-    });
-  }, [filteredUnidades, sortField, sortDirection]);
+  // Filter main units (departamentos)
+  const principalesUnidades = useMemo(() => {
+    return filteredUnidades.filter(unidad => unidad.tipo_bien === 'DEPARTAMENTO');
+  }, [filteredUnidades]);
   
-  // Filter secondary units (parking, storage) based on selected unit's project
+  // Filter secondary units (parking, storage)
+  const secundariosUnidades = useMemo(() => {
+    return filteredUnidades.filter(unidad => unidad.tipo_bien !== 'DEPARTAMENTO');
+  }, [filteredUnidades]);
+  
+  // Filter secondary units based on selected unit's project
   const availableSecondaryUnits = useMemo(() => {
     if (!selectedUnidad) return [];
     
@@ -390,6 +334,21 @@ const BrokerQuotePage: React.FC = () => {
       !addedSecondaryUnits.some(added => added.id === unidad.id)
     );
   }, [unidades, selectedUnidad, addedSecondaryUnits]);
+  
+  // Get unique projects
+  const proyectos = useMemo(() => {
+    return Array.from(new Set(unidades.map(u => u.proyecto_nombre)));
+  }, [unidades]);
+  
+  // Get unique tipologias for selected project
+  const tipologias = useMemo(() => {
+    if (!selectedProject) return [];
+    return Array.from(new Set(
+      unidades
+        .filter(u => u.proyecto_nombre === selectedProject && u.tipo_bien === 'DEPARTAMENTO' && u.tipologia)
+        .map(u => u.tipologia as string)
+    ));
+  }, [unidades, selectedProject]);
   
   // Calculate prices
   const precioBaseDepartamento = selectedUnidad?.valor_lista || 0;
@@ -445,6 +404,11 @@ const BrokerQuotePage: React.FC = () => {
     setPagoPiePct(0);
     setPagoBonoPieCotizacion(0);
     setAddedSecondaryUnits([]);
+    
+    // Set discount to the broker's commission rate for this project
+    if (unidad.descuento) {
+      setDiscountAmount(unidad.descuento);
+    }
   };
   
   // Add secondary unit
@@ -500,40 +464,75 @@ const BrokerQuotePage: React.FC = () => {
     }).format(amount);
   };
   
-  // Format date or return "INMEDIATA" for past dates
-  const formatDeadlineDate = (dateString: string | null) => {
-    if (!dateString) return 'No especificada';
-    
-    const date = new Date(dateString);
-    const today = new Date();
-    
-    // If date is in the past or today, return "INMEDIATA"
-    if (date <= today) {
-      return 'INMEDIATA';
-    }
-    
-    // Otherwise, format the date
-    return new Intl.DateTimeFormat('es-CL').format(date);
-  };
-  
-  // Handle sort change
+  // Handle sorting
   const handleSort = (field: string) => {
     if (sortField === field) {
-      // If already sorting by this field, toggle direction
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      // Otherwise, sort by this field in ascending order
       setSortField(field);
       setSortDirection('asc');
     }
   };
   
-  // Clear filters
-  const handleClearFilters = () => {
-    setSelectedProject('');
-    setSelectedTipologia('');
-    setSearchTerm('');
-  };
+  // Sort units
+  const sortedPrincipales = useMemo(() => {
+    return [...principalesUnidades].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'proyecto_nombre':
+          comparison = a.proyecto_nombre.localeCompare(b.proyecto_nombre);
+          break;
+        case 'unidad':
+          comparison = a.unidad.localeCompare(b.unidad);
+          break;
+        case 'tipologia':
+          comparison = (a.tipologia || '').localeCompare(b.tipologia || '');
+          break;
+        case 'piso':
+          comparison = (a.piso || '').localeCompare(b.piso || '');
+          break;
+        case 'sup_util':
+          comparison = (a.sup_util || 0) - (b.sup_util || 0);
+          break;
+        case 'valor_lista':
+          comparison = (a.valor_lista || 0) - (b.valor_lista || 0);
+          break;
+        case 'descuento':
+          comparison = (a.descuento || 0) - (b.descuento || 0);
+          break;
+        default:
+          comparison = 0;
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [principalesUnidades, sortField, sortDirection]);
+  
+  const sortedSecundarios = useMemo(() => {
+    return [...secundariosUnidades].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'proyecto_nombre':
+          comparison = a.proyecto_nombre.localeCompare(b.proyecto_nombre);
+          break;
+        case 'unidad':
+          comparison = a.unidad.localeCompare(b.unidad);
+          break;
+        case 'tipo_bien':
+          comparison = a.tipo_bien.localeCompare(b.tipo_bien);
+          break;
+        case 'valor_lista':
+          comparison = (a.valor_lista || 0) - (b.valor_lista || 0);
+          break;
+        default:
+          comparison = 0;
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [secundariosUnidades, sortField, sortDirection]);
   
   if (loading) {
     return (
@@ -577,11 +576,7 @@ const BrokerQuotePage: React.FC = () => {
       <header className="bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center">
-            <img 
-              src="/logoinversiones.png" 
-              alt="Logo Inversiones" 
-              className="h-12 mr-4"
-            />
+            <img src="/logoinversiones.png" alt="Logo Inversiones" className="h-12 mr-4" />
             <div>
               <h1 className="text-xl font-bold text-gray-900">Cotizador {broker.name}</h1>
               <p className="text-sm text-gray-500">{broker.business_name}</p>
@@ -604,42 +599,33 @@ const BrokerQuotePage: React.FC = () => {
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab('principales')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
-                activeTab === 'principales'
-                  ? 'border-blue-500 text-blue-600'
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'principales' 
+                  ? 'border-blue-500 text-blue-600' 
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <Home className="h-5 w-5 mr-2" />
               Principales
             </button>
             <button
               onClick={() => setActiveTab('secundarios')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
-                activeTab === 'secundarios'
-                  ? 'border-blue-500 text-blue-600'
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'secundarios' 
+                  ? 'border-blue-500 text-blue-600' 
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <Building className="h-5 w-5 mr-2" />
               Secundarios
             </button>
             <button
-              onClick={() => selectedUnidad && setActiveTab('configuracion')}
-              disabled={!selectedUnidad}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
-                activeTab === 'configuracion'
-                  ? 'border-blue-500 text-blue-600'
-                  : !selectedUnidad
-                  ? 'border-transparent text-gray-400 cursor-not-allowed'
+              onClick={() => setActiveTab('configuracion')}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'configuracion' 
+                  ? 'border-blue-500 text-blue-600' 
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <Calculator className="h-5 w-5 mr-2" />
               Configuración Cotización
-              {!selectedUnidad && (
-                <span className="ml-2 text-xs text-red-500">(Seleccione una unidad principal)</span>
-              )}
             </button>
           </nav>
         </div>
@@ -649,11 +635,12 @@ const BrokerQuotePage: React.FC = () => {
           <div>
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Filter className="h-5 w-5 text-blue-500 mr-2" />
-                Filtros
+                <Home className="h-5 w-5 text-blue-500 mr-2" />
+                Unidades Principales
               </h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {/* Project filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Proyecto
@@ -667,12 +654,13 @@ const BrokerQuotePage: React.FC = () => {
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   >
                     <option value="">Todos los proyectos</option>
-                    {uniqueProjects.map(project => (
-                      <option key={project} value={project}>{project}</option>
+                    {proyectos.map(proyecto => (
+                      <option key={proyecto} value={proyecto}>{proyecto}</option>
                     ))}
                   </select>
                 </div>
                 
+                {/* Tipologia filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Tipología
@@ -684,12 +672,13 @@ const BrokerQuotePage: React.FC = () => {
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                   >
                     <option value="">Todas las tipologías</option>
-                    {uniqueTipologias.map(tipologia => (
+                    {tipologias.map(tipologia => (
                       <option key={tipologia} value={tipologia}>{tipologia}</option>
                     ))}
                   </select>
                 </div>
                 
+                {/* Search */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Buscar
@@ -709,22 +698,6 @@ const BrokerQuotePage: React.FC = () => {
                 </div>
               </div>
               
-              <div className="mt-4 flex justify-between items-center">
-                <div className="text-sm text-gray-500">
-                  {sortedUnidades.length} unidades encontradas
-                </div>
-                
-                <button
-                  onClick={handleClearFilters}
-                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Limpiar filtros
-                </button>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -734,98 +707,84 @@ const BrokerQuotePage: React.FC = () => {
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('proyecto_nombre')}
                       >
-                        <div className="flex items-center">
-                          Proyecto
-                          {sortField === 'proyecto_nombre' && (
-                            sortDirection === 'asc' ? 
-                              <ArrowUp className="h-4 w-4 ml-1" /> : 
-                              <ArrowDown className="h-4 w-4 ml-1" />
-                          )}
-                        </div>
+                        Proyecto
+                        {sortField === 'proyecto_nombre' && (
+                          <span className="ml-1 inline-block">
+                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          </span>
+                        )}
                       </th>
                       <th 
                         scope="col" 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('unidad')}
                       >
-                        <div className="flex items-center">
-                          N° Unidad
-                          {sortField === 'unidad' && (
-                            sortDirection === 'asc' ? 
-                              <ArrowUp className="h-4 w-4 ml-1" /> : 
-                              <ArrowDown className="h-4 w-4 ml-1" />
-                          )}
-                        </div>
+                        N° Unidad
+                        {sortField === 'unidad' && (
+                          <span className="ml-1 inline-block">
+                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          </span>
+                        )}
                       </th>
                       <th 
                         scope="col" 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('tipologia')}
                       >
-                        <div className="flex items-center">
-                          Tipología
-                          {sortField === 'tipologia' && (
-                            sortDirection === 'asc' ? 
-                              <ArrowUp className="h-4 w-4 ml-1" /> : 
-                              <ArrowDown className="h-4 w-4 ml-1" />
-                          )}
-                        </div>
+                        Tipología
+                        {sortField === 'tipologia' && (
+                          <span className="ml-1 inline-block">
+                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          </span>
+                        )}
                       </th>
                       <th 
                         scope="col" 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('piso')}
                       >
-                        <div className="flex items-center">
-                          Piso
-                          {sortField === 'piso' && (
-                            sortDirection === 'asc' ? 
-                              <ArrowUp className="h-4 w-4 ml-1" /> : 
-                              <ArrowDown className="h-4 w-4 ml-1" />
-                          )}
-                        </div>
+                        Piso
+                        {sortField === 'piso' && (
+                          <span className="ml-1 inline-block">
+                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          </span>
+                        )}
                       </th>
                       <th 
                         scope="col" 
                         className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('sup_util')}
                       >
-                        <div className="flex items-center justify-end">
-                          Sup. Útil
-                          {sortField === 'sup_util' && (
-                            sortDirection === 'asc' ? 
-                              <ArrowUp className="h-4 w-4 ml-1" /> : 
-                              <ArrowDown className="h-4 w-4 ml-1" />
-                          )}
-                        </div>
+                        Sup. Útil
+                        {sortField === 'sup_util' && (
+                          <span className="ml-1 inline-block">
+                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          </span>
+                        )}
                       </th>
                       <th 
                         scope="col" 
                         className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('valor_lista')}
                       >
-                        <div className="flex items-center justify-end">
-                          Valor UF
-                          {sortField === 'valor_lista' && (
-                            sortDirection === 'asc' ? 
-                              <ArrowUp className="h-4 w-4 ml-1" /> : 
-                              <ArrowDown className="h-4 w-4 ml-1" />
-                          )}
-                        </div>
+                        Valor UF
+                        {sortField === 'valor_lista' && (
+                          <span className="ml-1 inline-block">
+                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          </span>
+                        )}
                       </th>
                       <th 
                         scope="col" 
                         className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('descuento')}
                       >
-                        <div className="flex items-center justify-end">
-                          Descuento
-                          {sortField === 'descuento' && (
-                            sortDirection === 'asc' ? 
-                              <ArrowUp className="h-4 w-4 ml-1" /> : 
-                              <ArrowDown className="h-4 w-4 ml-1" />
-                          )}
-                        </div>
+                        Descuento
+                        {sortField === 'descuento' && (
+                          <span className="ml-1 inline-block">
+                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          </span>
+                        )}
                       </th>
                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Acción
@@ -833,7 +792,7 @@ const BrokerQuotePage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {sortedUnidades.map((unidad) => (
+                    {sortedPrincipales.map((unidad) => (
                       <tr key={unidad.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {unidad.proyecto_nombre}
@@ -854,19 +813,15 @@ const BrokerQuotePage: React.FC = () => {
                           {formatCurrency(unidad.valor_lista || 0)} UF
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                          {unidad.descuento ? (
-                            <span className="flex items-center justify-end text-green-600">
-                              {formatCurrency(unidad.descuento)} %
-                              <Percent className="h-4 w-4 ml-1" />
-                            </span>
-                          ) : (
-                            '-'
-                          )}
+                          <div className="flex items-center justify-end">
+                            <Percent className="h-4 w-4 text-blue-500 mr-1" />
+                            {formatCurrency(unidad.descuento || 0)}%
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button
                             onClick={() => handleSelectUnidad(unidad)}
-                            className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition-colors"
+                            className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded-md"
                           >
                             Seleccionar
                           </button>
@@ -876,6 +831,12 @@ const BrokerQuotePage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+              
+              {sortedPrincipales.length === 0 && (
+                <div className="text-center py-4 text-gray-500">
+                  No se encontraron unidades que coincidan con los filtros.
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -884,11 +845,12 @@ const BrokerQuotePage: React.FC = () => {
           <div>
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Filter className="h-5 w-5 text-blue-500 mr-2" />
-                Filtros
+                <Home className="h-5 w-5 text-blue-500 mr-2" />
+                Unidades Secundarias
               </h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {/* Project filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Proyecto
@@ -899,13 +861,14 @@ const BrokerQuotePage: React.FC = () => {
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   >
                     <option value="">Todos los proyectos</option>
-                    {uniqueProjects.map(project => (
-                      <option key={project} value={project}>{project}</option>
+                    {proyectos.map(proyecto => (
+                      <option key={proyecto} value={proyecto}>{proyecto}</option>
                     ))}
                   </select>
                 </div>
                 
-                <div>
+                {/* Search */}
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Buscar
                   </label>
@@ -915,31 +878,15 @@ const BrokerQuotePage: React.FC = () => {
                     </div>
                     <input
                       type="text"
-                      placeholder="Buscar unidad..."
+                      placeholder="Buscar unidad secundaria..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
                 </div>
-                
-                <div className="flex items-end">
-                  <button
-                    onClick={handleClearFilters}
-                    className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Limpiar filtros
-                  </button>
-                </div>
               </div>
               
-              <div className="mt-4 text-sm text-gray-500">
-                {sortedUnidades.length} unidades encontradas
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -949,56 +896,48 @@ const BrokerQuotePage: React.FC = () => {
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('proyecto_nombre')}
                       >
-                        <div className="flex items-center">
-                          Proyecto
-                          {sortField === 'proyecto_nombre' && (
-                            sortDirection === 'asc' ? 
-                              <ArrowUp className="h-4 w-4 ml-1" /> : 
-                              <ArrowDown className="h-4 w-4 ml-1" />
-                          )}
-                        </div>
+                        Proyecto
+                        {sortField === 'proyecto_nombre' && (
+                          <span className="ml-1 inline-block">
+                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          </span>
+                        )}
                       </th>
                       <th 
                         scope="col" 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('unidad')}
                       >
-                        <div className="flex items-center">
-                          N° Unidad
-                          {sortField === 'unidad' && (
-                            sortDirection === 'asc' ? 
-                              <ArrowUp className="h-4 w-4 ml-1" /> : 
-                              <ArrowDown className="h-4 w-4 ml-1" />
-                          )}
-                        </div>
+                        N° Unidad
+                        {sortField === 'unidad' && (
+                          <span className="ml-1 inline-block">
+                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          </span>
+                        )}
                       </th>
                       <th 
                         scope="col" 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('tipo_bien')}
                       >
-                        <div className="flex items-center">
-                          Tipo
-                          {sortField === 'tipo_bien' && (
-                            sortDirection === 'asc' ? 
-                              <ArrowUp className="h-4 w-4 ml-1" /> : 
-                              <ArrowDown className="h-4 w-4 ml-1" />
-                          )}
-                        </div>
+                        Tipo
+                        {sortField === 'tipo_bien' && (
+                          <span className="ml-1 inline-block">
+                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          </span>
+                        )}
                       </th>
                       <th 
                         scope="col" 
                         className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('valor_lista')}
                       >
-                        <div className="flex items-center justify-end">
-                          Valor UF
-                          {sortField === 'valor_lista' && (
-                            sortDirection === 'asc' ? 
-                              <ArrowUp className="h-4 w-4 ml-1" /> : 
-                              <ArrowDown className="h-4 w-4 ml-1" />
-                          )}
-                        </div>
+                        Valor UF
+                        {sortField === 'valor_lista' && (
+                          <span className="ml-1 inline-block">
+                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          </span>
+                        )}
                       </th>
                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Acción
@@ -1006,7 +945,7 @@ const BrokerQuotePage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {sortedUnidades.map((unidad) => (
+                    {sortedSecundarios.map((unidad) => (
                       <tr key={unidad.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {unidad.proyecto_nombre}
@@ -1021,35 +960,39 @@ const BrokerQuotePage: React.FC = () => {
                           {formatCurrency(unidad.valor_lista || 0)} UF
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          {selectedUnidad ? (
-                            <button
-                              onClick={() => handleAddSecondaryUnit(unidad)}
-                              className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition-colors"
-                              disabled={unidad.proyecto_nombre !== selectedUnidad.proyecto_nombre}
-                            >
-                              {unidad.proyecto_nombre === selectedUnidad.proyecto_nombre ? 
-                                'Agregar' : 
-                                'Proyecto diferente'}
-                            </button>
-                          ) : (
-                            <button
-                              className="text-gray-400 cursor-not-allowed px-3 py-1 rounded-md"
-                              disabled
-                            >
-                              Seleccione principal
-                            </button>
-                          )}
+                          <button
+                            onClick={() => {
+                              if (selectedUnidad) {
+                                if (unidad.proyecto_nombre === selectedUnidad.proyecto_nombre) {
+                                  handleAddSecondaryUnit(unidad);
+                                } else {
+                                  alert('Solo puede agregar unidades secundarias del mismo proyecto que la unidad principal');
+                                }
+                              } else {
+                                alert('Primero debe seleccionar una unidad principal');
+                              }
+                            }}
+                            className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded-md"
+                          >
+                            Agregar
+                          </button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              
+              {sortedSecundarios.length === 0 && (
+                <div className="text-center py-4 text-gray-500">
+                  No se encontraron unidades secundarias que coincidan con los filtros.
+                </div>
+              )}
             </div>
           </div>
         )}
         
-        {activeTab === 'configuracion' && selectedUnidad && (
+        {activeTab === 'configuracion' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Column - Unit Selection and Client Info */}
             <div className="lg:col-span-2 space-y-6">
@@ -1096,27 +1039,20 @@ const BrokerQuotePage: React.FC = () => {
                         </div>
                         
                         <ul className="py-1">
-                          {filteredUnidades
-                            .filter(unidad => unidad.tipo_bien === 'DEPARTAMENTO')
-                            .map(unidad => (
-                              <li key={unidad.id}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleSelectUnidad(unidad)}
-                                  className="w-full text-left px-4 py-2 hover:bg-gray-100"
-                                >
-                                  <div className="font-medium">{unidad.proyecto_nombre} - {unidad.unidad}</div>
-                                  <div className="text-sm text-gray-500">
-                                    {unidad.tipologia || unidad.tipo_bien} | {formatCurrency(unidad.valor_lista)} UF
-                                    {unidad.descuento > 0 && (
-                                      <span className="ml-2 text-green-600">
-                                        Descuento: {formatCurrency(unidad.descuento)}%
-                                      </span>
-                                    )}
-                                  </div>
-                                </button>
-                              </li>
-                            ))}
+                          {principalesUnidades.map(unidad => (
+                            <li key={unidad.id}>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectUnidad(unidad)}
+                                className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                              >
+                                <div className="font-medium">{unidad.proyecto_nombre} - {unidad.unidad}</div>
+                                <div className="text-sm text-gray-500">
+                                  {unidad.tipologia || unidad.tipo_bien} | {formatCurrency(unidad.valor_lista)} UF
+                                </div>
+                              </button>
+                            </li>
+                          ))}
                         </ul>
                       </div>
                     )}
@@ -1276,17 +1212,15 @@ const BrokerQuotePage: React.FC = () => {
                       </div>
                     </div>
                     
-                    {brokerCommissionRate !== null && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Descuento Broker
-                        </label>
-                        <div className="mt-1 text-gray-900 flex items-center text-green-600">
-                          {formatCurrency(brokerCommissionRate)}%
-                          <Percent className="h-4 w-4 ml-1" />
-                        </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Descuento Disponible
+                      </label>
+                      <div className="mt-1 text-gray-900 flex items-center">
+                        <Percent className="h-4 w-4 text-blue-500 mr-1" />
+                        {formatCurrency(selectedUnidad.descuento || 0)}%
                       </div>
-                    )}
+                    </div>
                   </div>
                   
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1441,13 +1375,13 @@ const BrokerQuotePage: React.FC = () => {
                       {(quotationType === 'descuento' || quotationType === 'mix') && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Porcentaje de Descuento
+                            Porcentaje de Descuento (Máx. {formatCurrency(selectedUnidad.descuento || 0)}%)
                           </label>
                           <div className="flex items-center">
                             <input
                               type="number"
                               min="0"
-                              max="100"
+                              max={selectedUnidad.descuento || 100}
                               step="0.01"
                               value={discountAmount}
                               onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
@@ -1570,6 +1504,7 @@ const BrokerQuotePage: React.FC = () => {
                               onChange={(e) => handlePromesaChange(parseFloat(e.target.value) || 0)}
                               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             />
+                            <span className="text-xs text-gray-500">UF</span>
                           </div>
                         </div>
                       </div>
@@ -1603,6 +1538,7 @@ const BrokerQuotePage: React.FC = () => {
                               onChange={(e) => handlePieChange(parseFloat(e.target.value) || 0)}
                               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             />
+                            <span className="text-xs text-gray-500">UF</span>
                           </div>
                         </div>
                       </div>
@@ -1611,17 +1547,23 @@ const BrokerQuotePage: React.FC = () => {
                       {commercialPolicy && commercialPolicy.bono_pie_max_pct > 0 && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Bono Pie (UF) - Máx {(commercialPolicy.bono_pie_max_pct * 100).toFixed(2)}%
+                            Bono Pie (UF) - Máx {(commercialPolicy.bono_pie_max_pct * 100).toFixed(2)}% o {formatCurrency(selectedUnidad.descuento || 0)}%
                           </label>
                           <input
                             type="number"
                             min="0"
-                            max={totalEscritura * commercialPolicy.bono_pie_max_pct}
+                            max={Math.min(
+                              totalEscritura * commercialPolicy.bono_pie_max_pct,
+                              totalEscritura * (selectedUnidad.descuento || 0) / 100
+                            )}
                             step="0.01"
                             value={pagoBonoPieCotizacion}
                             onChange={(e) => {
                               const value = parseFloat(e.target.value) || 0;
-                              const maxBono = totalEscritura * commercialPolicy.bono_pie_max_pct;
+                              const maxBono = Math.min(
+                                totalEscritura * commercialPolicy.bono_pie_max_pct,
+                                totalEscritura * (selectedUnidad.descuento || 0) / 100
+                              );
                               setPagoBonoPieCotizacion(Math.min(value, maxBono));
                             }}
                             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
