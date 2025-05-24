@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
 import { useUFStore } from '../../stores/ufStore';
-import { Building, Home, DollarSign, Calculator, Download, Check, X, Search, ChevronDown, ChevronUp, Percent, Plus, AlertTriangle } from 'lucide-react';
+import { Building, Home, DollarSign, Calculator, Download, Check, X, Search, ChevronDown, ChevronUp, Plus, AlertTriangle } from 'lucide-react';
 
 // Interfaces
 interface StockUnidad {
@@ -20,7 +20,7 @@ interface StockUnidad {
   sup_total: number;
   valor_lista: number;
   estado_unidad: string;
-  descuento?: number; // Added for broker commission rate
+  descuento: number | null;
 }
 
 interface Broker {
@@ -110,25 +110,6 @@ const fetchBrokerCommissionRate = async (brokerId: string, projectName: string):
   }
 };
 
-// Format deadline date
-const formatDeadlineDate = (dateString: string | null): string => {
-  if (!dateString) return 'No especificada';
-  
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const date = new Date(dateString);
-  date.setHours(0, 0, 0, 0);
-  
-  // If date is today or in the past, return "INMEDIATA"
-  if (date <= today) {
-    return "INMEDIATA";
-  }
-  
-  // Otherwise, format the date
-  return new Intl.DateTimeFormat('es-CL').format(date);
-};
-
 // Main component
 const BrokerQuotePage: React.FC = () => {
   const { brokerSlug, accessToken } = useParams<{ brokerSlug: string; accessToken: string }>();
@@ -146,11 +127,11 @@ const BrokerQuotePage: React.FC = () => {
   const [showSecondaryUnitsDropdown, setShowSecondaryUnitsDropdown] = useState(false);
   const [commercialPolicy, setCommercialPolicy] = useState<ProjectCommercialPolicy | null>(null);
   const [activeTab, setActiveTab] = useState<'principales' | 'secundarios' | 'configuracion'>('principales');
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [selectedTipologia, setSelectedTipologia] = useState<string>('');
-  const [sortField, setSortField] = useState<string>('unidad');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [brokerCommissions, setBrokerCommissions] = useState<Record<string, number>>({});
+  const [brokerCommissionRate, setBrokerCommissionRate] = useState<number | null>(null);
   
   // Form state
   const [clientName, setClientName] = useState('');
@@ -185,7 +166,7 @@ const BrokerQuotePage: React.FC = () => {
         setBroker(validatedBroker);
         
         // Fetch available units
-        await fetchAllUnits(validatedBroker.id);
+        await fetchAllUnits();
         
       } catch (err: any) {
         console.error('Error initializing page:', err);
@@ -198,58 +179,34 @@ const BrokerQuotePage: React.FC = () => {
     initializePage();
   }, [brokerSlug, accessToken]);
   
-  // Fetch all units with pagination
-  const fetchAllUnits = async (brokerId: string) => {
+  // Fetch all units with pagination to handle large datasets
+  const fetchAllUnits = async () => {
     try {
-      const PAGE_SIZE = 1000;
       let allUnits: StockUnidad[] = [];
-      let page = 0;
-      let hasMore = true;
+      let from = 0;
+      const size = 1000; // Fetch in batches of 1000
       
-      while (hasMore) {
-        const from = page * PAGE_SIZE;
-        const to = from + PAGE_SIZE - 1;
-        
-        const { data, error } = await supabase
+      while (true) {
+        const { data, error, count } = await supabase
           .from('stock_unidades')
-          .select('*')
+          .select('*', { count: 'exact' })
           .eq('estado_unidad', 'Disponible')
-          .range(from, to);
+          .range(from, from + size - 1)
+          .order('proyecto_nombre', { ascending: true })
+          .order('unidad', { ascending: true });
           
         if (error) throw error;
         
-        if (data.length === 0) {
-          hasMore = false;
+        if (data && data.length > 0) {
+          allUnits = [...allUnits, ...data];
+          from += size;
+          
+          // If we got fewer records than requested, we've reached the end
+          if (data.length < size) break;
         } else {
-          // Fetch commission rates for each project
-          const projectNames = Array.from(new Set(data.map(unit => unit.proyecto_nombre)));
-          const commissionRates: Record<string, number> = {};
-          
-          for (const projectName of projectNames) {
-            const rate = await fetchBrokerCommissionRate(brokerId, projectName);
-            if (rate !== null) {
-              commissionRates[projectName] = rate;
-            }
-          }
-          
-          // Add commission rates to units
-          const unitsWithCommission = data.map(unit => ({
-            ...unit,
-            descuento: commissionRates[unit.proyecto_nombre] || 0
-          }));
-          
-          allUnits = [...allUnits, ...unitsWithCommission];
-          page++;
+          break; // No more data
         }
       }
-      
-      setBrokerCommissions(Object.fromEntries(
-        allUnits
-          .filter((unit, index, self) => 
-            index === self.findIndex(u => u.proyecto_nombre === unit.proyecto_nombre)
-          )
-          .map(unit => [unit.proyecto_nombre, unit.descuento || 0])
-      ));
       
       setUnidades(allUnits);
     } catch (error) {
@@ -272,59 +229,103 @@ const BrokerQuotePage: React.FC = () => {
             setPagoReserva(parseFloat((policy.monto_reserva_pesos / ufValue).toFixed(2)));
           }
           
-          // Set default discount based on broker commission rate
-          if (selectedUnidad.descuento) {
-            setDiscountAmount(selectedUnidad.descuento);
-          }
-          
           // Set default bono pie max percentage
           if (policy.bono_pie_max_pct) {
+            const maxBonoPct = policy.bono_pie_max_pct;
             // This is stored as decimal in DB (e.g., 0.15 for 15%)
-            const maxBonoPct = policy.bono_pie_max_pct * 100;
             setPagoBonoPieCotizacion(0); // Initialize to 0, user can adjust up to max
           }
+        }
+        
+        // Fetch broker commission rate for this project
+        if (broker) {
+          const commissionRate = await fetchBrokerCommissionRate(broker.id, selectedUnidad.proyecto_nombre);
+          setBrokerCommissionRate(commissionRate);
         }
       }
     };
     
     fetchPolicy();
-  }, [selectedUnidad, ufValue]);
+  }, [selectedUnidad, ufValue, broker]);
+  
+  // Get unique projects for filtering
+  const uniqueProjects = useMemo(() => {
+    return Array.from(new Set(unidades.map(u => u.proyecto_nombre)));
+  }, [unidades]);
+  
+  // Get unique tipologias for the selected project
+  const uniqueTipologias = useMemo(() => {
+    if (!selectedProject) return [];
+    return Array.from(
+      new Set(
+        unidades
+          .filter(u => u.proyecto_nombre === selectedProject && u.tipo_bien === 'DEPARTAMENTO')
+          .map(u => u.tipologia)
+          .filter(Boolean) as string[]
+      )
+    );
+  }, [unidades, selectedProject]);
   
   // Filter units based on search term, project and tipologia
   const filteredUnidades = useMemo(() => {
     let filtered = unidades;
     
+    // Filter by project if selected
     if (selectedProject) {
-      filtered = filtered.filter(unidad => unidad.proyecto_nombre === selectedProject);
+      filtered = filtered.filter(u => u.proyecto_nombre === selectedProject);
     }
     
-    if (selectedTipologia) {
-      filtered = filtered.filter(unidad => unidad.tipologia === selectedTipologia);
+    // Filter by tipologia if selected (only for DEPARTAMENTO)
+    if (selectedTipologia && activeTab === 'principales') {
+      filtered = filtered.filter(u => u.tipologia === selectedTipologia);
     }
     
+    // Filter by tipo_bien based on active tab
+    if (activeTab === 'principales') {
+      filtered = filtered.filter(u => u.tipo_bien === 'DEPARTAMENTO');
+    } else if (activeTab === 'secundarios') {
+      filtered = filtered.filter(u => u.tipo_bien !== 'DEPARTAMENTO');
+    }
+    
+    // Filter by search term if provided
     if (searchTerm.trim()) {
-      filtered = filtered.filter(unidad => 
-        unidad.proyecto_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        unidad.unidad.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        unidad.tipologia?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        unidad.tipo_bien.toLowerCase().includes(searchTerm.toLowerCase())
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(u => 
+        u.proyecto_nombre.toLowerCase().includes(term) ||
+        u.unidad.toLowerCase().includes(term) ||
+        (u.tipologia && u.tipologia.toLowerCase().includes(term)) ||
+        u.tipo_bien.toLowerCase().includes(term)
       );
     }
     
+    // Apply sorting if set
+    if (sortField) {
+      filtered = [...filtered].sort((a, b) => {
+        let valueA: any = a[sortField as keyof StockUnidad];
+        let valueB: any = b[sortField as keyof StockUnidad];
+        
+        // Handle null values
+        if (valueA === null) valueA = '';
+        if (valueB === null) valueB = '';
+        
+        // Compare based on type
+        let comparison = 0;
+        if (typeof valueA === 'string' && typeof valueB === 'string') {
+          comparison = valueA.localeCompare(valueB);
+        } else if (typeof valueA === 'number' && typeof valueB === 'number') {
+          comparison = valueA - valueB;
+        } else {
+          comparison = String(valueA).localeCompare(String(valueB));
+        }
+        
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
+    
     return filtered;
-  }, [unidades, searchTerm, selectedProject, selectedTipologia]);
+  }, [unidades, searchTerm, activeTab, selectedProject, selectedTipologia, sortField, sortDirection]);
   
-  // Filter main units (departamentos)
-  const principalesUnidades = useMemo(() => {
-    return filteredUnidades.filter(unidad => unidad.tipo_bien === 'DEPARTAMENTO');
-  }, [filteredUnidades]);
-  
-  // Filter secondary units (parking, storage)
-  const secundariosUnidades = useMemo(() => {
-    return filteredUnidades.filter(unidad => unidad.tipo_bien !== 'DEPARTAMENTO');
-  }, [filteredUnidades]);
-  
-  // Filter secondary units based on selected unit's project
+  // Filter secondary units (parking, storage) based on selected unit's project
   const availableSecondaryUnits = useMemo(() => {
     if (!selectedUnidad) return [];
     
@@ -334,21 +335,6 @@ const BrokerQuotePage: React.FC = () => {
       !addedSecondaryUnits.some(added => added.id === unidad.id)
     );
   }, [unidades, selectedUnidad, addedSecondaryUnits]);
-  
-  // Get unique projects
-  const proyectos = useMemo(() => {
-    return Array.from(new Set(unidades.map(u => u.proyecto_nombre)));
-  }, [unidades]);
-  
-  // Get unique tipologias for selected project
-  const tipologias = useMemo(() => {
-    if (!selectedProject) return [];
-    return Array.from(new Set(
-      unidades
-        .filter(u => u.proyecto_nombre === selectedProject && u.tipo_bien === 'DEPARTAMENTO' && u.tipologia)
-        .map(u => u.tipologia as string)
-    ));
-  }, [unidades, selectedProject]);
   
   // Calculate prices
   const precioBaseDepartamento = selectedUnidad?.valor_lista || 0;
@@ -389,6 +375,31 @@ const BrokerQuotePage: React.FC = () => {
     return pagoReserva + pagoPromesa + pagoPie + pagoCreditoHipotecarioCalculado + pagoBonoPieCotizacion;
   }, [pagoReserva, pagoPromesa, pagoPie, pagoCreditoHipotecarioCalculado, pagoBonoPieCotizacion]);
   
+  // Calculate available discount for broker
+  const calculateBrokerDiscount = (unidad: StockUnidad): number => {
+    if (!brokerCommissionRate || !unidad.descuento) return unidad.descuento || 0;
+    
+    // Original price
+    const precioOriginal = unidad.valor_lista;
+    
+    // Minimum price after discount
+    const precioMinimo = precioOriginal * (1 - (unidad.descuento / 100));
+    
+    // Broker commission amount
+    const comisionBroker = precioMinimo * (brokerCommissionRate / 100);
+    
+    // Price with commission
+    const precioConComision = precioMinimo + comisionBroker;
+    
+    // Available discount amount
+    const montoDescuentoDisponible = precioOriginal - precioConComision;
+    
+    // Available discount percentage
+    const porcentajeDescuentoDisponible = (montoDescuentoDisponible / precioOriginal) * 100;
+    
+    return Math.max(0, porcentajeDescuentoDisponible);
+  };
+  
   // Handle unit selection
   const handleSelectUnidad = (unidad: StockUnidad) => {
     setSelectedUnidad(unidad);
@@ -404,11 +415,6 @@ const BrokerQuotePage: React.FC = () => {
     setPagoPiePct(0);
     setPagoBonoPieCotizacion(0);
     setAddedSecondaryUnits([]);
-    
-    // Set discount to the broker's commission rate for this project
-    if (unidad.descuento) {
-      setDiscountAmount(unidad.descuento);
-    }
   };
   
   // Add secondary unit
@@ -474,65 +480,20 @@ const BrokerQuotePage: React.FC = () => {
     }
   };
   
-  // Sort units
-  const sortedPrincipales = useMemo(() => {
-    return [...principalesUnidades].sort((a, b) => {
-      let comparison = 0;
-      
-      switch (sortField) {
-        case 'proyecto_nombre':
-          comparison = a.proyecto_nombre.localeCompare(b.proyecto_nombre);
-          break;
-        case 'unidad':
-          comparison = a.unidad.localeCompare(b.unidad);
-          break;
-        case 'tipologia':
-          comparison = (a.tipologia || '').localeCompare(b.tipologia || '');
-          break;
-        case 'piso':
-          comparison = (a.piso || '').localeCompare(b.piso || '');
-          break;
-        case 'sup_util':
-          comparison = (a.sup_util || 0) - (b.sup_util || 0);
-          break;
-        case 'valor_lista':
-          comparison = (a.valor_lista || 0) - (b.valor_lista || 0);
-          break;
-        case 'descuento':
-          comparison = (a.descuento || 0) - (b.descuento || 0);
-          break;
-        default:
-          comparison = 0;
-      }
-      
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-  }, [principalesUnidades, sortField, sortDirection]);
-  
-  const sortedSecundarios = useMemo(() => {
-    return [...secundariosUnidades].sort((a, b) => {
-      let comparison = 0;
-      
-      switch (sortField) {
-        case 'proyecto_nombre':
-          comparison = a.proyecto_nombre.localeCompare(b.proyecto_nombre);
-          break;
-        case 'unidad':
-          comparison = a.unidad.localeCompare(b.unidad);
-          break;
-        case 'tipo_bien':
-          comparison = a.tipo_bien.localeCompare(b.tipo_bien);
-          break;
-        case 'valor_lista':
-          comparison = (a.valor_lista || 0) - (b.valor_lista || 0);
-          break;
-        default:
-          comparison = 0;
-      }
-      
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-  }, [secundariosUnidades, sortField, sortDirection]);
+  // Format date for display
+  const formatDate = (dateString: string | null): string => {
+    if (!dateString) return 'No especificada';
+    
+    const date = new Date(dateString);
+    const today = new Date();
+    
+    // Check if date is in the past
+    if (date < today) {
+      return 'INMEDIATA';
+    }
+    
+    return new Intl.DateTimeFormat('es-CL').format(date);
+  };
   
   if (loading) {
     return (
@@ -630,17 +591,12 @@ const BrokerQuotePage: React.FC = () => {
           </nav>
         </div>
         
-        {/* Tab Content */}
+        {/* Principales Tab */}
         {activeTab === 'principales' && (
           <div>
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Home className="h-5 w-5 text-blue-500 mr-2" />
-                Unidades Principales
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                {/* Project filter */}
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Filtros</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Proyecto
@@ -654,13 +610,12 @@ const BrokerQuotePage: React.FC = () => {
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   >
                     <option value="">Todos los proyectos</option>
-                    {proyectos.map(proyecto => (
-                      <option key={proyecto} value={proyecto}>{proyecto}</option>
+                    {uniqueProjects.map(project => (
+                      <option key={project} value={project}>{project}</option>
                     ))}
                   </select>
                 </div>
                 
-                {/* Tipologia filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Tipología
@@ -672,13 +627,12 @@ const BrokerQuotePage: React.FC = () => {
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                   >
                     <option value="">Todas las tipologías</option>
-                    {tipologias.map(tipologia => (
+                    {uniqueTipologias.map(tipologia => (
                       <option key={tipologia} value={tipologia}>{tipologia}</option>
                     ))}
                   </select>
                 </div>
                 
-                {/* Search */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Buscar
@@ -697,160 +651,147 @@ const BrokerQuotePage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+            </div>
+            
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th 
-                        scope="col" 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('proyecto_nombre')}
                       >
                         Proyecto
                         {sortField === 'proyecto_nombre' && (
-                          <span className="ml-1 inline-block">
-                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? <ChevronUp className="inline-block h-4 w-4" /> : <ChevronDown className="inline-block h-4 w-4" />}
                           </span>
                         )}
                       </th>
                       <th 
-                        scope="col" 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('unidad')}
                       >
-                        N° Unidad
+                        Unidad
                         {sortField === 'unidad' && (
-                          <span className="ml-1 inline-block">
-                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? <ChevronUp className="inline-block h-4 w-4" /> : <ChevronDown className="inline-block h-4 w-4" />}
                           </span>
                         )}
                       </th>
                       <th 
-                        scope="col" 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('tipologia')}
                       >
                         Tipología
                         {sortField === 'tipologia' && (
-                          <span className="ml-1 inline-block">
-                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? <ChevronUp className="inline-block h-4 w-4" /> : <ChevronDown className="inline-block h-4 w-4" />}
                           </span>
                         )}
                       </th>
                       <th 
-                        scope="col" 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('piso')}
                       >
                         Piso
                         {sortField === 'piso' && (
-                          <span className="ml-1 inline-block">
-                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? <ChevronUp className="inline-block h-4 w-4" /> : <ChevronDown className="inline-block h-4 w-4" />}
                           </span>
                         )}
                       </th>
                       <th 
-                        scope="col" 
                         className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('sup_util')}
                       >
                         Sup. Útil
                         {sortField === 'sup_util' && (
-                          <span className="ml-1 inline-block">
-                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? <ChevronUp className="inline-block h-4 w-4" /> : <ChevronDown className="inline-block h-4 w-4" />}
                           </span>
                         )}
                       </th>
                       <th 
-                        scope="col" 
                         className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('valor_lista')}
                       >
                         Valor UF
                         {sortField === 'valor_lista' && (
-                          <span className="ml-1 inline-block">
-                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? <ChevronUp className="inline-block h-4 w-4" /> : <ChevronDown className="inline-block h-4 w-4" />}
                           </span>
                         )}
                       </th>
                       <th 
-                        scope="col" 
                         className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('descuento')}
                       >
                         Descuento
                         {sortField === 'descuento' && (
-                          <span className="ml-1 inline-block">
-                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? <ChevronUp className="inline-block h-4 w-4" /> : <ChevronDown className="inline-block h-4 w-4" />}
                           </span>
                         )}
                       </th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Acción
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {sortedPrincipales.map((unidad) => (
-                      <tr key={unidad.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {unidad.proyecto_nombre}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {unidad.unidad}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {unidad.tipologia || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {unidad.piso || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
-                          {formatCurrency(unidad.sup_util || 0)} m²
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                          {formatCurrency(unidad.valor_lista || 0)} UF
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                          <div className="flex items-center justify-end">
-                            <Percent className="h-4 w-4 text-blue-500 mr-1" />
-                            {formatCurrency(unidad.descuento || 0)}%
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => handleSelectUnidad(unidad)}
-                            className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded-md"
-                          >
-                            Seleccionar
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredUnidades.map((unidad) => {
+                      // Calculate broker discount
+                      const brokerDiscount = calculateBrokerDiscount(unidad);
+                      
+                      return (
+                        <tr key={unidad.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {unidad.proyecto_nombre}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {unidad.unidad}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {unidad.tipologia || '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {unidad.piso || '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                            {formatCurrency(unidad.sup_util || 0)} m²
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                            {formatCurrency(unidad.valor_lista || 0)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600 text-right">
+                            {formatCurrency(brokerDiscount)}%
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <button
+                              onClick={() => handleSelectUnidad(unidad)}
+                              className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            >
+                              Seleccionar
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-              
-              {sortedPrincipales.length === 0 && (
-                <div className="text-center py-4 text-gray-500">
-                  No se encontraron unidades que coincidan con los filtros.
-                </div>
-              )}
             </div>
           </div>
         )}
         
+        {/* Secundarios Tab */}
         {activeTab === 'secundarios' && (
           <div>
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Home className="h-5 w-5 text-blue-500 mr-2" />
-                Unidades Secundarias
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                {/* Project filter */}
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Filtros</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Proyecto
@@ -861,14 +802,13 @@ const BrokerQuotePage: React.FC = () => {
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   >
                     <option value="">Todos los proyectos</option>
-                    {proyectos.map(proyecto => (
-                      <option key={proyecto} value={proyecto}>{proyecto}</option>
+                    {uniqueProjects.map(project => (
+                      <option key={project} value={project}>{project}</option>
                     ))}
                   </select>
                 </div>
                 
-                {/* Search */}
-                <div className="md:col-span-2">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Buscar
                   </label>
@@ -878,7 +818,7 @@ const BrokerQuotePage: React.FC = () => {
                     </div>
                     <input
                       type="text"
-                      placeholder="Buscar unidad secundaria..."
+                      placeholder="Buscar unidad..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
@@ -886,66 +826,64 @@ const BrokerQuotePage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+            </div>
+            
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th 
-                        scope="col" 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('proyecto_nombre')}
                       >
                         Proyecto
                         {sortField === 'proyecto_nombre' && (
-                          <span className="ml-1 inline-block">
-                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? <ChevronUp className="inline-block h-4 w-4" /> : <ChevronDown className="inline-block h-4 w-4" />}
                           </span>
                         )}
                       </th>
                       <th 
-                        scope="col" 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('unidad')}
                       >
-                        N° Unidad
+                        Unidad
                         {sortField === 'unidad' && (
-                          <span className="ml-1 inline-block">
-                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? <ChevronUp className="inline-block h-4 w-4" /> : <ChevronDown className="inline-block h-4 w-4" />}
                           </span>
                         )}
                       </th>
                       <th 
-                        scope="col" 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('tipo_bien')}
                       >
                         Tipo
                         {sortField === 'tipo_bien' && (
-                          <span className="ml-1 inline-block">
-                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? <ChevronUp className="inline-block h-4 w-4" /> : <ChevronDown className="inline-block h-4 w-4" />}
                           </span>
                         )}
                       </th>
                       <th 
-                        scope="col" 
                         className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('valor_lista')}
                       >
                         Valor UF
                         {sortField === 'valor_lista' && (
-                          <span className="ml-1 inline-block">
-                            {sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? <ChevronUp className="inline-block h-4 w-4" /> : <ChevronDown className="inline-block h-4 w-4" />}
                           </span>
                         )}
                       </th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Acción
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {sortedSecundarios.map((unidad) => (
+                    {filteredUnidades.map((unidad) => (
                       <tr key={unidad.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {unidad.proyecto_nombre}
@@ -956,23 +894,20 @@ const BrokerQuotePage: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {unidad.tipo_bien}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                          {formatCurrency(unidad.valor_lista || 0)} UF
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                          {formatCurrency(unidad.valor_lista || 0)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
                           <button
                             onClick={() => {
                               if (selectedUnidad) {
-                                if (unidad.proyecto_nombre === selectedUnidad.proyecto_nombre) {
-                                  handleAddSecondaryUnit(unidad);
-                                } else {
-                                  alert('Solo puede agregar unidades secundarias del mismo proyecto que la unidad principal');
-                                }
+                                handleAddSecondaryUnit(unidad);
                               } else {
                                 alert('Primero debe seleccionar una unidad principal');
                               }
                             }}
-                            className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded-md"
+                            className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            disabled={!selectedUnidad}
                           >
                             Agregar
                           </button>
@@ -982,16 +917,11 @@ const BrokerQuotePage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-              
-              {sortedSecundarios.length === 0 && (
-                <div className="text-center py-4 text-gray-500">
-                  No se encontraron unidades secundarias que coincidan con los filtros.
-                </div>
-              )}
             </div>
           </div>
         )}
         
+        {/* Configuración Cotización Tab */}
         {activeTab === 'configuracion' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Column - Unit Selection and Client Info */}
@@ -1039,20 +969,22 @@ const BrokerQuotePage: React.FC = () => {
                         </div>
                         
                         <ul className="py-1">
-                          {principalesUnidades.map(unidad => (
-                            <li key={unidad.id}>
-                              <button
-                                type="button"
-                                onClick={() => handleSelectUnidad(unidad)}
-                                className="w-full text-left px-4 py-2 hover:bg-gray-100"
-                              >
-                                <div className="font-medium">{unidad.proyecto_nombre} - {unidad.unidad}</div>
-                                <div className="text-sm text-gray-500">
-                                  {unidad.tipologia || unidad.tipo_bien} | {formatCurrency(unidad.valor_lista)} UF
-                                </div>
-                              </button>
-                            </li>
-                          ))}
+                          {filteredUnidades
+                            .filter(unidad => unidad.tipo_bien === 'DEPARTAMENTO')
+                            .map(unidad => (
+                              <li key={unidad.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSelectUnidad(unidad)}
+                                  className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                                >
+                                  <div className="font-medium">{unidad.proyecto_nombre} - {unidad.unidad}</div>
+                                  <div className="text-sm text-gray-500">
+                                    {unidad.tipologia || unidad.tipo_bien} | {formatCurrency(unidad.valor_lista)} UF
+                                  </div>
+                                </button>
+                              </li>
+                            ))}
                         </ul>
                       </div>
                     )}
@@ -1211,16 +1143,6 @@ const BrokerQuotePage: React.FC = () => {
                         {selectedUnidad.orientacion || 'N/A'}
                       </div>
                     </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Descuento Disponible
-                      </label>
-                      <div className="mt-1 text-gray-900 flex items-center">
-                        <Percent className="h-4 w-4 text-blue-500 mr-1" />
-                        {formatCurrency(selectedUnidad.descuento || 0)}%
-                      </div>
-                    </div>
                   </div>
                   
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1287,7 +1209,7 @@ const BrokerQuotePage: React.FC = () => {
                           Fecha Tope
                         </label>
                         <div className="mt-1 text-gray-900">
-                          {formatDeadlineDate(commercialPolicy.fecha_tope)}
+                          {formatDate(commercialPolicy.fecha_tope)}
                         </div>
                       </div>
                     )}
@@ -1375,13 +1297,13 @@ const BrokerQuotePage: React.FC = () => {
                       {(quotationType === 'descuento' || quotationType === 'mix') && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Porcentaje de Descuento (Máx. {formatCurrency(selectedUnidad.descuento || 0)}%)
+                            Porcentaje de Descuento
                           </label>
                           <div className="flex items-center">
                             <input
                               type="number"
                               min="0"
-                              max={selectedUnidad.descuento || 100}
+                              max="100"
                               step="0.01"
                               value={discountAmount}
                               onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
@@ -1504,7 +1426,6 @@ const BrokerQuotePage: React.FC = () => {
                               onChange={(e) => handlePromesaChange(parseFloat(e.target.value) || 0)}
                               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             />
-                            <span className="text-xs text-gray-500">UF</span>
                           </div>
                         </div>
                       </div>
@@ -1538,7 +1459,6 @@ const BrokerQuotePage: React.FC = () => {
                               onChange={(e) => handlePieChange(parseFloat(e.target.value) || 0)}
                               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             />
-                            <span className="text-xs text-gray-500">UF</span>
                           </div>
                         </div>
                       </div>
@@ -1547,23 +1467,17 @@ const BrokerQuotePage: React.FC = () => {
                       {commercialPolicy && commercialPolicy.bono_pie_max_pct > 0 && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Bono Pie (UF) - Máx {(commercialPolicy.bono_pie_max_pct * 100).toFixed(2)}% o {formatCurrency(selectedUnidad.descuento || 0)}%
+                            Bono Pie (UF) - Máx {(commercialPolicy.bono_pie_max_pct * 100).toFixed(2)}%
                           </label>
                           <input
                             type="number"
                             min="0"
-                            max={Math.min(
-                              totalEscritura * commercialPolicy.bono_pie_max_pct,
-                              totalEscritura * (selectedUnidad.descuento || 0) / 100
-                            )}
+                            max={totalEscritura * commercialPolicy.bono_pie_max_pct}
                             step="0.01"
                             value={pagoBonoPieCotizacion}
                             onChange={(e) => {
                               const value = parseFloat(e.target.value) || 0;
-                              const maxBono = Math.min(
-                                totalEscritura * commercialPolicy.bono_pie_max_pct,
-                                totalEscritura * (selectedUnidad.descuento || 0) / 100
-                              );
+                              const maxBono = totalEscritura * commercialPolicy.bono_pie_max_pct;
                               setPagoBonoPieCotizacion(Math.min(value, maxBono));
                             }}
                             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
