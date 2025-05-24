@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { PDFDownloadLink } from '@react-pdf/renderer';
-import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF'; // Asumo que este componente está correctamente implementado
+import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
 import { useUFStore } from '../../stores/ufStore';
 import { Building, Home, DollarSign, Calculator, Download, X, Search, ChevronDown, ChevronUp, Plus, AlertTriangle } from 'lucide-react';
 
@@ -20,7 +20,7 @@ interface StockUnidad {
   sup_total: number;
   valor_lista: number;
   estado_unidad: string;
-  descuento: number | null;
+  descuento: number | null; // Descuento general de la inmobiliaria (Ej: 20 para 20%)
 }
 
 interface Broker {
@@ -49,7 +49,7 @@ const validateBroker = async (slug: string, token: string): Promise<Broker | nul
       .eq('slug', slug)
       .eq('public_access_token', token)
       .single();
-    if (error) throw new Error('Error de validación:\n\nAcceso denegado: token inválido');
+    if (error) throw new Error(`Error de validación del broker: ${error.message}`);
     return data;
   } catch (error) {
     console.error('Error validating broker:', error);
@@ -65,7 +65,7 @@ const fetchCommercialPolicy = async (projectName: string): Promise<ProjectCommer
       .select('*')
       .eq('project_name', projectName)
       .maybeSingle();
-    if (error && error.code !== 'PGRST116') throw error;
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116: No rows found, ok for maybeSingle
     return data;
   } catch (error) {
     console.error('Error in fetchCommercialPolicy:', error);
@@ -79,7 +79,8 @@ const BrokerQuotePage: React.FC = () => {
   const { ufValue, fetchUFValue } = useUFStore();
   
   const [broker, setBroker] = useState<Broker | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(true); // General page loading
+  const [commissionsLoading, setCommissionsLoading] = useState(true); // Specific for commissions map
   const [error, setError] = useState<string | null>(null);
   const [unidades, setUnidades] = useState<StockUnidad[]>([]);
   const [selectedUnidad, setSelectedUnidad] = useState<StockUnidad | null>(null);
@@ -94,13 +95,11 @@ const BrokerQuotePage: React.FC = () => {
   
   const [currentBrokerCommissionRateForSelectedUnit, setCurrentBrokerCommissionRateForSelectedUnit] = useState<number | null>(null);
   const [brokerCommissionsMap, setBrokerCommissionsMap] = useState<Map<string, number>>(new Map());
-  const [commissionsLoading, setCommissionsLoading] = useState(true);
-
 
   const [clientName, setClientName] = useState('');
   const [clientRut, setClientRut] = useState('');
   const [quotationType, setQuotationType] = useState<'descuento' | 'bono' | 'mix'>('descuento');
-  const [discountAmount, setDiscountAmount] = useState(0);
+  const [discountAmount, setDiscountAmount] = useState(0); // User input for quote config
   const [bonoAmount, setBonoAmount] = useState(0);
   const [pagoReserva, setPagoReserva] = useState(0);
   const [pagoPromesa, setPagoPromesa] = useState(0);
@@ -115,11 +114,12 @@ const BrokerQuotePage: React.FC = () => {
   
   useEffect(() => {
     const initializePage = async () => {
-      setLoading(true);
-      setError(null);
+      setPageLoading(true);
       setCommissionsLoading(true);
+      setError(null);
       try {
-        if (!brokerSlug || !accessToken) throw new Error('Parámetros de acceso inválidos');
+        if (!brokerSlug || !accessToken) throw new Error('Parámetros de acceso inválidos.');
+        
         const validatedBroker = await validateBroker(brokerSlug, accessToken);
         setBroker(validatedBroker);
         
@@ -129,7 +129,7 @@ const BrokerQuotePage: React.FC = () => {
             .select('project_name, commission_rate')
             .eq('broker_id', validatedBroker.id);
 
-          if (commissionsError) throw commissionsError;
+          if (commissionsError) throw new Error(`Error cargando comisiones del broker: ${commissionsError.message}`);
 
           const newMap = new Map<string, number>();
           commissionsData?.forEach(comm => {
@@ -138,17 +138,15 @@ const BrokerQuotePage: React.FC = () => {
             }
           });
           setBrokerCommissionsMap(newMap);
-          setCommissionsLoading(false);
-        } else {
-          setCommissionsLoading(false);
         }
-        await fetchAllUnits();
+        setCommissionsLoading(false); // Commissions loaded or broker validation failed
+        await fetchAllUnits(); // Fetch units after broker and commissions logic
       } catch (err: any) {
         console.error('Error initializing page:', err);
-        setError(err.message || 'Error al cargar la página');
+        setError(err.message || 'Error al cargar la página.');
         setCommissionsLoading(false);
       } finally {
-        setLoading(false);
+        setPageLoading(false);
       }
     };
     initializePage();
@@ -160,14 +158,14 @@ const BrokerQuotePage: React.FC = () => {
       let from = 0;
       const size = 1000;
       while (true) {
-        const { data, error } = await supabase
+        const { data, error: unitsError } = await supabase
           .from('stock_unidades')
           .select('*')
           .eq('estado_unidad', 'Disponible')
           .range(from, from + size - 1)
           .order('proyecto_nombre', { ascending: true })
           .order('unidad', { ascending: true });
-        if (error) throw error;
+        if (unitsError) throw new Error(`Error cargando unidades de stock: ${unitsError.message}`);
         if (data && data.length > 0) {
           allUnitsData = [...allUnitsData, ...data];
           from += size;
@@ -177,9 +175,9 @@ const BrokerQuotePage: React.FC = () => {
         }
       }
       setUnidades(allUnitsData);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching units:', err);
-      setError('Error al cargar unidades de stock.');
+      setError(err.message || 'Error al cargar unidades de stock.');
     }
   };
   
@@ -196,9 +194,7 @@ const BrokerQuotePage: React.FC = () => {
           if (policy) {
             if (ufValue && policy.monto_reserva_pesos) {
               setPagoReserva(parseFloat((policy.monto_reserva_pesos / ufValue).toFixed(2)));
-            } else {
-              setPagoReserva(0);
-            }
+            } else { setPagoReserva(0); }
             setPagoBonoPieCotizacion(0);
           } else {
             setPagoReserva(0);
@@ -219,34 +215,34 @@ const BrokerQuotePage: React.FC = () => {
 
   const calculateBrokerMaxDiscountPercentage = (
     unidad: StockUnidad, 
-    commissionRateForProject: number | null | undefined
+    commissionRateForProject: number | null | undefined // Ej: 5 para 5%
   ): number => {
-    const unidadDescuentoGeneral = unidad.descuento;
+    const unidadDescuentoGeneral = unidad.descuento; // Ej: 20 para 20%
   
+    // Si no hay tasa de comisión para ESTE PROYECTO o no hay descuento base en la unidad,
+    // se devuelve el descuento general de la unidad (o 0 si tampoco existe).
     if (typeof commissionRateForProject !== 'number' || commissionRateForProject === null ||
         typeof unidadDescuentoGeneral !== 'number' || unidadDescuentoGeneral === null) {
       return unidadDescuentoGeneral || 0;
     }
   
     const precioOriginal = unidad.valor_lista;
-    if (precioOriginal <= 0) return 0;
+    if (precioOriginal <= 0) return 0; // Evitar división por cero o cálculos sin sentido.
   
     const precioMinimoInmobiliaria = precioOriginal * (1 - (unidadDescuentoGeneral / 100));
-    const montoComisionBroker = precioMinimoInmobiliaria * (commissionRateForProject / 100);
+    const montoComisionBroker = precioMinimoInmobiliaria * (commissionRateForProject / 100); 
     const precioMinimoConComisionBroker = precioMinimoInmobiliaria + montoComisionBroker;
     const montoDescuentoBrokerPuedeOfrecer = precioOriginal - precioMinimoConComisionBroker;
     
     let porcentajeDescuentoBrokerPuedeOfrecer = 0;
-    if (precioOriginal > 0) { // Evitar división por cero
+    if (precioOriginal > 0) {
         porcentajeDescuentoBrokerPuedeOfrecer = (montoDescuentoBrokerPuedeOfrecer / precioOriginal) * 100;
     }
-  
+    
     return Math.max(0, parseFloat(porcentajeDescuentoBrokerPuedeOfrecer.toFixed(2)));
   };
   
-
   const uniqueProjects = useMemo(() => Array.from(new Set(unidades.map(u => u.proyecto_nombre))), [unidades]);
-  
   const uniqueTipologias = useMemo(() => {
     if (!selectedProjectFilter) return [];
     return Array.from(new Set(unidades.filter(u => u.proyecto_nombre === selectedProjectFilter && u.tipo_bien === 'DEPARTAMENTO').map(u => u.tipologia).filter(Boolean) as string[]));
@@ -414,13 +410,12 @@ const BrokerQuotePage: React.FC = () => {
   };
   
   const formatNumberWithTwoDecimals = (amount: number | null | undefined): string => {
-    if (amount === null || amount === undefined || isNaN(amount)) return '0,00'; // Coma para decimal chileno
+    if (amount === null || amount === undefined || isNaN(amount)) return '0,00';
     return new Intl.NumberFormat('es-CL', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
   };
 
   const formatPercentageForDisplay = (value: number | null | undefined): string => {
     if (value === null || value === undefined || isNaN(value)) return '0,00%';
-    // Utiliza formatNumberWithTwoDecimals que ya formatea como "XX,YY"
     return `${formatNumberWithTwoDecimals(value)}%`;
   };
   
@@ -452,11 +447,11 @@ const BrokerQuotePage: React.FC = () => {
 
   const isFormReadyForPDF = clientName && clientRut && selectedUnidad && Math.abs(totalFormaDePago - totalEscrituraNetoCliente) <= 0.01;
 
-  if (loading || (broker && commissionsLoading)) { 
+  if (pageLoading || (broker && commissionsLoading)) { 
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        <p className="ml-4 text-gray-700">Cargando datos...</p>
+        <p className="ml-4 text-gray-700">Cargando datos iniciales...</p>
       </div>
     );
   }
@@ -595,7 +590,7 @@ const BrokerQuotePage: React.FC = () => {
                <p className="text-sm text-gray-600 mb-4">
                 {selectedUnidad 
                   ? `Mostrando unidades secundarias para el proyecto: ${selectedUnidad.proyecto_nombre}. Seleccione unidades para agregar a la cotización.`
-                  : "Seleccione una unidad principal primero (desde la pestaña 'Principales' o 'Configuración Cotización') para ver y agregar unidades secundarias."
+                  : "Seleccione una unidad principal primero para ver y agregar unidades secundarias."
                 }
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -698,7 +693,7 @@ const BrokerQuotePage: React.FC = () => {
                 <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center"><DollarSign className="h-5 w-5 text-blue-500 mr-2" />Política Comercial ({commercialPolicy.project_name})</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div><label className="block text-sm font-medium text-gray-700">Monto Reserva</label><div className="mt-1 text-gray-900">{formatCLP(commercialPolicy.monto_reserva_pesos)}{ufValue && commercialPolicy.monto_reserva_pesos > 0 ? ` (${formatNumberWithTwoDecimals(commercialPolicy.monto_reserva_pesos / ufValue)} UF)` : ''}</div></div>
-                  <div><label className="block text-sm font-medium text-gray-700">Bono Pie Máximo</label><div className="mt-1 text-gray-900">{(commercialPolicy.bono_pie_max_pct * 100).toFixed(2)}%</div></div>
+                  <div><label className="block text-sm font-medium text-gray-700">Bono Pie Máximo</label><div className="mt-1 text-gray-900">{(commercialPolicy.bono_pie_max_pct * 100).toFixed(2).replace('.',',')}%</div></div>
                   {commercialPolicy.fecha_tope && (<div><label className="block text-sm font-medium text-gray-700">Fecha Tope Entrega</label><div className="mt-1 text-gray-900">{formatDate(commercialPolicy.fecha_tope)}</div></div>)}
                   {commercialPolicy.comuna && (<div><label className="block text-sm font-medium text-gray-700">Comuna</label><div className="mt-1 text-gray-900">{commercialPolicy.comuna}</div></div>)}
                 </div>
@@ -752,7 +747,7 @@ const BrokerQuotePage: React.FC = () => {
                       <div><label className="block text-sm font-medium text-gray-700 mb-1">Pie</label><div className="grid grid-cols-2 gap-4"><div><div className="flex items-center"><input type="number" min="0" max="100" step="0.01" value={pagoPiePct} onChange={(e) => handlePiePctChange(parseFloat(e.target.value) || 0)} className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" /><span className="ml-2">%</span></div></div><div><input type="number" min="0" step="0.01" value={pagoPie} onChange={(e) => handlePieChange(parseFloat(e.target.value) || 0)} className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" /></div></div></div>
                       {commercialPolicy && commercialPolicy.bono_pie_max_pct > 0 && (
                         <div>
-                          <label htmlFor="pagoBonoPieInputConfig" className="block text-sm font-medium text-gray-700 mb-1">Bono Pie Inmobiliaria (UF) - Máx {commercialPolicy.bono_pie_max_pct > 0 && totalEscrituraBruto > 0 ? formatNumberWithTwoDecimals(totalEscrituraBruto * commercialPolicy.bono_pie_max_pct) : '0,00'} UF ({(commercialPolicy.bono_pie_max_pct * 100).toFixed(2)}%)</label>
+                          <label htmlFor="pagoBonoPieInputConfig" className="block text-sm font-medium text-gray-700 mb-1">Bono Pie Inmobiliaria (UF) - Máx {commercialPolicy.bono_pie_max_pct > 0 && totalEscrituraBruto > 0 ? formatNumberWithTwoDecimals(totalEscrituraBruto * commercialPolicy.bono_pie_max_pct) : '0,00'} UF ({(commercialPolicy.bono_pie_max_pct * 100).toFixed(2).replace('.',',')}%)</label>
                           <input id="pagoBonoPieInputConfig" type="number" min="0" max={totalEscrituraBruto > 0 && commercialPolicy.bono_pie_max_pct > 0 ? parseFloat((totalEscrituraBruto * commercialPolicy.bono_pie_max_pct).toFixed(2)) : 0} step="0.01" value={pagoBonoPieCotizacion} onChange={(e) => {const value = parseFloat(e.target.value) || 0; const maxBono = totalEscrituraBruto > 0 && commercialPolicy.bono_pie_max_pct > 0 ? parseFloat((totalEscrituraBruto * commercialPolicy.bono_pie_max_pct).toFixed(2)) : 0; setPagoBonoPieCotizacion(Math.min(Math.max(0, value), maxBono));}} className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
                           {pagoBonoPieCotizacion > 0 && totalEscrituraBruto > 0 && (<p className="mt-1 text-xs text-gray-500">{((pagoBonoPieCotizacion / totalEscrituraBruto) * 100).toFixed(2).replace('.',',')}% del total bruto</p>)}
                         </div>
@@ -764,7 +759,7 @@ const BrokerQuotePage: React.FC = () => {
                       </div>
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         <div className="flex justify-between items-center"><span className="font-medium text-gray-700">Total Pagado por Cliente:</span><span className="font-bold text-lg">{formatNumberWithTwoDecimals(totalFormaDePago)} UF</span></div>
-                        { Math.abs(totalFormaDePago - totalEscrituraNetoCliente) > 0.01 && (<div className="mt-2 p-2 bg-red-50 text-red-600 rounded-md text-sm"><div className="flex items-center"><AlertTriangle className="h-4 w-4 mr-1 flex-shrink-0" /><span>La forma de pago ({formatNumberWithTwoDecimals(totalFormaDePago)}) no coincide con el total neto para el cliente ({formatNumberWithTwoDecimals(totalEscrituraNetoCliente)}). Diferencia: {formatNumberWithTwoDecimals(Math.abs(totalFormaDePago - totalEscrituraNetoCliente))} UF</span></div></div>)}
+                        {Math.abs(totalFormaDePago - totalEscrituraNetoCliente) > 0.01 && (<div className="mt-2 p-2 bg-red-50 text-red-600 rounded-md text-sm"><div className="flex items-center"><AlertTriangle className="h-4 w-4 mr-1 flex-shrink-0" /><span>La forma de pago ({formatNumberWithTwoDecimals(totalFormaDePago)}) no coincide con el total neto para el cliente ({formatNumberWithTwoDecimals(totalEscrituraNetoCliente)}). Diferencia: {formatNumberWithTwoDecimals(Math.abs(totalFormaDePago - totalEscrituraNetoCliente))} UF</span></div></div>)}
                       </div>
                     </div>
                   </div>
