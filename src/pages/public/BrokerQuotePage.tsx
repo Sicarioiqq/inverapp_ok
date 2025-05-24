@@ -2,9 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { PDFDownloadLink } from '@react-pdf/renderer';
-import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
+import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF'; // Asumo que este componente está correctamente implementado
 import { useUFStore } from '../../stores/ufStore';
-import { Building, Home, DollarSign, Calculator, Download, Check, X, Search, ChevronDown, ChevronUp, Plus, AlertTriangle } from 'lucide-react';
+import { Building, Home, DollarSign, Calculator, Download, X, Search, ChevronDown, ChevronUp, Plus, AlertTriangle } from 'lucide-react';
 
 // Interfaces
 interface StockUnidad {
@@ -20,7 +20,7 @@ interface StockUnidad {
   sup_total: number;
   valor_lista: number;
   estado_unidad: string;
-  descuento: number | null; // Descuento general de la inmobiliaria (Ej: 20 para 20%) [cite: 19]
+  descuento: number | null;
 }
 
 interface Broker {
@@ -38,12 +38,6 @@ interface ProjectCommercialPolicy {
   fecha_tope: string | null;
   observaciones: string | null;
   comuna: string | null;
-}
-
-interface BrokerProjectCommission {
-  broker_id: string;
-  project_name: string;
-  commission_rate: number; // Ej: 5.00 para 5% [cite: 1]
 }
 
 // Validate broker access
@@ -100,6 +94,8 @@ const BrokerQuotePage: React.FC = () => {
   
   const [currentBrokerCommissionRateForSelectedUnit, setCurrentBrokerCommissionRateForSelectedUnit] = useState<number | null>(null);
   const [brokerCommissionsMap, setBrokerCommissionsMap] = useState<Map<string, number>>(new Map());
+  const [commissionsLoading, setCommissionsLoading] = useState(true);
+
 
   const [clientName, setClientName] = useState('');
   const [clientRut, setClientRut] = useState('');
@@ -121,6 +117,7 @@ const BrokerQuotePage: React.FC = () => {
     const initializePage = async () => {
       setLoading(true);
       setError(null);
+      setCommissionsLoading(true);
       try {
         if (!brokerSlug || !accessToken) throw new Error('Parámetros de acceso inválidos');
         const validatedBroker = await validateBroker(brokerSlug, accessToken);
@@ -136,14 +133,20 @@ const BrokerQuotePage: React.FC = () => {
 
           const newMap = new Map<string, number>();
           commissionsData?.forEach(comm => {
-            newMap.set(comm.project_name, comm.commission_rate);
+            if (comm.project_name && typeof comm.commission_rate === 'number') {
+                 newMap.set(comm.project_name, comm.commission_rate);
+            }
           });
           setBrokerCommissionsMap(newMap);
+          setCommissionsLoading(false);
+        } else {
+          setCommissionsLoading(false);
         }
         await fetchAllUnits();
       } catch (err: any) {
         console.error('Error initializing page:', err);
         setError(err.message || 'Error al cargar la página');
+        setCommissionsLoading(false);
       } finally {
         setLoading(false);
       }
@@ -160,7 +163,7 @@ const BrokerQuotePage: React.FC = () => {
         const { data, error } = await supabase
           .from('stock_unidades')
           .select('*')
-          .eq('estado_unidad', 'Disponible') // [cite: 19]
+          .eq('estado_unidad', 'Disponible')
           .range(from, from + size - 1)
           .order('proyecto_nombre', { ascending: true })
           .order('unidad', { ascending: true });
@@ -183,7 +186,6 @@ const BrokerQuotePage: React.FC = () => {
   useEffect(() => {
     const fetchDetailsForSelectedUnit = async () => {
       if (selectedUnidad && broker) {
-        // setLoading(true); // Consider a more granular loading state
         try {
           const policy = await fetchCommercialPolicy(selectedUnidad.proyecto_nombre);
           setCommercialPolicy(policy);
@@ -204,11 +206,8 @@ const BrokerQuotePage: React.FC = () => {
           }
         } catch (err) {
           console.error("Error fetching policy for selected unit:", err);
-          // setError("Error al cargar detalles de la unidad."); // Avoid too many error popups
           setCommercialPolicy(null);
           setCurrentBrokerCommissionRateForSelectedUnit(null);
-        } finally {
-          // setLoading(false);
         }
       } else {
         setCommercialPolicy(null);
@@ -218,8 +217,11 @@ const BrokerQuotePage: React.FC = () => {
     fetchDetailsForSelectedUnit();
   }, [selectedUnidad, broker, ufValue, brokerCommissionsMap]);
 
-  const calculateBrokerMaxDiscountPercentage = (unidad: StockUnidad, commissionRateForProject: number | null | undefined): number => {
-    const unidadDescuentoGeneral = unidad.descuento; 
+  const calculateBrokerMaxDiscountPercentage = (
+    unidad: StockUnidad, 
+    commissionRateForProject: number | null | undefined
+  ): number => {
+    const unidadDescuentoGeneral = unidad.descuento;
   
     if (typeof commissionRateForProject !== 'number' || commissionRateForProject === null ||
         typeof unidadDescuentoGeneral !== 'number' || unidadDescuentoGeneral === null) {
@@ -230,13 +232,18 @@ const BrokerQuotePage: React.FC = () => {
     if (precioOriginal <= 0) return 0;
   
     const precioMinimoInmobiliaria = precioOriginal * (1 - (unidadDescuentoGeneral / 100));
-    const montoComisionBroker = precioMinimoInmobiliaria * (commissionRateForProject / 100); 
+    const montoComisionBroker = precioMinimoInmobiliaria * (commissionRateForProject / 100);
     const precioMinimoConComisionBroker = precioMinimoInmobiliaria + montoComisionBroker;
     const montoDescuentoBrokerPuedeOfrecer = precioOriginal - precioMinimoConComisionBroker;
-    const porcentajeDescuentoBrokerPuedeOfrecer = (montoDescuentoBrokerPuedeOfrecer / precioOriginal) * 100;
+    
+    let porcentajeDescuentoBrokerPuedeOfrecer = 0;
+    if (precioOriginal > 0) { // Evitar división por cero
+        porcentajeDescuentoBrokerPuedeOfrecer = (montoDescuentoBrokerPuedeOfrecer / precioOriginal) * 100;
+    }
   
     return Math.max(0, parseFloat(porcentajeDescuentoBrokerPuedeOfrecer.toFixed(2)));
   };
+  
 
   const uniqueProjects = useMemo(() => Array.from(new Set(unidades.map(u => u.proyecto_nombre))), [unidades]);
   
@@ -247,9 +254,8 @@ const BrokerQuotePage: React.FC = () => {
 
   const filteredUnidades = useMemo(() => {
     let tempUnidades = unidades;
-
     if (activeTab === 'principales') {
-        tempUnidades = tempUnidades.filter(u => u.tipo_bien === 'DEPARTAMENTO'); // [cite: 19]
+        tempUnidades = tempUnidades.filter(u => u.tipo_bien === 'DEPARTAMENTO');
         if (selectedProjectFilter) {
             tempUnidades = tempUnidades.filter(u => u.proyecto_nombre === selectedProjectFilter);
         }
@@ -260,10 +266,10 @@ const BrokerQuotePage: React.FC = () => {
         if (selectedUnidad) { 
             tempUnidades = unidades.filter(u => 
                 u.proyecto_nombre === selectedUnidad.proyecto_nombre && 
-                u.tipo_bien !== 'DEPARTAMENTO' && // [cite: 19]
+                u.tipo_bien !== 'DEPARTAMENTO' &&
                 !addedSecondaryUnits.some(added => added.id === u.id)
             );
-        } else if (selectedProjectFilter) {
+        } else if (selectedProjectFilter) { 
              tempUnidades = unidades.filter(u => u.proyecto_nombre === selectedProjectFilter && u.tipo_bien !== 'DEPARTAMENTO');
         } else { 
             tempUnidades = unidades.filter(u => u.tipo_bien !== 'DEPARTAMENTO');
@@ -309,14 +315,12 @@ const BrokerQuotePage: React.FC = () => {
     );
   }, [unidades, selectedUnidad, addedSecondaryUnits]);
   
-  const precioBaseDepartamento = selectedUnidad?.valor_lista || 0; // [cite: 19]
-  
+  const precioBaseDepartamento = selectedUnidad?.valor_lista || 0;
   const maxDiscountForSelectedUnit = selectedUnidad ? calculateBrokerMaxDiscountPercentage(selectedUnidad, currentBrokerCommissionRateForSelectedUnit) : 0;
 
   const precioDescuentoDepartamento = useMemo(() => {
     if (!selectedUnidad) return 0;
     const actualDiscountToApply = Math.min(discountAmount, maxDiscountForSelectedUnit);
-
     if (quotationType === 'descuento' || quotationType === 'mix') {
       return precioBaseDepartamento * (actualDiscountToApply / 100);
     }
@@ -342,7 +346,7 @@ const BrokerQuotePage: React.FC = () => {
     }
     return Math.max(0, finalPrice);
   }, [totalEscrituraBruto, quotationType, bonoAmount]);
-
+  
   const pagoCreditoHipotecarioCalculado = useMemo(() => {
     const montoACubrirPorCliente = totalEscrituraNetoCliente - pagoBonoPieCotizacion;
     const pagosPreviosCliente = pagoReserva + pagoPromesa + pagoPie;
@@ -357,8 +361,6 @@ const BrokerQuotePage: React.FC = () => {
   const handleSelectUnidad = (unidad: StockUnidad) => {
     setSelectedUnidad(unidad);
     setSelectedProjectFilter(unidad.proyecto_nombre); 
-    setShowUnidadesDropdown(false);
-    setSearchTerm(''); 
     setActiveTab('configuracion');
     setPagoReserva(0);
     setPagoPromesa(0);
@@ -411,22 +413,18 @@ const BrokerQuotePage: React.FC = () => {
     setPagoPiePct(newPct);
   };
   
-  const formatNumberWithTwoDecimals = (amount: number | null | undefined) => {
-    if (amount === null || amount === undefined || isNaN(amount)) return '0.00';
+  const formatNumberWithTwoDecimals = (amount: number | null | undefined): string => {
+    if (amount === null || amount === undefined || isNaN(amount)) return '0,00'; // Coma para decimal chileno
     return new Intl.NumberFormat('es-CL', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
   };
 
-  const formatPercentage = (value: number | null | undefined): string => {
-    if (value === null || value === undefined || isNaN(value)) return '0%';
-    // Formatea a 2 decimales, pero si es .00, lo quita.
-    const formatted = parseFloat(value.toFixed(2)); // Asegura que sea número antes de toFixed
-    if (formatted % 1 === 0) { // Chequea si es entero
-        return `${formatted.toFixed(0)}%`;
-    }
-    return `${formatted.toFixed(2)}%`.replace('.',','); // Reemplaza punto por coma para formato chileno
+  const formatPercentageForDisplay = (value: number | null | undefined): string => {
+    if (value === null || value === undefined || isNaN(value)) return '0,00%';
+    // Utiliza formatNumberWithTwoDecimals que ya formatea como "XX,YY"
+    return `${formatNumberWithTwoDecimals(value)}%`;
   };
   
-  const formatCLP = (amount: number | null | undefined) => {
+  const formatCLP = (amount: number | null | undefined): string => {
     if (amount === null || amount === undefined || isNaN(amount)) return '$0';
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
   };
@@ -454,10 +452,11 @@ const BrokerQuotePage: React.FC = () => {
 
   const isFormReadyForPDF = clientName && clientRut && selectedUnidad && Math.abs(totalFormaDePago - totalEscrituraNetoCliente) <= 0.01;
 
-  if (loading && !broker) { 
+  if (loading || (broker && commissionsLoading)) { 
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <p className="ml-4 text-gray-700">Cargando datos...</p>
       </div>
     );
   }
@@ -466,9 +465,7 @@ const BrokerQuotePage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
-          <div className="flex items-center justify-center text-red-500 mb-4">
-            <X className="h-12 w-12" />
-          </div>
+          <div className="flex items-center justify-center text-red-500 mb-4"><X className="h-12 w-12" /></div>
           <h2 className="text-2xl font-bold text-center text-gray-800 mb-4">Error</h2>
           <p className="text-gray-600 text-center whitespace-pre-line">{error}</p>
         </div>
@@ -480,9 +477,7 @@ const BrokerQuotePage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
-          <div className="flex items-center justify-center text-red-500 mb-4">
-            <X className="h-12 w-12" />
-          </div>
+          <div className="flex items-center justify-center text-red-500 mb-4"><X className="h-12 w-12" /></div>
           <h2 className="text-2xl font-bold text-center text-gray-800 mb-4">Acceso Denegado</h2>
           <p className="text-gray-600 text-center">No se pudo validar el acceso al cotizador.</p>
         </div>
@@ -508,17 +503,17 @@ const BrokerQuotePage: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6 border-b border-gray-200">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-            {['principales', 'secundarios', 'configuracion'].map((tab) => (
+            {['principales', 'secundarios', 'configuracion'].map((tabName) => (
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab as any)}
+                key={tabName}
+                onClick={() => setActiveTab(tabName as any)}
                 className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab 
+                  activeTab === tabName 
                     ? 'border-blue-500 text-blue-600' 
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                {tab === 'principales' ? 'Principales' : tab === 'secundarios' ? 'Secundarios' : 'Configuración Cotización'}
+                {tabName === 'principales' ? 'Principales' : tabName === 'secundarios' ? 'Secundarios' : 'Configuración Cotización'}
               </button>
             ))}
           </nav>
@@ -579,7 +574,7 @@ const BrokerQuotePage: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{unidad.piso || '-'}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{formatNumberWithTwoDecimals(unidad.sup_util)} m²</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">{formatNumberWithTwoDecimals(unidad.valor_lista)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600 text-right">{formatPercentage(maxBrokerDiscountForUnit)}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600 text-right">{formatPercentageForDisplay(maxBrokerDiscountForUnit)}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-center">
                             <button onClick={() => handleSelectUnidad(unidad)} className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Seleccionar</button>
                           </td>
@@ -600,7 +595,7 @@ const BrokerQuotePage: React.FC = () => {
                <p className="text-sm text-gray-600 mb-4">
                 {selectedUnidad 
                   ? `Mostrando unidades secundarias para el proyecto: ${selectedUnidad.proyecto_nombre}. Seleccione unidades para agregar a la cotización.`
-                  : "Seleccione una unidad principal primero para ver unidades secundarias disponibles para ese proyecto."
+                  : "Seleccione una unidad principal primero (desde la pestaña 'Principales' o 'Configuración Cotización') para ver y agregar unidades secundarias."
                 }
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -726,7 +721,7 @@ const BrokerQuotePage: React.FC = () => {
                     </div>
                     {(quotationType === 'descuento' || quotationType === 'mix') && (
                       <div>
-                        <label htmlFor="discountAmountInputConfig" className="block text-sm font-medium text-gray-700 mb-1">Porcentaje de Descuento (Máx: {formatPercentage(maxDiscountForSelectedUnit)})</label>
+                        <label htmlFor="discountAmountInputConfig" className="block text-sm font-medium text-gray-700 mb-1">Porcentaje de Descuento (Máx: {formatPercentageForDisplay(maxDiscountForSelectedUnit)})</label>
                         <div className="flex items-center">
                           <input id="discountAmountInputConfig" type="number" min="0" max={maxDiscountForSelectedUnit} step="0.01" value={discountAmount} onChange={(e) => { const val = parseFloat(e.target.value) || 0; setDiscountAmount(Math.min(Math.max(0, val), maxDiscountForSelectedUnit));}} className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
                           <span className="ml-2">%</span>
@@ -739,7 +734,7 @@ const BrokerQuotePage: React.FC = () => {
                     <div className="mt-4 pt-4 border-t border-gray-200">
                       <div className="space-y-2">
                         <div className="flex justify-between"><span className="text-sm text-gray-500">Precio Base Depto:</span><span className="text-sm font-medium">{formatNumberWithTwoDecimals(precioBaseDepartamento)} UF</span></div>
-                        {precioDescuentoDepartamento > 0 && (<div className="flex justify-between"><span className="text-sm text-gray-500">Descuento Aplicado ({formatPercentage(discountAmount)}):</span><span className="text-sm font-medium text-red-600">-{formatNumberWithTwoDecimals(precioDescuentoDepartamento)} UF</span></div>)}
+                        {precioDescuentoDepartamento > 0 && (<div className="flex justify-between"><span className="text-sm text-gray-500">Descuento Aplicado ({formatPercentageForDisplay(discountAmount)}):</span><span className="text-sm font-medium text-red-600">-{formatNumberWithTwoDecimals(precioDescuentoDepartamento)} UF</span></div>)}
                         <div className="flex justify-between"><span className="text-sm text-gray-500">Precio Depto. con Desc:</span><span className="text-sm font-medium">{formatNumberWithTwoDecimals(precioDepartamentoConDescuento)} UF</span></div>
                         {bonoAmount > 0 && (quotationType === 'bono' || quotationType === 'mix') && (<div className="flex justify-between"><span className="text-sm text-gray-500">Bono Adicional Aplicado:</span><span className="text-sm font-medium text-red-600">-{formatNumberWithTwoDecimals(bonoAmount)} UF</span></div>)}
                          <div className="flex justify-between font-semibold"><span className="text-sm text-gray-600">Precio Depto. Neto Cliente:</span><span className="text-sm">{formatNumberWithTwoDecimals(precioDepartamentoConDescuento - ((quotationType === 'bono' || quotationType === 'mix') ? bonoAmount : 0) )} UF</span></div>
@@ -757,19 +752,19 @@ const BrokerQuotePage: React.FC = () => {
                       <div><label className="block text-sm font-medium text-gray-700 mb-1">Pie</label><div className="grid grid-cols-2 gap-4"><div><div className="flex items-center"><input type="number" min="0" max="100" step="0.01" value={pagoPiePct} onChange={(e) => handlePiePctChange(parseFloat(e.target.value) || 0)} className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" /><span className="ml-2">%</span></div></div><div><input type="number" min="0" step="0.01" value={pagoPie} onChange={(e) => handlePieChange(parseFloat(e.target.value) || 0)} className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" /></div></div></div>
                       {commercialPolicy && commercialPolicy.bono_pie_max_pct > 0 && (
                         <div>
-                          <label htmlFor="pagoBonoPieInputConfig" className="block text-sm font-medium text-gray-700 mb-1">Bono Pie Inmobiliaria (UF) - Máx {commercialPolicy.bono_pie_max_pct > 0 && totalEscrituraBruto > 0 ? formatNumberWithTwoDecimals(totalEscrituraBruto * commercialPolicy.bono_pie_max_pct) : '0.00'} UF ({(commercialPolicy.bono_pie_max_pct * 100).toFixed(2)}%)</label>
+                          <label htmlFor="pagoBonoPieInputConfig" className="block text-sm font-medium text-gray-700 mb-1">Bono Pie Inmobiliaria (UF) - Máx {commercialPolicy.bono_pie_max_pct > 0 && totalEscrituraBruto > 0 ? formatNumberWithTwoDecimals(totalEscrituraBruto * commercialPolicy.bono_pie_max_pct) : '0,00'} UF ({(commercialPolicy.bono_pie_max_pct * 100).toFixed(2)}%)</label>
                           <input id="pagoBonoPieInputConfig" type="number" min="0" max={totalEscrituraBruto > 0 && commercialPolicy.bono_pie_max_pct > 0 ? parseFloat((totalEscrituraBruto * commercialPolicy.bono_pie_max_pct).toFixed(2)) : 0} step="0.01" value={pagoBonoPieCotizacion} onChange={(e) => {const value = parseFloat(e.target.value) || 0; const maxBono = totalEscrituraBruto > 0 && commercialPolicy.bono_pie_max_pct > 0 ? parseFloat((totalEscrituraBruto * commercialPolicy.bono_pie_max_pct).toFixed(2)) : 0; setPagoBonoPieCotizacion(Math.min(Math.max(0, value), maxBono));}} className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
-                          {pagoBonoPieCotizacion > 0 && totalEscrituraBruto > 0 && (<p className="mt-1 text-xs text-gray-500">{((pagoBonoPieCotizacion / totalEscrituraBruto) * 100).toFixed(2)}% del total bruto</p>)}
+                          {pagoBonoPieCotizacion > 0 && totalEscrituraBruto > 0 && (<p className="mt-1 text-xs text-gray-500">{((pagoBonoPieCotizacion / totalEscrituraBruto) * 100).toFixed(2).replace('.',',')}% del total bruto</p>)}
                         </div>
                       )}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Crédito Hipotecario (UF)</label>
                         <input type="text" value={formatNumberWithTwoDecimals(pagoCreditoHipotecarioCalculado)} className="block w-full rounded-md bg-gray-100 border-gray-300 shadow-sm" readOnly />
-                        {pagoCreditoHipotecarioCalculado > 0 && totalEscrituraNetoCliente > 0 && (<p className="mt-1 text-xs text-gray-500">{((pagoCreditoHipotecarioCalculado / totalEscrituraNetoCliente) * 100).toFixed(2)}% del total neto cliente</p>)}
+                        {pagoCreditoHipotecarioCalculado > 0 && totalEscrituraNetoCliente > 0 && (<p className="mt-1 text-xs text-gray-500">{((pagoCreditoHipotecarioCalculado / totalEscrituraNetoCliente) * 100).toFixed(2).replace('.',',')}% del total neto cliente</p>)}
                       </div>
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         <div className="flex justify-between items-center"><span className="font-medium text-gray-700">Total Pagado por Cliente:</span><span className="font-bold text-lg">{formatNumberWithTwoDecimals(totalFormaDePago)} UF</span></div>
-                        {Math.abs(totalFormaDePago - totalEscrituraNetoCliente) > 0.01 && (<div className="mt-2 p-2 bg-red-50 text-red-600 rounded-md text-sm"><div className="flex items-center"><AlertTriangle className="h-4 w-4 mr-1 flex-shrink-0" /><span>La forma de pago ({formatNumberWithTwoDecimals(totalFormaDePago)}) no coincide con el total neto para el cliente ({formatNumberWithTwoDecimals(totalEscrituraNetoCliente)}). Diferencia: {formatNumberWithTwoDecimals(Math.abs(totalFormaDePago - totalEscrituraNetoCliente))} UF</span></div></div>)}
+                        { Math.abs(totalFormaDePago - totalEscrituraNetoCliente) > 0.01 && (<div className="mt-2 p-2 bg-red-50 text-red-600 rounded-md text-sm"><div className="flex items-center"><AlertTriangle className="h-4 w-4 mr-1 flex-shrink-0" /><span>La forma de pago ({formatNumberWithTwoDecimals(totalFormaDePago)}) no coincide con el total neto para el cliente ({formatNumberWithTwoDecimals(totalEscrituraNetoCliente)}). Diferencia: {formatNumberWithTwoDecimals(Math.abs(totalFormaDePago - totalEscrituraNetoCliente))} UF</span></div></div>)}
                       </div>
                     </div>
                   </div>
