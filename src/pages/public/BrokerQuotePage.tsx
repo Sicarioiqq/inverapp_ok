@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
 import { useUFStore } from '../../stores/ufStore';
-import { Building, Home, DollarSign, Calculator, Download, Check, X, Search, ChevronDown, ChevronUp, Plus, AlertTriangle, Settings, Package } from 'lucide-react';
+import { Building, Home, DollarSign, Calculator, Download, Check, X, Search, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Plus, Trash2 } from 'lucide-react';
 
 // Interfaces
 interface StockUnidad {
@@ -38,9 +38,6 @@ interface ProjectCommercialPolicy {
   observaciones: string | null;
   comuna: string | null;
 }
-
-// Tab type
-type TabType = 'principales' | 'secundarios' | 'configuracion';
 
 // Validate broker access
 const validateBroker = async (slug: string, token: string): Promise<Broker | null> => {
@@ -100,7 +97,6 @@ const BrokerQuotePage: React.FC = () => {
   const [showUnidadesDropdown, setShowUnidadesDropdown] = useState(false);
   const [showSecondaryUnitsDropdown, setShowSecondaryUnitsDropdown] = useState(false);
   const [commercialPolicy, setCommercialPolicy] = useState<ProjectCommercialPolicy | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('principales');
   
   // Form state
   const [clientName, setClientName] = useState('');
@@ -114,6 +110,15 @@ const BrokerQuotePage: React.FC = () => {
   const [pagoPie, setPagoPie] = useState(0);
   const [pagoPiePct, setPagoPiePct] = useState(0);
   const [pagoBonoPieCotizacion, setPagoBonoPieCotizacion] = useState(0);
+  
+  // Tabs state
+  const [activeTab, setActiveTab] = useState<'principales' | 'secundarios' | 'configuracion'>('principales');
+  
+  // Filtering and sorting state
+  const [selectedProjectFilter, setSelectedProjectFilter] = useState<string>('');
+  const [selectedTipologiaFilter, setSelectedTipologiaFilter] = useState<string>('');
+  const [sortField, setSortField] = useState<string>('proyecto_nombre');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Fetch UF value on component mount
   useEffect(() => {
@@ -177,37 +182,123 @@ const BrokerQuotePage: React.FC = () => {
             setPagoBonoPieCotizacion(0); // Initialize to 0, user can adjust up to max
           }
         }
+        
+        // Switch to configuration tab when a unit is selected
+        setActiveTab('configuracion');
       }
     };
     
     fetchPolicy();
   }, [selectedUnidad, ufValue]);
   
-  // Filter units based on search term and active tab
-  const filteredUnidades = useMemo(() => {
-    let filtered = unidades;
+  // Get unique projects for filtering
+  const uniqueProjects = useMemo(() => {
+    const projects = Array.from(new Set(unidades.map(u => u.proyecto_nombre)));
+    return projects.sort();
+  }, [unidades]);
+  
+  // Get unique tipologias for the selected project
+  const uniqueTipologias = useMemo(() => {
+    if (!selectedProjectFilter) return [];
     
-    // Filter by tipo_bien based on active tab
-    if (activeTab === 'principales') {
-      filtered = filtered.filter(unidad => unidad.tipo_bien === 'DEPARTAMENTO');
-    } else if (activeTab === 'secundarios') {
-      filtered = filtered.filter(unidad => unidad.tipo_bien !== 'DEPARTAMENTO');
+    const tipologias = Array.from(
+      new Set(
+        unidades
+          .filter(u => u.proyecto_nombre === selectedProjectFilter && u.tipo_bien === 'DEPARTAMENTO')
+          .map(u => u.tipologia)
+          .filter(Boolean) // Remove null/undefined values
+      )
+    );
+    
+    return tipologias.sort();
+  }, [unidades, selectedProjectFilter]);
+  
+  // Filter units based on search term and filters
+  const filteredPrincipales = useMemo(() => {
+    let filtered = unidades.filter(unidad => unidad.tipo_bien === 'DEPARTAMENTO');
+    
+    // Apply project filter
+    if (selectedProjectFilter) {
+      filtered = filtered.filter(unidad => unidad.proyecto_nombre === selectedProjectFilter);
     }
     
-    // Apply search filter if there's a search term
+    // Apply tipologia filter
+    if (selectedTipologiaFilter) {
+      filtered = filtered.filter(unidad => unidad.tipologia === selectedTipologiaFilter);
+    }
+    
+    // Apply search filter
     if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase();
       filtered = filtered.filter(unidad => 
-        unidad.proyecto_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        unidad.unidad.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        unidad.tipologia?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        unidad.tipo_bien.toLowerCase().includes(searchTerm.toLowerCase())
+        unidad.proyecto_nombre.toLowerCase().includes(search) ||
+        unidad.unidad.toLowerCase().includes(search) ||
+        (unidad.tipologia && unidad.tipologia.toLowerCase().includes(search))
       );
     }
     
-    return filtered;
-  }, [unidades, searchTerm, activeTab]);
+    // Apply sorting
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      
+      // Handle numeric fields
+      if (['valor_lista', 'sup_util', 'sup_terraza', 'sup_total'].includes(sortField)) {
+        const aValue = a[sortField as keyof StockUnidad] as number || 0;
+        const bValue = b[sortField as keyof StockUnidad] as number || 0;
+        comparison = aValue - bValue;
+      } 
+      // Handle string fields
+      else {
+        const aValue = String(a[sortField as keyof StockUnidad] || '').toLowerCase();
+        const bValue = String(b[sortField as keyof StockUnidad] || '').toLowerCase();
+        comparison = aValue.localeCompare(bValue);
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [unidades, selectedProjectFilter, selectedTipologiaFilter, searchTerm, sortField, sortDirection]);
   
-  // Filter secondary units (parking, storage) based on selected unit's project
+  // Filter secondary units
+  const filteredSecundarios = useMemo(() => {
+    let filtered = unidades.filter(unidad => unidad.tipo_bien !== 'DEPARTAMENTO');
+    
+    // Apply project filter
+    if (selectedProjectFilter) {
+      filtered = filtered.filter(unidad => unidad.proyecto_nombre === selectedProjectFilter);
+    }
+    
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(unidad => 
+        unidad.proyecto_nombre.toLowerCase().includes(search) ||
+        unidad.unidad.toLowerCase().includes(search) ||
+        unidad.tipo_bien.toLowerCase().includes(search)
+      );
+    }
+    
+    // Apply sorting
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      
+      // Handle numeric fields
+      if (['valor_lista', 'sup_util', 'sup_terraza', 'sup_total'].includes(sortField)) {
+        const aValue = a[sortField as keyof StockUnidad] as number || 0;
+        const bValue = b[sortField as keyof StockUnidad] as number || 0;
+        comparison = aValue - bValue;
+      } 
+      // Handle string fields
+      else {
+        const aValue = String(a[sortField as keyof StockUnidad] || '').toLowerCase();
+        const bValue = String(b[sortField as keyof StockUnidad] || '').toLowerCase();
+        comparison = aValue.localeCompare(bValue);
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [unidades, selectedProjectFilter, searchTerm, sortField, sortDirection]);
+  
+  // Filter secondary units based on selected unit's project
   const availableSecondaryUnits = useMemo(() => {
     if (!selectedUnidad) return [];
     
@@ -262,7 +353,6 @@ const BrokerQuotePage: React.FC = () => {
     setSelectedUnidad(unidad);
     setShowUnidadesDropdown(false);
     setSearchTerm('');
-    setActiveTab('configuracion');
     
     // Reset payment values when changing unit
     setPagoReserva(0);
@@ -272,12 +362,18 @@ const BrokerQuotePage: React.FC = () => {
     setPagoPiePct(0);
     setPagoBonoPieCotizacion(0);
     setAddedSecondaryUnits([]);
+    
+    // Switch to configuration tab
+    setActiveTab('configuracion');
   };
   
   // Add secondary unit
   const handleAddSecondaryUnit = (unit: StockUnidad) => {
     setAddedSecondaryUnits(prev => [...prev, unit]);
     setShowSecondaryUnitsDropdown(false);
+    
+    // Switch back to configuration tab
+    setActiveTab('configuracion');
   };
   
   // Remove secondary unit
@@ -307,6 +403,16 @@ const BrokerQuotePage: React.FC = () => {
     setPagoPiePct(parseFloat(((value / totalEscritura) * 100).toFixed(2)));
   };
   
+  // Handle sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+  
   // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CL', {
@@ -324,6 +430,13 @@ const BrokerQuotePage: React.FC = () => {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount);
+  };
+  
+  // Reset filters
+  const handleResetFilters = () => {
+    setSelectedProjectFilter('');
+    setSelectedTipologiaFilter('');
+    setSearchTerm('');
   };
   
   if (loading) {
@@ -368,7 +481,11 @@ const BrokerQuotePage: React.FC = () => {
       <header className="bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center">
-            <Building className="h-8 w-8 text-blue-600 mr-2" />
+            <img 
+              src="/logoinversiones.png" 
+              alt="Logo Inversiones" 
+              className="h-12 mr-4"
+            />
             <div>
               <h1 className="text-xl font-bold text-gray-900">Cotizador {broker.name}</h1>
               <p className="text-sm text-gray-500">{broker.business_name}</p>
@@ -388,106 +505,406 @@ const BrokerQuotePage: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tabs */}
         <div className="mb-6 border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('principales')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
                 activeTab === 'principales'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <Home className="h-5 w-5 inline-block mr-2" />
+              <Home className="h-5 w-5 mr-2" />
               Principales
             </button>
             <button
               onClick={() => setActiveTab('secundarios')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
                 activeTab === 'secundarios'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <Package className="h-5 w-5 inline-block mr-2" />
+              <Building className="h-5 w-5 mr-2" />
               Secundarios
             </button>
             <button
-              onClick={() => setActiveTab('configuracion')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+              onClick={() => selectedUnidad && setActiveTab('configuracion')}
+              disabled={!selectedUnidad}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
                 activeTab === 'configuracion'
                   ? 'border-blue-500 text-blue-600'
+                  : !selectedUnidad
+                  ? 'border-transparent text-gray-400 cursor-not-allowed'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } ${!selectedUnidad ? 'opacity-50 cursor-not-allowed' : ''}`}
-              disabled={!selectedUnidad}
+              }`}
             >
-              <Settings className="h-5 w-5 inline-block mr-2" />
+              <Calculator className="h-5 w-5 mr-2" />
               Configuración Cotización
+              {!selectedUnidad && (
+                <span className="ml-2 text-xs text-gray-400">(Seleccione una unidad principal primero)</span>
+              )}
             </button>
           </nav>
         </div>
         
-        {/* Search Bar */}
-        {(activeTab === 'principales' || activeTab === 'secundarios') && (
-          <div className="mb-6">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
+        {/* Tab Content */}
+        {activeTab === 'principales' && (
+          <div>
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Home className="h-5 w-5 text-blue-500 mr-2" />
+                Departamentos Disponibles
+              </h2>
+              
+              {/* Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Proyecto
+                  </label>
+                  <select
+                    value={selectedProjectFilter}
+                    onChange={(e) => {
+                      setSelectedProjectFilter(e.target.value);
+                      setSelectedTipologiaFilter('');
+                    }}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value="">Todos los proyectos</option>
+                    {uniqueProjects.map(project => (
+                      <option key={project} value={project}>{project}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipología
+                  </label>
+                  <select
+                    value={selectedTipologiaFilter}
+                    onChange={(e) => setSelectedTipologiaFilter(e.target.value)}
+                    disabled={!selectedProjectFilter}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                  >
+                    <option value="">Todas las tipologías</option>
+                    {uniqueTipologias.map(tipologia => (
+                      <option key={tipologia} value={tipologia}>{tipologia}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Buscar
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Buscar..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex items-end">
+                  <button
+                    onClick={handleResetFilters}
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+                  >
+                    Limpiar filtros
+                  </button>
+                </div>
               </div>
-              <input
-                type="text"
-                placeholder={`Buscar ${activeTab === 'principales' ? 'departamento' : 'estacionamiento o bodega'}...`}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-              />
+              
+              {/* Units Table */}
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => handleSort('proyecto_nombre')}
+                      >
+                        Proyecto
+                        {sortField === 'proyecto_nombre' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 inline ml-1" /> : <ArrowDown className="h-4 w-4 inline ml-1" />
+                        )}
+                      </th>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => handleSort('unidad')}
+                      >
+                        N° Unidad
+                        {sortField === 'unidad' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 inline ml-1" /> : <ArrowDown className="h-4 w-4 inline ml-1" />
+                        )}
+                      </th>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => handleSort('tipologia')}
+                      >
+                        Tipología
+                        {sortField === 'tipologia' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 inline ml-1" /> : <ArrowDown className="h-4 w-4 inline ml-1" />
+                        )}
+                      </th>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => handleSort('piso')}
+                      >
+                        Piso
+                        {sortField === 'piso' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 inline ml-1" /> : <ArrowDown className="h-4 w-4 inline ml-1" />
+                        )}
+                      </th>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => handleSort('sup_util')}
+                      >
+                        Sup. Útil
+                        {sortField === 'sup_util' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 inline ml-1" /> : <ArrowDown className="h-4 w-4 inline ml-1" />
+                        )}
+                      </th>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => handleSort('sup_total')}
+                      >
+                        Sup. Total
+                        {sortField === 'sup_total' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 inline ml-1" /> : <ArrowDown className="h-4 w-4 inline ml-1" />
+                        )}
+                      </th>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => handleSort('valor_lista')}
+                      >
+                        Valor UF
+                        {sortField === 'valor_lista' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 inline ml-1" /> : <ArrowDown className="h-4 w-4 inline ml-1" />
+                        )}
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Acción
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredPrincipales.length > 0 ? (
+                      filteredPrincipales.map((unidad) => (
+                        <tr key={unidad.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {unidad.proyecto_nombre}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {unidad.unidad}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {unidad.tipologia || '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {unidad.piso || '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                            {formatCurrency(unidad.sup_util)} m²
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                            {formatCurrency(unidad.sup_total)} m²
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                            {formatCurrency(unidad.valor_lista)} UF
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                            <button
+                              onClick={() => handleSelectUnidad(unidad)}
+                              className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            >
+                              Seleccionar
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
+                          No se encontraron unidades que coincidan con los filtros.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
         
-        {/* Tab Content */}
-        {(activeTab === 'principales' || activeTab === 'secundarios') && (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proyecto</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Piso</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sup. Útil</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Precio UF</th>
-                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUnidades.length > 0 ? (
-                  filteredUnidades.map((unidad) => (
-                    <tr key={unidad.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{unidad.proyecto_nombre}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{unidad.unidad}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{unidad.tipologia || unidad.tipo_bien}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{unidad.piso || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{formatCurrency(unidad.sup_util || 0)} m²</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatCurrency(unidad.valor_lista || 0)} UF</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                        <button
-                          onClick={() => handleSelectUnidad(unidad)}
-                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          Seleccionar
-                        </button>
-                      </td>
+        {activeTab === 'secundarios' && (
+          <div>
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Building className="h-5 w-5 text-blue-500 mr-2" />
+                Unidades Secundarias Disponibles
+              </h2>
+              
+              {/* Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Proyecto
+                  </label>
+                  <select
+                    value={selectedProjectFilter}
+                    onChange={(e) => setSelectedProjectFilter(e.target.value)}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value="">Todos los proyectos</option>
+                    {uniqueProjects.map(project => (
+                      <option key={project} value={project}>{project}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Buscar
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Buscar..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex items-end">
+                  <button
+                    onClick={handleResetFilters}
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+                  >
+                    Limpiar filtros
+                  </button>
+                </div>
+              </div>
+              
+              {/* Units Table */}
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => handleSort('proyecto_nombre')}
+                      >
+                        Proyecto
+                        {sortField === 'proyecto_nombre' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 inline ml-1" /> : <ArrowDown className="h-4 w-4 inline ml-1" />
+                        )}
+                      </th>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => handleSort('tipo_bien')}
+                      >
+                        Tipo
+                        {sortField === 'tipo_bien' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 inline ml-1" /> : <ArrowDown className="h-4 w-4 inline ml-1" />
+                        )}
+                      </th>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => handleSort('unidad')}
+                      >
+                        N° Unidad
+                        {sortField === 'unidad' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 inline ml-1" /> : <ArrowDown className="h-4 w-4 inline ml-1" />
+                        )}
+                      </th>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => handleSort('valor_lista')}
+                      >
+                        Valor UF
+                        {sortField === 'valor_lista' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 inline ml-1" /> : <ArrowDown className="h-4 w-4 inline ml-1" />
+                        )}
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Acción
+                      </th>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
-                      No se encontraron unidades disponibles
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredSecundarios.length > 0 ? (
+                      filteredSecundarios.map((unidad) => (
+                        <tr key={unidad.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {unidad.proyecto_nombre}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {unidad.tipo_bien}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {unidad.unidad}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                            {formatCurrency(unidad.valor_lista)} UF
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                            <button
+                              onClick={() => {
+                                if (selectedUnidad) {
+                                  if (selectedUnidad.proyecto_nombre === unidad.proyecto_nombre) {
+                                    handleAddSecondaryUnit(unidad);
+                                  } else {
+                                    alert('Solo puede agregar unidades secundarias del mismo proyecto que la unidad principal.');
+                                  }
+                                } else {
+                                  alert('Debe seleccionar una unidad principal primero.');
+                                }
+                              }}
+                              className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                              disabled={!selectedUnidad}
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Agregar
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
+                          No se encontraron unidades secundarias que coincidan con los filtros.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
         
@@ -538,27 +955,20 @@ const BrokerQuotePage: React.FC = () => {
                         </div>
                         
                         <ul className="py-1">
-                          {unidades
-                            .filter(unidad => unidad.tipo_bien === 'DEPARTAMENTO')
-                            .filter(unidad => 
-                              unidad.proyecto_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              unidad.unidad.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              (unidad.tipologia && unidad.tipologia.toLowerCase().includes(searchTerm.toLowerCase()))
-                            )
-                            .map(unidad => (
-                              <li key={unidad.id}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleSelectUnidad(unidad)}
-                                  className="w-full text-left px-4 py-2 hover:bg-gray-100"
-                                >
-                                  <div className="font-medium">{unidad.proyecto_nombre} - {unidad.unidad}</div>
-                                  <div className="text-sm text-gray-500">
-                                    {unidad.tipologia || unidad.tipo_bien} | {formatCurrency(unidad.valor_lista)} UF
-                                  </div>
-                                </button>
-                              </li>
-                            ))}
+                          {filteredPrincipales.map(unidad => (
+                            <li key={unidad.id}>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectUnidad(unidad)}
+                                className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                              >
+                                <div className="font-medium">{unidad.proyecto_nombre} - {unidad.unidad}</div>
+                                <div className="text-sm text-gray-500">
+                                  {unidad.tipologia || unidad.tipo_bien} | {formatCurrency(unidad.valor_lista)} UF
+                                </div>
+                              </button>
+                            </li>
+                          ))}
                         </ul>
                       </div>
                     )}
@@ -615,7 +1025,7 @@ const BrokerQuotePage: React.FC = () => {
                               onClick={() => handleRemoveSecondaryUnit(unit.id)}
                               className="text-red-500 hover:text-red-700"
                             >
-                              <X className="h-5 w-5" />
+                              <Trash2 className="h-5 w-5" />
                             </button>
                           </div>
                         ))}
@@ -1086,7 +1496,7 @@ const BrokerQuotePage: React.FC = () => {
                     {Math.abs(totalFormaDePago - totalEscritura) > 0.01 && (
                       <div className="mt-2 p-2 bg-red-50 text-red-600 rounded-md text-sm">
                         <div className="flex items-center">
-                          <AlertTriangle className="h-4 w-4 mr-1" />
+                          <X className="h-4 w-4 mr-1" />
                           <span>
                             La forma de pago no coincide con el precio total.
                             Diferencia: {formatCurrency(Math.abs(totalFormaDePago - totalEscritura))} UF
