@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
-import { Home, Parking, Package, Settings, Download, Plus, Trash2 } from 'lucide-react';
+import { Home, ParkingMeter as Parking, Package, Settings, Download, Plus, Trash2 } from 'lucide-react';
 
 // Definición de tipos
 interface StockUnidad {
