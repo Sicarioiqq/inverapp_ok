@@ -1,16 +1,24 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
-// Register fonts using local files from public directory for better reliability
-Font.register({
-  family: 'Helvetica',
-  src: '/fonts/Helvetica.ttf'
-});
+// Move font registration outside component and add guard
+const fontsRegistered = false;
+const registerFonts = () => {
+  if (!fontsRegistered) {
+    Font.register({
+      family: 'Helvetica',
+      src: '/fonts/Helvetica.ttf'
+    });
 
-Font.register({
-  family: 'Helvetica-Bold',
-  src: '/fonts/Helvetica-Bold.ttf'
-});
+    Font.register({
+      family: 'Helvetica-Bold',
+      src: '/fonts/Helvetica-Bold.ttf'
+    });
+  }
+};
+
+// Register fonts immediately
+registerFonts();
 
 // Helper function for formatting
 const formatCurrency = (amount: number | null): string => {
