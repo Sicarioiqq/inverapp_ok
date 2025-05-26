@@ -344,7 +344,7 @@ const BrokerQuotePage: React.FC = () => {
     if (!selectedUnidad) return 0;
     
     if (quotationType === 'descuento' || quotationType === 'mix') {
-      return precioBaseDepartamento * (discountAmount / 100);
+      return precioBaseDepartamento * (discountAmount / 1000);
     }
     return 0;
   }, [selectedUnidad, quotationType, discountAmount, precioBaseDepartamento]);
