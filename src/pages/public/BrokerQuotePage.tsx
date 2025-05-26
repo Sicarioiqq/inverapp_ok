@@ -1584,7 +1584,7 @@ const BrokerQuotePage: React.FC = () => {
                     
                     {Math.abs(totalFormaDePago - totalEscritura) > 0.01 && (
                       <p className="mt-2 text-sm text-red-600">
-                        La forma de pago debe coincidir con el precio total.s
+                        La forma de pago debe coincidir con el precio total.
                       </p>
                     )}
                   </div>
