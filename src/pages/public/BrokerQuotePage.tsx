@@ -387,7 +387,7 @@ const BrokerQuotePage: React.FC = () => {
     const precioConComision = precioMinimo + comisionBroker;
     const montoDescuentoDisponible = precioOriginal - precioConComision;
 
-    const descuentoDisponibleFrac = montoDescuentoDisponible / precioOriginal;
+    const descuentoDisponibleFrac = (montoDescuentoDisponible / precioOriginal)*100;
     return Math.max(0, Math.round(descuentoDisponibleFrac * 100));
   };
   
