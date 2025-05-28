@@ -155,6 +155,9 @@ const BrokerQuotePage: React.FC = () => {
   const validateBrokerAccess = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      console.log(`Validando acceso para broker: ${brokerSlug}, token: ${accessToken}`);
       
       // Fetch broker by slug and access token
       const { data, error } = await supabase
@@ -165,12 +168,18 @@ const BrokerQuotePage: React.FC = () => {
         .single();
       
       if (error) {
+        console.error('Error en la validación del broker:', error);
         throw new Error('Acceso denegado: token inválido');
       }
       
+      if (!data) {
+        throw new Error('Broker no encontrado');
+      }
+      
+      console.log('Broker validado correctamente:', data);
       setBroker(data);
     } catch (err: any) {
-      console.error('Error validating broker access:', err);
+      console.error('Error validando acceso del broker:', err);
       setError(err.message || 'Error de autenticación');
     } finally {
       setLoading(false);
