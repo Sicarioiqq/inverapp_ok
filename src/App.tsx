@@ -49,9 +49,8 @@ function App() {
           <Route path="/register" element={
             session ? <Navigate to="/dashboard" replace /> : <Register />
           } />
-          <Route path="/cotizador-broker/:brokerSlug/:accessToken" element={<BrokerQuotePage />
-          } 
-          />
+          {/* Public route for broker quote page - no authentication required */}
+          <Route path="/cotizador-broker/:brokerSlug/:accessToken" element={<BrokerQuotePage />} />
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
@@ -170,7 +169,7 @@ function App() {
           <Route path="/informes/stock" element={
             <ProtectedRoute>
               <StockReportPage />
-          </ProtectedRoute>
+            </ProtectedRoute>
           } />
           <Route path="/informes/consolidado-brokers" element={
             <ProtectedRoute>
