@@ -26,6 +26,7 @@ interface BrokerPaymentTask {
   days_pending: number;
   days_to_complete: number | null;
   is_overdue: boolean;
+  invoice_number: string | null; // Added invoice number field
 }
 
 const BrokerPaymentsReport: React.FC = () => {
@@ -50,6 +51,7 @@ const BrokerPaymentsReport: React.FC = () => {
         task.apartment_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.broker_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.task_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (task.invoice_number && task.invoice_number.toLowerCase().includes(searchTerm.toLowerCase())) || // Search by invoice number
         (task.assignee && 
           (`${task.assignee.first_name} ${task.assignee.last_name}`).toLowerCase().includes(searchTerm.toLowerCase())
         )
@@ -70,7 +72,10 @@ const BrokerPaymentsReport: React.FC = () => {
         .select(`
           id,
           broker_commission:broker_commissions(
+            id,
             commission_amount,
+            invoice_1,
+            invoice_2,
             reservation:reservations(
               reservation_number,
               apartment_number,
@@ -126,10 +131,16 @@ const BrokerPaymentsReport: React.FC = () => {
         const flow = flowsData?.find(f => f.id === task.commission_flow_id);
         if (!flow || !flow.broker_commission) return;
 
+        const taskDetails = task.task;
+        if (!taskDetails) return;
+
         const startedAt = task.started_at ? new Date(task.started_at) : null;
         const daysPending = startedAt ? differenceInDays(now, startedAt) : 0;
-        const daysToComplete = task.task?.days_to_complete || null;
+        const daysToComplete = taskDetails.days_to_complete || null;
         const isOverdue = daysToComplete !== null && daysPending > daysToComplete;
+
+        // Determine which invoice to show (prefer invoice_2 if it exists, otherwise use invoice_1)
+        const invoiceNumber = flow.broker_commission.invoice_2 || flow.broker_commission.invoice_1;
 
         mappedTasks.push({
           id: task.id,
@@ -140,13 +151,14 @@ const BrokerPaymentsReport: React.FC = () => {
           apartment_number: flow.broker_commission.reservation.apartment_number,
           broker_name: flow.broker_commission.reservation.broker.name,
           commission_amount: flow.broker_commission.commission_amount,
-          task_name: task.task?.name || 'Unknown Task',
+          task_name: taskDetails.name || 'Unknown Task',
           task_status: task.status,
           started_at: task.started_at,
           assignee: task.assignee,
           days_pending: daysPending,
           days_to_complete: daysToComplete,
-          is_overdue: isOverdue
+          is_overdue: isOverdue,
+          invoice_number: invoiceNumber // Add invoice number to the task data
         });
 
         // Only count each commission once
@@ -184,6 +196,7 @@ const BrokerPaymentsReport: React.FC = () => {
       'Proyecto-Depto',
       'Broker',
       'Comisión',
+      'N° Factura',
       'Tarea Pendiente',
       'Estado',
       'Responsable',
@@ -199,6 +212,7 @@ const BrokerPaymentsReport: React.FC = () => {
         `"${task.project_name} ${task.project_stage}-${task.apartment_number}"`,
         `"${task.broker_name}"`,
         task.commission_amount,
+        `"${task.invoice_number || ''}"`,
         `"${task.task_name}"`,
         `"${task.task_status}"`,
         `"${task.assignee ? `${task.assignee.first_name} ${task.assignee.last_name}` : 'Sin asignar'}"`,
@@ -250,6 +264,9 @@ const BrokerPaymentsReport: React.FC = () => {
         break;
       case 'commission_amount':
         comparison = a.commission_amount - b.commission_amount;
+        break;
+      case 'invoice_number':
+        comparison = (a.invoice_number || '').localeCompare(b.invoice_number || '');
         break;
       case 'task_name':
         comparison = a.task_name.localeCompare(b.task_name);
@@ -315,7 +332,7 @@ const BrokerPaymentsReport: React.FC = () => {
               </div>
               <input
                 type="text"
-                placeholder="Buscar..."
+                placeholder="Buscar por reserva, proyecto, factura..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
@@ -399,6 +416,12 @@ const BrokerPaymentsReport: React.FC = () => {
                       </th>
                       <th 
                         className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={() => handleSort('invoice_number')}
+                      >
+                        N° Factura <SortIcon field="invoice_number" />
+                      </th>
+                      <th 
+                        className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('task_name')}
                       >
                         Tarea Pendiente <SortIcon field="task_name" />
@@ -440,6 +463,9 @@ const BrokerPaymentsReport: React.FC = () => {
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-gray-900 text-right">
                           {formatCurrency(task.commission_amount)} UF
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-gray-500">
+                          {task.invoice_number || '-'}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-gray-900">
                           {task.task_name}
