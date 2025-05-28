@@ -17,6 +17,25 @@ export const useUFStore = create<UFState>((set) => ({
   fetchUFValue: async () => {
     try {
       set({ loading: true, error: null });
+      
+      // Check if we already have a value and if it's from today
+      const { lastUpdated } = useUFStore.getState();
+      const now = new Date();
+      
+      // If we have a value from today, don't fetch again
+      if (lastUpdated) {
+        const lastUpdatedDate = new Date(lastUpdated);
+        if (
+          lastUpdatedDate.getDate() === now.getDate() &&
+          lastUpdatedDate.getMonth() === now.getMonth() &&
+          lastUpdatedDate.getFullYear() === now.getFullYear()
+        ) {
+          console.log('Using cached UF value from today');
+          set({ loading: false });
+          return;
+        }
+      }
+      
       const value = await fetchLatestUFValue();
       
       if (value) {

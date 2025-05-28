@@ -6,23 +6,27 @@ import { supabase } from './supabase';
  */
 export const fetchLatestUFValue = async (): Promise<number | null> => {
   try {
-    const { data, error } = await supabase
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date();
+    const formattedDate = today.toISOString().split('T')[0];
+
+    // First check if we already have today's UF value in the database
+    const { data: todayData, error: todayError } = await supabase
       .from('valores_financieros')
       .select('valor, fecha')
       .eq('nombre', 'UF')
-      .order('fecha', { ascending: false })
-      .limit(1);
+      .eq('fecha', formattedDate)
+      .maybeSingle();
 
-    if (error) {
-      console.error('Error fetching UF value:', error);
-      return null;
+    if (todayError) {
+      console.error('Error fetching today\'s UF value:', todayError);
+    } else if (todayData?.valor) {
+      console.log('Found today\'s UF value in database:', todayData.valor);
+      return todayData.valor;
     }
 
-    if (data && data.length > 0) {
-      return data[0].valor;
-    }
-
-    // If no UF value is found in the database, fetch it from an external API
+    // If we don't have today's value, fetch from external API
+    console.log('Today\'s UF value not found in database, fetching from API...');
     return await fetchUFValueFromAPI();
   } catch (err) {
     console.error('Error in fetchLatestUFValue:', err);
@@ -36,12 +40,48 @@ export const fetchLatestUFValue = async (): Promise<number | null> => {
  */
 export const fetchUFValueFromAPI = async (): Promise<number | null> => {
   try {
-    // Fetch UF value from CMF API (Chilean Financial Market Commission)
-    const response = await fetch('https://api.cmfchile.cl/api-sbifv3/recursos_api/uf?apikey=e078e0a4a72f28b70d1f937f3e5917b2e9e6b6e8&formato=json');
+    // Try the primary API first (mindicador.cl)
+    const response = await fetch('https://mindicador.cl/api/uf');
     
     if (!response.ok) {
-      // Fallback to another API if CMF API fails
+      console.log('Primary API failed, trying backup API...');
       return await fetchUFValueFromBackupAPI();
+    }
+    
+    const data = await response.json();
+    
+    if (data && data.serie && data.serie.length > 0) {
+      const ufValue = data.serie[0].valor;
+      
+      if (!isNaN(ufValue)) {
+        console.log('UF value fetched from primary API:', ufValue);
+        // Store the UF value in the database
+        await storeUFValue(ufValue);
+        return ufValue;
+      }
+    }
+    
+    // If primary API doesn't return valid data, try backup API
+    console.log('Primary API returned invalid data, trying backup API...');
+    return await fetchUFValueFromBackupAPI();
+  } catch (err) {
+    console.error('Error fetching UF value from primary API:', err);
+    return await fetchUFValueFromBackupAPI();
+  }
+};
+
+/**
+ * Fallback function to fetch UF value from a backup API
+ * @returns The current UF value or null if not found
+ */
+export const fetchUFValueFromBackupAPI = async (): Promise<number | null> => {
+  try {
+    // Using CMF API as a backup
+    const apiKey = 'e078e0a4a72f28b70d1f937f3e5917b2e9e6b6e8'; // This is a public key
+    const response = await fetch(`https://api.cmfchile.cl/api-sbifv3/recursos_api/uf?apikey=${apiKey}&formato=json`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch from backup API');
     }
     
     const data = await response.json();
@@ -53,45 +93,14 @@ export const fetchUFValueFromAPI = async (): Promise<number | null> => {
       const ufValue = parseFloat(ufValueStr.replace('.', '').replace(',', '.'));
       
       if (!isNaN(ufValue)) {
+        console.log('UF value fetched from backup API:', ufValue);
         // Store the UF value in the database
         await storeUFValue(ufValue);
         return ufValue;
       }
     }
     
-    // If CMF API doesn't return valid data, try backup API
-    return await fetchUFValueFromBackupAPI();
-  } catch (err) {
-    console.error('Error fetching UF value from API:', err);
-    return await fetchUFValueFromBackupAPI();
-  }
-};
-
-/**
- * Fallback function to fetch UF value from a backup API
- * @returns The current UF value or null if not found
- */
-export const fetchUFValueFromBackupAPI = async (): Promise<number | null> => {
-  try {
-    // Using mindicador.cl as a backup API
-    const response = await fetch('https://mindicador.cl/api/uf');
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch from backup API');
-    }
-    
-    const data = await response.json();
-    
-    if (data && data.serie && data.serie.length > 0) {
-      const ufValue = data.serie[0].valor;
-      
-      if (!isNaN(ufValue)) {
-        // Store the UF value in the database
-        await storeUFValue(ufValue);
-        return ufValue;
-      }
-    }
-    
+    console.error('Backup API returned invalid data');
     return null;
   } catch (err) {
     console.error('Error fetching UF value from backup API:', err);
@@ -123,6 +132,7 @@ export const storeUFValue = async (value: number): Promise<void> => {
     
     if (existingData) {
       // Update existing value
+      console.log('Updating existing UF value for today:', value);
       const { error: updateError } = await supabase
         .from('valores_financieros')
         .update({ valor: value })
@@ -133,6 +143,7 @@ export const storeUFValue = async (value: number): Promise<void> => {
       }
     } else {
       // Insert new value
+      console.log('Inserting new UF value for today:', value);
       const { error: insertError } = await supabase
         .from('valores_financieros')
         .insert([
