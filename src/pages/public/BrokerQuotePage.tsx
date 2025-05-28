@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useUFStore } from '../../stores/ufStore';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
-import { Loader2, Calculator, Download, Check, Plus, Minus, Home as HomeIcon } from 'lucide-react';
+import { Loader2, Calculator, Download, Plus, Minus, Building, Home, DollarSign } from 'lucide-react';
 
-interface StockUnit {
+interface BrokerQuotePageProps {}
+
+interface Unidad {
   id: string;
   proyecto_nombre: string;
   unidad: string;
   tipologia: string;
   piso: string;
-  orientacion: string;
-  sup_util: number;
-  sup_terraza: number;
-  sup_total: number;
-  valor_lista: number;
-  tipo_bien: string;
+  orientacion: string | null;
+  valor_lista: number | null;
+  sup_util: number | null;
+  sup_terraza: number | null;
+  sup_total: number | null;
+  tipo_bien: string | null;
 }
 
 interface Broker {
@@ -35,450 +37,293 @@ interface ProjectPolicy {
   fecha_tope: string | null;
 }
 
-const BrokerQuotePage: React.FC = () => {
+const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
   const { brokerSlug, accessToken } = useParams<{ brokerSlug: string; accessToken: string }>();
+  const navigate = useNavigate();
   const { ufValue, fetchUFValue } = useUFStore();
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [broker, setBroker] = useState<Broker | null>(null);
-  const [projects, setProjects] = useState<string[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('');
-  const [units, setUnits] = useState<StockUnit[]>([]);
-  const [filteredUnits, setFilteredUnits] = useState<StockUnit[]>([]);
-  const [selectedUnidad, setSelectedUnidad] = useState<StockUnit | null>(null);
-  const [addedSecondaryUnits, setAddedSecondaryUnits] = useState<StockUnit[]>([]);
-  const [projectPolicy, setProjectPolicy] = useState<ProjectPolicy | null>(null);
+  const [unidades, setUnidades] = useState<Unidad[]>([]);
+  const [filteredUnidades, setFilteredUnidades] = useState<Unidad[]>([]);
+  const [selectedUnidad, setSelectedUnidad] = useState<Unidad | null>(null);
+  const [addedSecondaryUnits, setAddedSecondaryUnits] = useState<Unidad[]>([]);
+  const [projectPolicies, setProjectPolicies] = useState<Record<string, ProjectPolicy>>({});
   
-  // Form state
-  const [cliente, setCliente] = useState('');
-  const [rut, setRut] = useState('');
+  // Filtros
+  const [proyectoFilter, setProyectoFilter] = useState<string>('');
+  const [tipologiaFilter, setTipologiaFilter] = useState<string>('');
+  
+  // Datos de cotización
+  const [clientName, setClientName] = useState<string>('');
+  const [clientRut, setClientRut] = useState<string>('');
   const [quotationType, setQuotationType] = useState<'descuento' | 'bono' | 'mix'>('descuento');
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [bonoAmount, setBonoAmount] = useState(0);
-  const [pagoReserva, setPagoReserva] = useState(0);
-  const [pagoPromesa, setPagoPromesa] = useState(0);
-  const [pagoPromesaPct, setPagoPromesaPct] = useState(0);
-  const [pagoPie, setPagoPie] = useState(0);
-  const [pagoPiePct, setPagoPiePct] = useState(0);
-  const [pagoBonoPieCotizacion, setPagoBonoPieCotizacion] = useState(0);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [bonoAmount, setBonoAmount] = useState<number>(0);
   
-  // Calculated values
-  const [precioBaseDepartamento, setPrecioBaseDepartamento] = useState(0);
-  const [precioDescuentoDepartamento, setPrecioDescuentoDepartamento] = useState(0);
-  const [precioDepartamentoConDescuento, setPrecioDepartamentoConDescuento] = useState(0);
-  const [precioTotalSecundarios, setPrecioTotalSecundarios] = useState(0);
-  const [totalEscritura, setTotalEscritura] = useState(0);
-  const [pagoCreditoHipotecarioCalculado, setPagoCreditoHipotecarioCalculado] = useState(0);
-  const [totalFormaDePago, setTotalFormaDePago] = useState(0);
+  // Forma de pago
+  const [pagoReserva, setPagoReserva] = useState<number>(0);
+  const [pagoPromesa, setPagoPromesa] = useState<number>(0);
+  const [pagoPromesaPct, setPagoPromesaPct] = useState<number>(0);
+  const [pagoPie, setPagoPie] = useState<number>(0);
+  const [pagoPiePct, setPagoPiePct] = useState<number>(0);
+  const [pagoBonoPieCotizacion, setPagoBonoPieCotizacion] = useState<number>(0);
   
-  // PDF generation state
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [quotationData, setQuotationData] = useState<any | null>(null);
+  // Valores calculados
+  const [precioBaseDepartamento, setPrecioBaseDepartamento] = useState<number>(0);
+  const [precioDescuentoDepartamento, setPrecioDescuentoDepartamento] = useState<number>(0);
+  const [precioDepartamentoConDescuento, setPrecioDepartamentoConDescuento] = useState<number>(0);
+  const [precioTotalSecundarios, setPrecioTotalSecundarios] = useState<number>(0);
+  const [totalEscritura, setTotalEscritura] = useState<number>(0);
+  const [pagoCreditoHipotecarioCalculado, setPagoCreditoHipotecarioCalculado] = useState<number>(0);
+  const [totalFormaDePago, setTotalFormaDePago] = useState<number>(0);
   
-  // Validation state
-  const [isValid, setIsValid] = useState(false);
-  const [validationMessage, setValidationMessage] = useState('');
+  // Proyectos y tipologías disponibles
+  const [proyectosDisponibles, setProyectosDisponibles] = useState<string[]>([]);
+  const [tipologiasDisponibles, setTipologiasDisponibles] = useState<string[]>([]);
   
-  // Tipologías disponibles para el proyecto seleccionado
-  const [tipologias, setTipologias] = useState<string[]>([]);
-  const [selectedTipologia, setSelectedTipologia] = useState<string>('');
-
+  // Validación de token
   useEffect(() => {
-    if (!ufValue) {
-      fetchUFValue();
+    const validateToken = async () => {
+      try {
+        setLoading(true);
+        
+        if (!brokerSlug || !accessToken) {
+          throw new Error('Parámetros de URL incompletos');
+        }
+        
+        // Buscar el broker por slug y token
+        const { data: brokerData, error: brokerError } = await supabase
+          .from('brokers')
+          .select('id, name, business_name, slug, public_access_token')
+          .eq('slug', brokerSlug)
+          .eq('public_access_token', accessToken)
+          .single();
+        
+        if (brokerError || !brokerData) {
+          console.error('Error validando token:', brokerError);
+          throw new Error('Acceso denegado: token inválido');
+        }
+        
+        setBroker(brokerData);
+        
+        // Cargar unidades disponibles
+        await fetchUnidades();
+        
+        // Cargar políticas comerciales
+        await fetchProjectPolicies();
+        
+        // Cargar valor UF
+        fetchUFValue();
+      } catch (err: any) {
+        console.error('Error en validación:', err);
+        setError(err.message || 'Error de validación');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    validateToken();
+  }, [brokerSlug, accessToken]);
+  
+  // Cargar unidades disponibles
+  const fetchUnidades = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('stock_unidades')
+        .select('*')
+        .eq('estado_unidad', 'Disponible')
+        .order('proyecto_nombre', { ascending: true })
+        .order('unidad', { ascending: true });
+      
+      if (error) throw error;
+      
+      setUnidades(data || []);
+      setFilteredUnidades(data || []);
+      
+      // Extraer proyectos disponibles
+      const proyectos = [...new Set(data?.map(u => u.proyecto_nombre) || [])];
+      setProyectosDisponibles(proyectos);
+      
+      // Extraer tipologías disponibles (solo para departamentos)
+      const tipologias = [...new Set(
+        data?.filter(u => u.tipo_bien === 'DEPARTAMENTO')
+            .map(u => u.tipologia)
+            .filter(Boolean) || []
+      )];
+      setTipologiasDisponibles(tipologias as string[]);
+    } catch (err: any) {
+      console.error('Error cargando unidades:', err);
+      setError('Error cargando unidades disponibles');
+    }
+  };
+  
+  // Cargar políticas comerciales de proyectos
+  const fetchProjectPolicies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('project_commercial_policies')
+        .select('*');
+      
+      if (error) throw error;
+      
+      // Convertir a un objeto indexado por nombre de proyecto
+      const policiesMap: Record<string, ProjectPolicy> = {};
+      data?.forEach(policy => {
+        policiesMap[policy.project_name] = {
+          ...policy,
+          bono_pie_max_pct: policy.bono_pie_max_pct * 100 // Convertir de decimal a porcentaje
+        };
+      });
+      
+      setProjectPolicies(policiesMap);
+    } catch (err: any) {
+      console.error('Error cargando políticas comerciales:', err);
+    }
+  };
+  
+  // Filtrar unidades cuando cambian los filtros
+  useEffect(() => {
+    let filtered = unidades;
+    
+    if (proyectoFilter) {
+      filtered = filtered.filter(u => u.proyecto_nombre === proyectoFilter);
+      
+      // Actualizar tipologías disponibles para este proyecto
+      const tipologiasProyecto = [...new Set(
+        filtered.filter(u => u.tipo_bien === 'DEPARTAMENTO')
+               .map(u => u.tipologia)
+               .filter(Boolean)
+      )];
+      setTipologiasDisponibles(tipologiasProyecto as string[]);
     }
     
-    if (brokerSlug && accessToken) {
-      validateBrokerAccess();
+    if (tipologiaFilter) {
+      filtered = filtered.filter(u => u.tipologia === tipologiaFilter);
     }
-  }, [brokerSlug, accessToken]);
-
+    
+    setFilteredUnidades(filtered);
+  }, [proyectoFilter, tipologiaFilter, unidades]);
+  
+  // Calcular valores cuando cambia la unidad seleccionada o los parámetros
   useEffect(() => {
-    if (broker) {
-      fetchProjects();
-    }
-  }, [broker]);
-
-  useEffect(() => {
-    if (selectedProject) {
-      fetchUnits();
-      fetchProjectPolicy();
-    }
-  }, [selectedProject]);
-
-  useEffect(() => {
-    if (selectedProject && units.length > 0) {
-      // Extract unique tipologias for the selected project
-      const uniqueTipologias = Array.from(
-        new Set(
-          units
-            .filter(unit => unit.proyecto_nombre === selectedProject && unit.tipo_bien === 'DEPARTAMENTO')
-            .map(unit => unit.tipologia)
-        )
-      );
-      setTipologias(uniqueTipologias);
+    if (selectedUnidad) {
+      // Precio base del departamento
+      const precioBase = selectedUnidad.valor_lista || 0;
+      setPrecioBaseDepartamento(precioBase);
       
-      // Filter units based on selected project and tipologia
-      filterUnits();
+      // Calcular descuento según el tipo de cotización
+      let descuentoUF = 0;
+      if (quotationType === 'descuento' || quotationType === 'mix') {
+        descuentoUF = (precioBase * discountAmount) / 100;
+      }
+      setPrecioDescuentoDepartamento(descuentoUF);
+      
+      // Precio con descuento
+      const precioConDescuento = precioBase - descuentoUF;
+      setPrecioDepartamentoConDescuento(precioConDescuento);
+      
+      // Precio total de unidades secundarias
+      const totalSecundarios = addedSecondaryUnits.reduce((sum, unit) => sum + (unit.valor_lista || 0), 0);
+      setPrecioTotalSecundarios(totalSecundarios);
+      
+      // Total escritura
+      const totalEsc = precioConDescuento + totalSecundarios;
+      setTotalEscritura(totalEsc);
+      
+      // Actualizar montos de pago según porcentajes
+      const nuevaPromesa = (totalEsc * pagoPromesaPct) / 100;
+      setPagoPromesa(nuevaPromesa);
+      
+      const nuevoPie = (totalEsc * pagoPiePct) / 100;
+      setPagoPie(nuevoPie);
+      
+      // Bono pie (solo si es tipo bono o mix)
+      let bonoPie = 0;
+      if (quotationType === 'bono' || quotationType === 'mix') {
+        bonoPie = bonoAmount;
+      }
+      setPagoBonoPieCotizacion(bonoPie);
+      
+      // Calcular crédito hipotecario (lo que falta para completar el total)
+      const creditoHipotecario = totalEsc - pagoReserva - nuevaPromesa - nuevoPie - bonoPie;
+      setPagoCreditoHipotecarioCalculado(Math.max(0, creditoHipotecario));
+      
+      // Total forma de pago
+      const totalForma = pagoReserva + nuevaPromesa + nuevoPie + Math.max(0, creditoHipotecario) + bonoPie;
+      setTotalFormaDePago(totalForma);
+      
+      // Si hay política comercial para este proyecto, aplicar monto de reserva
+      if (selectedUnidad.proyecto_nombre && projectPolicies[selectedUnidad.proyecto_nombre]) {
+        const policy = projectPolicies[selectedUnidad.proyecto_nombre];
+        
+        // Convertir monto de reserva de pesos a UF
+        if (ufValue && policy.monto_reserva_pesos > 0) {
+          const reservaUF = policy.monto_reserva_pesos / ufValue;
+          setPagoReserva(reservaUF);
+        }
+        
+        // Limitar bono pie al máximo permitido
+        if (quotationType === 'bono' || quotationType === 'mix') {
+          const maxBonoPieUF = (totalEsc * policy.bono_pie_max_pct) / 100;
+          if (bonoPie > maxBonoPieUF) {
+            setPagoBonoPieCotizacion(maxBonoPieUF);
+          }
+        }
+      }
     }
-  }, [selectedProject, selectedTipologia, units]);
-
-  useEffect(() => {
-    calculatePrices();
   }, [
     selectedUnidad, 
     addedSecondaryUnits, 
     quotationType, 
     discountAmount, 
-    bonoAmount,
-    pagoReserva,
-    pagoPromesaPct,
-    pagoPiePct,
-    pagoBonoPieCotizacion
-  ]);
-
-  useEffect(() => {
-    validateForm();
-  }, [
-    cliente, 
-    rut, 
-    selectedUnidad, 
+    bonoAmount, 
     pagoReserva, 
-    pagoPromesa, 
-    pagoPie, 
-    pagoCreditoHipotecarioCalculado,
-    totalFormaDePago,
-    totalEscritura
+    pagoPromesaPct, 
+    pagoPiePct,
+    ufValue
   ]);
-
-  const validateBrokerAccess = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      console.log(`Validando acceso para broker: ${brokerSlug}, token: ${accessToken}`);
-      
-      // Fetch broker by slug and access token
-      const { data, error } = await supabase
-        .from('brokers')
-        .select('id, name, business_name, slug, public_access_token')
-        .eq('slug', brokerSlug)
-        .eq('public_access_token', accessToken)
-        .single();
-      
-      if (error) {
-        console.error('Error en la validación del broker:', error);
-        throw new Error('Acceso denegado: token inválido');
-      }
-      
-      if (!data) {
-        throw new Error('Broker no encontrado');
-      }
-      
-      console.log('Broker validado correctamente:', data);
-      setBroker(data);
-    } catch (err: any) {
-      console.error('Error validando acceso del broker:', err);
-      setError(err.message || 'Error de autenticación');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchProjects = async () => {
-    try {
-      setLoading(true);
-      
-      // Get unique project names from stock_unidades
-      const { data, error } = await supabase
-        .from('stock_unidades')
-        .select('proyecto_nombre')
-        .eq('estado_unidad', 'Disponible')
-        .order('proyecto_nombre');
-      
-      if (error) throw error;
-      
-      // Extract unique project names
-      const uniqueProjects = Array.from(
-        new Set(data.map(item => item.proyecto_nombre))
-      );
-      
-      setProjects(uniqueProjects);
-      
-      // Set first project as selected by default
-      if (uniqueProjects.length > 0) {
-        setSelectedProject(uniqueProjects[0]);
-      }
-    } catch (err: any) {
-      console.error('Error fetching projects:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchUnits = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch all units for the selected project
-      const { data, error } = await supabase
-        .from('stock_unidades')
-        .select('*')
-        .eq('proyecto_nombre', selectedProject)
-        .eq('estado_unidad', 'Disponible')
-        .order('unidad');
-      
-      if (error) throw error;
-      
-      setUnits(data);
-    } catch (err: any) {
-      console.error('Error fetching units:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchProjectPolicy = async () => {
-    try {
-      // Fetch commercial policy for the selected project
-      const { data, error } = await supabase
-        .from('project_commercial_policies')
-        .select('*')
-        .eq('project_name', selectedProject)
-        .maybeSingle();
-      
-      if (error) throw error;
-      
-      if (data) {
-        // Convert bono_pie_max_pct from decimal to percentage (e.g., 0.15 to 15)
-        const policy = {
-          ...data,
-          bono_pie_max_pct: data.bono_pie_max_pct * 100
-        };
-        setProjectPolicy(policy);
-        
-        // Set default values based on policy
-        if (policy.monto_reserva_pesos && ufValue) {
-          const reservaUF = policy.monto_reserva_pesos / ufValue;
-          setPagoReserva(parseFloat(reservaUF.toFixed(2)));
-        }
-      } else {
-        setProjectPolicy(null);
-      }
-    } catch (err: any) {
-      console.error('Error fetching project policy:', err);
-      // Don't set error state here to avoid blocking the UI
-    }
-  };
-
-  const filterUnits = () => {
-    if (!selectedProject) {
-      setFilteredUnits([]);
-      return;
-    }
-    
-    let filtered = units.filter(unit => 
-      unit.proyecto_nombre === selectedProject && 
-      unit.tipo_bien === 'DEPARTAMENTO'
-    );
-    
-    if (selectedTipologia) {
-      filtered = filtered.filter(unit => unit.tipologia === selectedTipologia);
-    }
-    
-    setFilteredUnits(filtered);
-  };
-
-  const handleSelectUnit = (unit: StockUnit) => {
-    setSelectedUnidad(unit);
-    
-    // Reset secondary units when main unit changes
+  
+  // Seleccionar unidad
+  const handleSelectUnidad = (unidad: Unidad) => {
+    setSelectedUnidad(unidad);
+    // Limpiar unidades secundarias al cambiar de departamento
     setAddedSecondaryUnits([]);
     
-    // Reset form values
-    setDiscountAmount(0);
-    setBonoAmount(0);
+    // Establecer valores por defecto para forma de pago
     setPagoPromesaPct(10);
     setPagoPiePct(10);
-    setPagoBonoPieCotizacion(0);
     
-    // Set default values based on project policy
-    if (projectPolicy && ufValue) {
-      const reservaUF = projectPolicy.monto_reserva_pesos / ufValue;
-      setPagoReserva(parseFloat(reservaUF.toFixed(2)));
-    }
-  };
-
-  const handleAddSecondaryUnit = (unit: StockUnit) => {
-    if (!addedSecondaryUnits.some(u => u.id === unit.id)) {
-      setAddedSecondaryUnits([...addedSecondaryUnits, unit]);
-    }
-  };
-
-  const handleRemoveSecondaryUnit = (unitId: string) => {
-    setAddedSecondaryUnits(addedSecondaryUnits.filter(unit => unit.id !== unitId));
-  };
-
-  const calculatePrices = () => {
-    if (!selectedUnidad) {
-      resetCalculatedValues();
-      return;
-    }
-    
-    // Base price of the department
-    const baseDeptPrice = selectedUnidad.valor_lista || 0;
-    setPrecioBaseDepartamento(baseDeptPrice);
-    
-    // Calculate discount based on quotation type
-    let discountUF = 0;
-    if (quotationType === 'descuento' || quotationType === 'mix') {
-      discountUF = (baseDeptPrice * discountAmount) / 100;
-    }
-    setPrecioDescuentoDepartamento(discountUF);
-    
-    // Calculate department price after discount
-    const deptPriceAfterDiscount = baseDeptPrice - discountUF;
-    setPrecioDepartamentoConDescuento(deptPriceAfterDiscount);
-    
-    // Calculate total price of secondary units
-    const secondaryUnitsTotal = addedSecondaryUnits.reduce(
-      (sum, unit) => sum + (unit.valor_lista || 0), 
-      0
-    );
-    setPrecioTotalSecundarios(secondaryUnitsTotal);
-    
-    // Calculate total deed price
-    const totalDeedPrice = deptPriceAfterDiscount + secondaryUnitsTotal;
-    setTotalEscritura(totalDeedPrice);
-    
-    // Calculate payments based on percentages
-    const promesaAmount = (totalDeedPrice * pagoPromesaPct) / 100;
-    setPagoPromesa(parseFloat(promesaAmount.toFixed(2)));
-    
-    const pieAmount = (totalDeedPrice * pagoPiePct) / 100;
-    setPagoPie(parseFloat(pieAmount.toFixed(2)));
-    
-    // Calculate mortgage credit
-    const creditoHipotecario = totalDeedPrice - pagoReserva - promesaAmount - pieAmount - pagoBonoPieCotizacion;
-    setPagoCreditoHipotecarioCalculado(parseFloat(creditoHipotecario.toFixed(2)));
-    
-    // Calculate total payment form
-    const totalPaymentForm = pagoReserva + promesaAmount + pieAmount + creditoHipotecario + pagoBonoPieCotizacion;
-    setTotalFormaDePago(parseFloat(totalPaymentForm.toFixed(2)));
-  };
-
-  const resetCalculatedValues = () => {
-    setPrecioBaseDepartamento(0);
-    setPrecioDescuentoDepartamento(0);
-    setPrecioDepartamentoConDescuento(0);
-    setPrecioTotalSecundarios(0);
-    setTotalEscritura(0);
-    setPagoCreditoHipotecarioCalculado(0);
-    setTotalFormaDePago(0);
-  };
-
-  const validateForm = () => {
-    if (!cliente || !rut || !selectedUnidad) {
-      setIsValid(false);
-      setValidationMessage('Por favor complete los campos obligatorios');
-      return;
-    }
-    
-    if (Math.abs(totalFormaDePago - totalEscritura) > 0.1) {
-      setIsValid(false);
-      setValidationMessage('La forma de pago no coincide con el total de escrituración');
-      return;
-    }
-    
-    if (pagoCreditoHipotecarioCalculado < 0) {
-      setIsValid(false);
-      setValidationMessage('El crédito hipotecario no puede ser negativo');
-      return;
-    }
-    
-    setIsValid(true);
-    setValidationMessage('');
-  };
-
-  const handleGeneratePDF = () => {
-    setIsGeneratingPDF(true);
-    
-    // Prepare data for PDF
-    const data = {
-      cliente,
-      rut,
-      ufValue,
-      selectedUnidad,
-      addedSecondaryUnits,
-      quotationType,
-      discountAmount,
-      bonoAmount,
-      pagoReserva,
-      pagoPromesa,
-      pagoPromesaPct,
-      pagoPie,
-      pagoPiePct,
-      pagoBonoPieCotizacion,
-      precioBaseDepartamento,
-      precioDescuentoDepartamento,
-      precioDepartamentoConDescuento,
-      precioTotalSecundarios,
-      totalEscritura,
-      pagoCreditoHipotecarioCalculado,
-      totalFormaDePago
-    };
-    
-    setQuotationData(data);
-    
-    // Save quotation to database
-    saveQuotation(data);
-  };
-
-  const saveQuotation = async (data: any) => {
-    try {
-      // Create quotation record
-      const { error } = await supabase
-        .from('quotations')
-        .insert([
-          {
-            broker_id: broker?.id,
-            client_name: data.cliente,
-            client_rut: data.rut,
-            uf_value: data.ufValue,
-            selected_unit: data.selectedUnidad,
-            added_secondary_units: data.addedSecondaryUnits,
-            quotation_type: data.quotationType,
-            discount_amount: data.discountAmount,
-            bono_amount: data.bonoAmount,
-            payment_reserve: data.pagoReserva,
-            payment_promise: data.pagoPromesa,
-            payment_promise_pct: data.pagoPromesaPct,
-            payment_downpayment: data.pagoPie,
-            payment_downpayment_pct: data.pagoPiePct,
-            payment_bono_downpayment: data.pagoBonoPieCotizacion,
-            base_department_price: data.precioBaseDepartamento,
-            discount_department_price: data.precioDescuentoDepartamento,
-            net_department_price: data.precioDepartamentoConDescuento,
-            total_secondary_units_price: data.precioTotalSecundarios,
-            total_deed_price: data.totalEscritura,
-            calculated_mortgage_credit: data.pagoCreditoHipotecarioCalculado,
-            total_payment_form: data.totalFormaDePago
-          }
-        ]);
+    // Si hay política comercial para este proyecto, aplicar monto de reserva
+    if (unidad.proyecto_nombre && projectPolicies[unidad.proyecto_nombre]) {
+      const policy = projectPolicies[unidad.proyecto_nombre];
       
-      if (error) {
-        console.error('Error saving quotation:', error);
+      // Convertir monto de reserva de pesos a UF
+      if (ufValue && policy.monto_reserva_pesos > 0) {
+        const reservaUF = policy.monto_reserva_pesos / ufValue;
+        setPagoReserva(reservaUF);
       }
-    } catch (err) {
-      console.error('Error in saveQuotation:', err);
-    } finally {
-      setIsGeneratingPDF(false);
+    } else {
+      // Valor por defecto si no hay política
+      setPagoReserva(10);
     }
   };
-
+  
+  // Agregar unidad secundaria
+  const handleAddSecondaryUnit = (unidad: Unidad) => {
+    // Verificar que no esté ya agregada
+    if (!addedSecondaryUnits.some(u => u.id === unidad.id)) {
+      setAddedSecondaryUnits([...addedSecondaryUnits, unidad]);
+    }
+  };
+  
+  // Quitar unidad secundaria
+  const handleRemoveSecondaryUnit = (unidadId: string) => {
+    setAddedSecondaryUnits(addedSecondaryUnits.filter(u => u.id !== unidadId));
+  };
+  
+  // Formatear montos como moneda
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CL', {
       style: 'decimal',
@@ -486,8 +331,9 @@ const BrokerQuotePage: React.FC = () => {
       maximumFractionDigits: 2
     }).format(amount);
   };
-
-  const formatCLP = (amount: number) => {
+  
+  // Formatear montos como pesos chilenos
+  const formatPesos = (amount: number) => {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
       currency: 'CLP',
@@ -495,639 +341,663 @@ const BrokerQuotePage: React.FC = () => {
       maximumFractionDigits: 0
     }).format(amount);
   };
-
+  
+  // Convertir UF a pesos
+  const ufToPesos = (ufAmount: number) => {
+    if (!ufValue) return 0;
+    return ufAmount * ufValue;
+  };
+  
+  // Guardar cotización
+  const handleSaveQuote = async () => {
+    if (!selectedUnidad || !broker) return;
+    
+    try {
+      setLoading(true);
+      
+      // Crear objeto de cotización
+      const quoteData = {
+        broker_id: broker.id,
+        client_name: clientName,
+        client_rut: clientRut,
+        uf_value: ufValue,
+        selected_unit: selectedUnidad,
+        added_secondary_units: addedSecondaryUnits,
+        quotation_type: quotationType,
+        discount_amount: discountAmount,
+        bono_amount: bonoAmount,
+        payment_reserve: pagoReserva,
+        payment_promise: pagoPromesa,
+        payment_promise_pct: pagoPromesaPct,
+        payment_downpayment: pagoPie,
+        payment_downpayment_pct: pagoPiePct,
+        payment_bono_downpayment: pagoBonoPieCotizacion,
+        base_department_price: precioBaseDepartamento,
+        discount_department_price: precioDescuentoDepartamento,
+        net_department_price: precioDepartamentoConDescuento,
+        total_secondary_units_price: precioTotalSecundarios,
+        total_deed_price: totalEscritura,
+        calculated_mortgage_credit: pagoCreditoHipotecarioCalculado,
+        total_payment_form: totalFormaDePago
+      };
+      
+      // Guardar en Supabase
+      const { error } = await supabase
+        .from('quotations')
+        .insert([quoteData]);
+      
+      if (error) throw error;
+      
+      // Mostrar mensaje de éxito
+      alert('Cotización guardada exitosamente');
+    } catch (err: any) {
+      console.error('Error guardando cotización:', err);
+      setError('Error al guardar la cotización');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full flex flex-col items-center">
-          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mb-4" />
-          <h1 className="text-xl font-semibold text-gray-800">Cargando...</h1>
-          <p className="text-gray-500 mt-2">Estamos preparando el cotizador</p>
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto" />
+          <h2 className="mt-4 text-xl font-semibold text-gray-700">Cargando cotizador...</h2>
         </div>
       </div>
     );
   }
-
+  
   if (error) {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
-          <div className="flex flex-col items-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
-            <h1 className="text-xl font-semibold text-gray-800">Error</h1>
-            <p className="text-gray-500 mt-2">Error de validación:</p>
-            <p className="text-red-600 font-medium mt-1">{error}</p>
-          </div>
+        <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg text-center">
+          <div className="text-red-500 text-5xl mb-4">×</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Error</h2>
+          <p className="text-gray-600 mb-4">Error de validación:</p>
+          <p className="text-red-600 font-medium">{error}</p>
         </div>
       </div>
     );
   }
-
+  
   if (!broker) {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
-          <div className="flex flex-col items-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v2m0-2h2m-2 0H9" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-            <h1 className="text-xl font-semibold text-gray-800">Acceso Denegado</h1>
-            <p className="text-gray-500 mt-2">No se pudo verificar el acceso al cotizador.</p>
-          </div>
+        <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg text-center">
+          <div className="text-red-500 text-5xl mb-4">×</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Acceso Denegado</h2>
+          <p className="text-gray-600">No se pudo validar el acceso al cotizador.</p>
         </div>
       </div>
     );
   }
-
+  
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <header className="bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center">
-            <img src="/logoinversiones.png" alt="Logo" className="h-12" />
-            <div className="ml-4">
-              <h1 className="text-xl font-semibold text-gray-900">Cotizador {broker.name}</h1>
-              <p className="text-sm text-gray-500">{broker.business_name}</p>
+      <header className="bg-white shadow-md py-4">
+        <div className="container mx-auto px-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Cotizador {broker.name}</h1>
+            <p className="text-sm text-gray-500">{broker.business_name}</p>
+          </div>
+          {ufValue && (
+            <div className="bg-blue-50 px-4 py-2 rounded-lg">
+              <p className="text-sm text-gray-600">Valor UF:</p>
+              <p className="text-lg font-semibold text-blue-700">{formatPesos(ufValue)}</p>
             </div>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Valor UF:</p>
-            <p className="text-lg font-semibold text-gray-900">
-              {ufValue ? formatCLP(ufValue) : 'Cargando...'}
-            </p>
-          </div>
+          )}
         </div>
       </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Client Info & Unit Selection */}
+      
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Columna izquierda - Filtros y selección */}
           <div className="lg:col-span-1 space-y-6">
-            {/* Client Information */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Información del Cliente</h2>
+            {/* Datos del cliente */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <DollarSign className="h-5 w-5 mr-2 text-blue-600" />
+                Datos del Cliente
+              </h2>
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="cliente" className="block text-sm font-medium text-gray-700">Nombre Completo *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
                   <input
                     type="text"
-                    id="cliente"
-                    value={cliente}
-                    onChange={(e) => setCliente(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    required
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="Nombre del cliente"
                   />
                 </div>
                 <div>
-                  <label htmlFor="rut" className="block text-sm font-medium text-gray-700">RUT *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">RUT</label>
                   <input
                     type="text"
-                    id="rut"
-                    value={rut}
-                    onChange={(e) => setRut(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    required
+                    value={clientRut}
+                    onChange={(e) => setClientRut(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="12.345.678-9"
                   />
                 </div>
               </div>
             </div>
-
-            {/* Project & Unit Selection */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Selección de Unidad</h2>
+            
+            {/* Filtros */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <Building className="h-5 w-5 mr-2 text-blue-600" />
+                Filtros
+              </h2>
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="project" className="block text-sm font-medium text-gray-700">Proyecto *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Proyecto</label>
                   <select
-                    id="project"
-                    value={selectedProject}
-                    onChange={(e) => setSelectedProject(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    required
+                    value={proyectoFilter}
+                    onChange={(e) => {
+                      setProyectoFilter(e.target.value);
+                      setTipologiaFilter(''); // Reset tipología al cambiar proyecto
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
-                    <option value="">Seleccione un proyecto</option>
-                    {projects.map(project => (
-                      <option key={project} value={project}>{project}</option>
+                    <option value="">Todos los proyectos</option>
+                    {proyectosDisponibles.map(proyecto => (
+                      <option key={proyecto} value={proyecto}>{proyecto}</option>
                     ))}
                   </select>
                 </div>
-
-                {selectedProject && (
-                  <div>
-                    <label htmlFor="tipologia" className="block text-sm font-medium text-gray-700">Tipología</label>
-                    <select
-                      id="tipologia"
-                      value={selectedTipologia}
-                      onChange={(e) => setSelectedTipologia(e.target.value)}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    >
-                      <option value="">Todas las tipologías</option>
-                      {tipologias.map(tipologia => (
-                        <option key={tipologia} value={tipologia}>{tipologia}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {filteredUnits.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Departamentos Disponibles *</label>
-                    <div className="max-h-60 overflow-y-auto border border-gray-300 rounded-md">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50 sticky top-0">
-                          <tr>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipología</th>
-                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Precio UF</th>
-                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {filteredUnits.map(unit => (
-                            <tr 
-                              key={unit.id} 
-                              className={`hover:bg-gray-50 ${selectedUnidad?.id === unit.id ? 'bg-blue-50' : ''}`}
-                            >
-                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">{unit.unidad}</td>
-                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{unit.tipologia}</td>
-                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-right">{formatCurrency(unit.valor_lista)}</td>
-                              <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                <button
-                                  onClick={() => handleSelectUnit(unit)}
-                                  className={`inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded ${
-                                    selectedUnidad?.id === unit.id
-                                      ? 'bg-blue-600 text-white'
-                                      : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                                  }`}
-                                >
-                                  Seleccionar
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {selectedUnidad && (
-                  <div className="mt-4 p-4 bg-blue-50 rounded-md">
-                    <h3 className="text-sm font-medium text-blue-800 mb-2">Unidad Seleccionada</h3>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-gray-500">Unidad:</span>
-                        <span className="ml-1 font-medium">{selectedUnidad.unidad}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Tipología:</span>
-                        <span className="ml-1 font-medium">{selectedUnidad.tipologia}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Piso:</span>
-                        <span className="ml-1 font-medium">{selectedUnidad.piso}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Orientación:</span>
-                        <span className="ml-1 font-medium">{selectedUnidad.orientacion || '-'}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Sup. Útil:</span>
-                        <span className="ml-1 font-medium">{formatCurrency(selectedUnidad.sup_util)} m²</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Sup. Total:</span>
-                        <span className="ml-1 font-medium">{formatCurrency(selectedUnidad.sup_total)} m²</span>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="text-gray-500">Precio:</span>
-                        <span className="ml-1 font-medium">{formatCurrency(selectedUnidad.valor_lista)} UF</span>
-                        {ufValue && (
-                          <span className="ml-1 text-gray-500">
-                            ({formatCLP(selectedUnidad.valor_lista * ufValue)})
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipología</label>
+                  <select
+                    value={tipologiaFilter}
+                    onChange={(e) => setTipologiaFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    disabled={!proyectoFilter}
+                  >
+                    <option value="">Todas las tipologías</option>
+                    {tipologiasDisponibles.map(tipologia => (
+                      <option key={tipologia} value={tipologia}>{tipologia}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
-
-            {/* Secondary Units */}
+            
+            {/* Lista de unidades */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <Home className="h-5 w-5 mr-2 text-blue-600" />
+                Unidades Disponibles
+              </h2>
+              
+              {filteredUnidades.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No hay unidades disponibles con los filtros seleccionados</p>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {filteredUnidades
+                    .filter(u => u.tipo_bien === 'DEPARTAMENTO')
+                    .map(unidad => (
+                      <div 
+                        key={unidad.id}
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          selectedUnidad?.id === unidad.id 
+                            ? 'bg-blue-50 border-blue-300' 
+                            : 'hover:bg-gray-50 border-gray-200'
+                        }`}
+                        onClick={() => handleSelectUnidad(unidad)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-gray-800">{unidad.unidad} - {unidad.tipologia}</p>
+                            <p className="text-sm text-gray-600">{unidad.proyecto_nombre}</p>
+                            <p className="text-xs text-gray-500">
+                              {unidad.sup_util && `${unidad.sup_util} m² útiles`}
+                              {unidad.sup_terraza && ` | ${unidad.sup_terraza} m² terraza`}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-blue-600">{formatCurrency(unidad.valor_lista || 0)} UF</p>
+                            {ufValue && (
+                              <p className="text-xs text-gray-500">{formatPesos(ufToPesos(unidad.valor_lista || 0))}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Unidades secundarias */}
             {selectedUnidad && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Unidades Secundarias</h2>
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <Home className="h-5 w-5 mr-2 text-blue-600" />
+                  Unidades Secundarias
+                </h2>
                 
-                {/* Available secondary units */}
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Disponibles</h3>
-                  <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
-                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Precio UF</th>
-                          <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {units
-                          .filter(unit => 
-                            unit.proyecto_nombre === selectedProject && 
-                            unit.tipo_bien !== 'DEPARTAMENTO' &&
-                            !addedSecondaryUnits.some(added => added.id === unit.id)
-                          )
-                          .map(unit => (
-                            <tr key={unit.id} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">{unit.tipo_bien}</td>
-                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{unit.unidad}</td>
-                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-right">{formatCurrency(unit.valor_lista)}</td>
-                              <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                <button
-                                  onClick={() => handleAddSecondaryUnit(unit)}
-                                  className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded bg-green-100 text-green-700 hover:bg-green-200"
-                                >
-                                  <Plus className="h-3 w-3 mr-1" />
-                                  Agregar
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {filteredUnidades
+                    .filter(u => 
+                      u.tipo_bien !== 'DEPARTAMENTO' && 
+                      u.proyecto_nombre === selectedUnidad.proyecto_nombre
+                    )
+                    .map(unidad => (
+                      <div 
+                        key={unidad.id}
+                        className="p-3 border rounded-lg hover:bg-gray-50 border-gray-200 flex justify-between items-center"
+                      >
+                        <div>
+                          <p className="font-medium text-gray-800">{unidad.tipo_bien} {unidad.unidad}</p>
+                          <p className="text-sm text-gray-600">{unidad.proyecto_nombre}</p>
+                        </div>
+                        <div className="text-right flex flex-col items-end">
+                          <p className="font-semibold text-blue-600">{formatCurrency(unidad.valor_lista || 0)} UF</p>
+                          
+                          {addedSecondaryUnits.some(u => u.id === unidad.id) ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveSecondaryUnit(unidad.id);
+                              }}
+                              className="mt-1 text-xs px-2 py-1 bg-red-100 text-red-600 rounded flex items-center"
+                            >
+                              <Minus className="h-3 w-3 mr-1" />
+                              Quitar
+                            </button>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAddSecondaryUnit(unidad);
+                              }}
+                              className="mt-1 text-xs px-2 py-1 bg-blue-100 text-blue-600 rounded flex items-center"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Agregar
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    
+                  {filteredUnidades.filter(u => 
+                    u.tipo_bien !== 'DEPARTAMENTO' && 
+                    u.proyecto_nombre === selectedUnidad.proyecto_nombre
+                  ).length === 0 && (
+                    <p className="text-gray-500 text-center py-4">No hay unidades secundarias disponibles</p>
+                  )}
                 </div>
                 
-                {/* Added secondary units */}
                 {addedSecondaryUnits.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Agregadas</h3>
-                    <div className="border border-gray-300 rounded-md">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
-                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Precio UF</th>
-                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {addedSecondaryUnits.map(unit => (
-                            <tr key={unit.id} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">{unit.tipo_bien}</td>
-                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{unit.unidad}</td>
-                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-right">{formatCurrency(unit.valor_lista)}</td>
-                              <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                <button
-                                  onClick={() => handleRemoveSecondaryUnit(unit.id)}
-                                  className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded bg-red-100 text-red-700 hover:bg-red-200"
-                                >
-                                  <Minus className="h-3 w-3 mr-1" />
-                                  Quitar
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <h3 className="font-medium text-gray-700 mb-2">Unidades Agregadas</h3>
+                    <div className="space-y-2">
+                      {addedSecondaryUnits.map(unit => (
+                        <div key={unit.id} className="flex justify-between items-center p-2 bg-blue-50 rounded">
+                          <span>{unit.tipo_bien} {unit.unidad}</span>
+                          <span className="font-medium">{formatCurrency(unit.valor_lista || 0)} UF</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center p-2 bg-blue-100 rounded">
+                        <span className="font-medium">Total Secundarios:</span>
+                        <span className="font-semibold">{formatCurrency(precioTotalSecundarios)} UF</span>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
             )}
           </div>
-
-          {/* Right Column - Pricing & Payment */}
+          
+          {/* Columna derecha - Cotización */}
           <div className="lg:col-span-2 space-y-6">
             {selectedUnidad ? (
               <>
-                {/* Pricing Options */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Opciones de Precio</h2>
+                {/* Detalles de la unidad seleccionada */}
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                    <Building className="h-6 w-6 mr-2 text-blue-600" />
+                    {selectedUnidad.proyecto_nombre} - {selectedUnidad.unidad}
+                  </h2>
                   
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Cotización</label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm text-gray-500">Tipología</p>
+                      <p className="font-medium">{selectedUnidad.tipologia}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm text-gray-500">Piso</p>
+                      <p className="font-medium">{selectedUnidad.piso}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm text-gray-500">Orientación</p>
+                      <p className="font-medium">{selectedUnidad.orientacion || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm text-gray-500">Superficie Útil</p>
+                      <p className="font-medium">{selectedUnidad.sup_util} m²</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm text-gray-500">Superficie Terraza</p>
+                      <p className="font-medium">{selectedUnidad.sup_terraza} m²</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm text-gray-500">Superficie Total</p>
+                      <p className="font-medium">{selectedUnidad.sup_total} m²</p>
+                    </div>
+                  </div>
+                  
+                  {/* Tipo de cotización */}
+                  <div className="mb-6">
+                    <h3 className="font-medium text-gray-700 mb-2">Tipo de Cotización</h3>
                     <div className="flex space-x-4">
-                      <label className="inline-flex items-center">
+                      <label className="flex items-center">
                         <input
                           type="radio"
-                          value="descuento"
                           checked={quotationType === 'descuento'}
                           onChange={() => setQuotationType('descuento')}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                          className="h-4 w-4 text-blue-600"
                         />
-                        <span className="ml-2 text-sm text-gray-700">Descuento</span>
+                        <span className="ml-2">Descuento</span>
                       </label>
-                      <label className="inline-flex items-center">
+                      <label className="flex items-center">
                         <input
                           type="radio"
-                          value="bono"
                           checked={quotationType === 'bono'}
                           onChange={() => setQuotationType('bono')}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                          className="h-4 w-4 text-blue-600"
                         />
-                        <span className="ml-2 text-sm text-gray-700">Bono</span>
+                        <span className="ml-2">Bono Pie</span>
                       </label>
-                      <label className="inline-flex items-center">
+                      <label className="flex items-center">
                         <input
                           type="radio"
-                          value="mix"
                           checked={quotationType === 'mix'}
                           onChange={() => setQuotationType('mix')}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                          className="h-4 w-4 text-blue-600"
                         />
-                        <span className="ml-2 text-sm text-gray-700">Mixto</span>
+                        <span className="ml-2">Mixto</span>
                       </label>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Parámetros según tipo de cotización */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     {(quotationType === 'descuento' || quotationType === 'mix') && (
                       <div>
-                        <label htmlFor="discountAmount" className="block text-sm font-medium text-gray-700">Descuento (%)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Descuento (%)
+                        </label>
                         <input
                           type="number"
-                          id="discountAmount"
-                          value={discountAmount}
-                          onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
                           min="0"
                           max="100"
-                          step="0.01"
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          step="0.1"
+                          value={discountAmount}
+                          onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
                         />
                       </div>
                     )}
                     
                     {(quotationType === 'bono' || quotationType === 'mix') && (
                       <div>
-                        <label htmlFor="bonoAmount" className="block text-sm font-medium text-gray-700">Bono Pie (UF)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Bono Pie (UF)
+                        </label>
                         <input
                           type="number"
-                          id="bonoAmount"
+                          min="0"
+                          step="0.1"
                           value={bonoAmount}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            setBonoAmount(value);
-                            setPagoBonoPieCotizacion(value);
-                          }}
-                          min="0"
-                          step="0.01"
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          onChange={(e) => setBonoAmount(parseFloat(e.target.value) || 0)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
                         />
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Price Summary */}
-                  <div className="mt-6 border-t border-gray-200 pt-4">
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Resumen de Precios</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-500">Precio Base Departamento:</span>
-                        <span className="text-sm font-medium">{formatCurrency(precioBaseDepartamento)} UF</span>
-                      </div>
-                      
-                      {(quotationType === 'descuento' || quotationType === 'mix') && precioDescuentoDepartamento > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Descuento ({discountAmount}%):</span>
-                          <span className="text-sm font-medium text-red-600">-{formatCurrency(precioDescuentoDepartamento)} UF</span>
-                        </div>
-                      )}
-                      
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-500">Precio Departamento con Descuento:</span>
-                        <span className="text-sm font-medium">{formatCurrency(precioDepartamentoConDescuento)} UF</span>
-                      </div>
-                      
-                      {addedSecondaryUnits.length > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Precio Unidades Secundarias:</span>
-                          <span className="text-sm font-medium">{formatCurrency(precioTotalSecundarios)} UF</span>
-                        </div>
-                      )}
-                      
-                      <div className="flex justify-between pt-2 border-t border-gray-200">
-                        <span className="text-sm font-medium text-gray-700">Precio Total Escrituración:</span>
-                        <span className="text-sm font-semibold">{formatCurrency(totalEscritura)} UF</span>
-                      </div>
-                      
-                      {ufValue && (
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Equivalente en pesos:</span>
-                          <span className="text-sm text-gray-500">{formatCLP(totalEscritura * ufValue)}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Form */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Forma de Pago</h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label htmlFor="pagoReserva" className="block text-sm font-medium text-gray-700">Reserva (UF)</label>
-                      <input
-                        type="number"
-                        id="pagoReserva"
-                        value={pagoReserva}
-                        onChange={(e) => setPagoReserva(parseFloat(e.target.value) || 0)}
-                        min="0"
-                        step="0.01"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      />
-                      {ufValue && (
-                        <p className="mt-1 text-xs text-gray-500">
-                          Equivalente: {formatCLP(pagoReserva * ufValue)}
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="pagoPromesaPct" className="block text-sm font-medium text-gray-700">Promesa (%)</label>
-                      <input
-                        type="number"
-                        id="pagoPromesaPct"
-                        value={pagoPromesaPct}
-                        onChange={(e) => setPagoPromesaPct(parseFloat(e.target.value) || 0)}
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        {formatCurrency(pagoPromesa)} UF
-                        {ufValue && ` (${formatCLP(pagoPromesa * ufValue)})`}
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="pagoPiePct" className="block text-sm font-medium text-gray-700">Pie (%)</label>
-                      <input
-                        type="number"
-                        id="pagoPiePct"
-                        value={pagoPiePct}
-                        onChange={(e) => setPagoPiePct(parseFloat(e.target.value) || 0)}
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        {formatCurrency(pagoPie)} UF
-                        {ufValue && ` (${formatCLP(pagoPie * ufValue)})`}
-                      </p>
-                    </div>
-                    
-                    {(quotationType === 'bono' || quotationType === 'mix') && (
-                      <div>
-                        <label htmlFor="pagoBonoPieCotizacion" className="block text-sm font-medium text-gray-700">Bono Pie (UF)</label>
-                        <input
-                          type="number"
-                          id="pagoBonoPieCotizacion"
-                          value={pagoBonoPieCotizacion}
-                          onChange={(e) => setPagoBonoPieCotizacion(parseFloat(e.target.value) || 0)}
-                          min="0"
-                          step="0.01"
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                        {ufValue && (
-                          <p className="mt-1 text-xs text-gray-500">
-                            Equivalente: {formatCLP(pagoBonoPieCotizacion * ufValue)}
+                        
+                        {selectedUnidad.proyecto_nombre && 
+                         projectPolicies[selectedUnidad.proyecto_nombre] && 
+                         projectPolicies[selectedUnidad.proyecto_nombre].bono_pie_max_pct > 0 && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Máximo permitido: {projectPolicies[selectedUnidad.proyecto_nombre].bono_pie_max_pct}% 
+                            ({formatCurrency((totalEscritura * projectPolicies[selectedUnidad.proyecto_nombre].bono_pie_max_pct) / 100)} UF)
                           </p>
                         )}
                       </div>
                     )}
-                    
-                    <div className="md:col-span-2">
-                      <div className="flex justify-between items-center">
-                        <label className="block text-sm font-medium text-gray-700">Crédito Hipotecario (UF)</label>
-                        <span className="text-xs text-gray-500">Calculado automáticamente</span>
+                  </div>
+                  
+                  {/* Resumen de precios */}
+                  <div className="mb-6">
+                    <h3 className="font-medium text-gray-700 mb-2">Resumen de Precios</h3>
+                    <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Precio Lista Departamento:</span>
+                        <span>{formatCurrency(precioBaseDepartamento)} UF</span>
                       </div>
-                      <div className="mt-1 p-2 bg-gray-50 rounded-md border border-gray-200">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium">{formatCurrency(pagoCreditoHipotecarioCalculado)} UF</span>
-                          {ufValue && (
-                            <span className="text-xs text-gray-500">
-                              {formatCLP(pagoCreditoHipotecarioCalculado * ufValue)}
-                            </span>
-                          )}
+                      
+                      {(quotationType === 'descuento' || quotationType === 'mix') && precioDescuentoDepartamento > 0 && (
+                        <div className="flex justify-between text-red-600">
+                          <span>Descuento ({discountAmount}%):</span>
+                          <span>-{formatCurrency(precioDescuentoDepartamento)} UF</span>
                         </div>
+                      )}
+                      
+                      <div className="flex justify-between font-medium">
+                        <span>Precio Departamento con Descuento:</span>
+                        <span>{formatCurrency(precioDepartamentoConDescuento)} UF</span>
                       </div>
+                      
+                      {precioTotalSecundarios > 0 && (
+                        <div className="flex justify-between">
+                          <span>Unidades Secundarias:</span>
+                          <span>{formatCurrency(precioTotalSecundarios)} UF</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between font-semibold text-lg pt-2 border-t border-gray-200">
+                        <span>Total Escrituración:</span>
+                        <span>{formatCurrency(totalEscritura)} UF</span>
+                      </div>
+                      
+                      {ufValue && (
+                        <div className="flex justify-between text-sm text-gray-500">
+                          <span>Equivalente en pesos:</span>
+                          <span>{formatPesos(ufToPesos(totalEscritura))}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
-                  {/* Payment Summary */}
-                  <div className="mt-6 border-t border-gray-200 pt-4">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-sm font-medium text-gray-700">Total Forma de Pago:</h3>
-                      <div className="text-right">
-                        <p className="text-lg font-semibold text-gray-900">{formatCurrency(totalFormaDePago)} UF</p>
-                        {ufValue && (
-                          <p className="text-xs text-gray-500">{formatCLP(totalFormaDePago * ufValue)}</p>
-                        )}
+                  {/* Forma de pago */}
+                  <div>
+                    <h3 className="font-medium text-gray-700 mb-2">Forma de Pago</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Reserva (UF)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={pagoReserva}
+                          onChange={(e) => setPagoReserva(parseFloat(e.target.value) || 0)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        />
                       </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Promesa (%)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={pagoPromesaPct}
+                          onChange={(e) => setPagoPromesaPct(parseFloat(e.target.value) || 0)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Equivale a {formatCurrency(pagoPromesa)} UF
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Pie (%)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={pagoPiePct}
+                          onChange={(e) => setPagoPiePct(parseFloat(e.target.value) || 0)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Equivale a {formatCurrency(pagoPie)} UF
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Crédito Hipotecario (UF)
+                        </label>
+                        <div className="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-md">
+                          {formatCurrency(pagoCreditoHipotecarioCalculado)}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {pagoCreditoHipotecarioCalculado > 0 
+                            ? `${((pagoCreditoHipotecarioCalculado / totalEscritura) * 100).toFixed(1)}% del total`
+                            : 'No requiere crédito hipotecario'}
+                        </p>
+                      </div>
+                      
+                      {(quotationType === 'bono' || quotationType === 'mix') && pagoBonoPieCotizacion > 0 && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Bono Pie (UF)
+                          </label>
+                          <div className="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-md">
+                            {formatCurrency(pagoBonoPieCotizacion)}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     
-                    {Math.abs(totalFormaDePago - totalEscritura) > 0.1 && (
-                      <div className="mt-2 p-2 bg-red-50 rounded-md border border-red-200 text-sm text-red-600">
-                        La forma de pago no coincide con el total de escrituración.
-                        Diferencia: {formatCurrency(Math.abs(totalFormaDePago - totalEscritura))} UF
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <div className="flex justify-between font-semibold text-lg">
+                        <span>Total Forma de Pago:</span>
+                        <span>{formatCurrency(totalFormaDePago)} UF</span>
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Generate PDF Button */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <div className="flex flex-col items-center justify-center">
-                    {!isValid && validationMessage && (
-                      <div className="mb-4 p-3 bg-yellow-50 rounded-md border border-yellow-200 text-sm text-yellow-700 w-full">
-                        {validationMessage}
-                      </div>
-                    )}
-                    
-                    {quotationData ? (
-                      <div className="w-full">
-                        <div className="flex items-center justify-center mb-4 p-3 bg-green-50 rounded-md border border-green-200">
-                          <Check className="h-5 w-5 text-green-600 mr-2" />
-                          <span className="text-sm text-green-700">Cotización generada correctamente</span>
+                      
+                      {ufValue && (
+                        <div className="flex justify-between text-sm text-gray-600 mt-1">
+                          <span>Equivalente en pesos:</span>
+                          <span>{formatPesos(ufToPesos(totalFormaDePago))}</span>
                         </div>
-                        
-                        <PDFDownloadLink
-                          document={<BrokerQuotePDF {...quotationData} />}
-                          fileName={`Cotizacion_${selectedUnidad.proyecto_nombre}_${selectedUnidad.unidad}.pdf`}
-                          className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          {({ blob, url, loading, error }) => (
-                            loading ? 
-                              <span className="flex items-center">
-                                <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                                Generando PDF...
-                              </span> : 
-                              <span className="flex items-center">
-                                <Download className="h-5 w-5 mr-2" />
-                                Descargar PDF
-                              </span>
-                          )}
-                        </PDFDownloadLink>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={handleGeneratePDF}
-                        disabled={!isValid || isGeneratingPDF}
-                        className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      )}
+                      
+                      {Math.abs(totalFormaDePago - totalEscritura) > 0.01 && (
+                        <div className="mt-2 text-sm text-red-600">
+                          ⚠️ La forma de pago no coincide con el total de escrituración. 
+                          Ajuste los valores para que coincidan.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Botones de acción */}
+                  <div className="mt-6 flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3">
+                    <button
+                      onClick={handleSaveQuote}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center"
+                    >
+                      <Save className="h-5 w-5 mr-2" />
+                      Guardar Cotización
+                    </button>
+                    
+                    {/* PDF Download Link */}
+                    {selectedUnidad && (
+                      <PDFDownloadLink
+                        document={
+                          <BrokerQuotePDF
+                            cliente={clientName}
+                            rut={clientRut}
+                            ufValue={ufValue}
+                            selectedUnidad={selectedUnidad}
+                            addedSecondaryUnits={addedSecondaryUnits}
+                            quotationType={quotationType}
+                            discountAmount={discountAmount}
+                            bonoAmount={bonoAmount}
+                            pagoReserva={pagoReserva}
+                            pagoPromesa={pagoPromesa}
+                            pagoPromesaPct={pagoPromesaPct}
+                            pagoPie={pagoPie}
+                            pagoPiePct={pagoPiePct}
+                            pagoBonoPieCotizacion={pagoBonoPieCotizacion}
+                            precioBaseDepartamento={precioBaseDepartamento}
+                            precioDescuentoDepartamento={precioDescuentoDepartamento}
+                            precioDepartamentoConDescuento={precioDepartamentoConDescuento}
+                            precioTotalSecundarios={precioTotalSecundarios}
+                            totalEscritura={totalEscritura}
+                            pagoCreditoHipotecarioCalculado={pagoCreditoHipotecarioCalculado}
+                            totalFormaDePago={totalFormaDePago}
+                          />
+                        }
+                        fileName={`Cotizacion_${selectedUnidad.proyecto_nombre}_${selectedUnidad.unidad}.pdf`}
+                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
                       >
-                        {isGeneratingPDF ? (
-                          <>
-                            <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                            Generando...
-                          </>
-                        ) : (
-                          <>
-                            <Calculator className="h-5 w-5 mr-2" />
-                            Generar Cotización
-                          </>
+                        {({ loading }) => (
+                          loading ? 
+                            <span className="flex items-center">
+                              <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                              Generando PDF...
+                            </span> : 
+                            <span className="flex items-center">
+                              <Download className="h-5 w-5 mr-2" />
+                              Descargar PDF
+                            </span>
                         )}
-                      </button>
+                      </PDFDownloadLink>
                     )}
                   </div>
                 </div>
               </>
             ) : (
-              <div className="bg-white rounded-lg shadow-md p-8 text-center">
-                <div className="flex flex-col items-center justify-center">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                    <HomeIcon className="h-8 w-8 text-blue-600" />
-                  </div>
-                  <h2 className="text-lg font-medium text-gray-900 mb-2">Seleccione una Unidad</h2>
-                  <p className="text-gray-500 max-w-md">
-                    Para comenzar, seleccione un proyecto y una unidad disponible en el panel izquierdo.
-                  </p>
-                </div>
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <Building className="h-16 w-16 text-blue-200 mx-auto mb-4" />
+                <h2 className="text-xl font-semibold text-gray-800 mb-2">Seleccione una Unidad</h2>
+                <p className="text-gray-600">
+                  Para comenzar, seleccione un departamento de la lista de unidades disponibles.
+                </p>
               </div>
             )}
           </div>
         </div>
-      </main>
-
-      <footer className="bg-gray-50 border-t border-gray-200 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <p className="text-center text-sm text-gray-500">
-            © {new Date().getFullYear()} Cotizador {broker.name}. Todos los derechos reservados.
-          </p>
+      </div>
+      
+      {/* Footer */}
+      <footer className="bg-gray-800 text-white py-6 mt-12">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div>
+              <h3 className="text-lg font-semibold">Cotizador {broker.name}</h3>
+              <p className="text-sm text-gray-400">{broker.business_name}</p>
+            </div>
+            <div className="mt-4 md:mt-0">
+              <p className="text-sm text-gray-400">
+                © {new Date().getFullYear()} - Todos los derechos reservados
+              </p>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

@@ -10,6 +10,7 @@ import {
   LogOut,
   ClipboardList,
   BarChart3,
+  PackageSearch,
   CreditCard,
   CheckSquare,
   ShieldCheck
@@ -136,6 +137,16 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, o
           title: 'Pagos Brokers',
           icon: <CreditCard className="h-5 w-5" />,
           path: '/informes/pagos-brokers',
+        },
+        {
+          title: 'Consolidado Brokers',
+          icon: <Building2 className="h-5 w-5" />,
+          path: '/informes/consolidado-brokers',
+        },
+        {
+          title: 'Stock',
+          icon: <PackageSearch className="h-5 w-5" />,
+          path: '/informes/stock',
         },
       ],
     },

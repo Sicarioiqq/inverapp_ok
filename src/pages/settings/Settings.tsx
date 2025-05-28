@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import Layout from '../../components/Layout';
-import { Building2, Users as UsersIcon, Shield, Home, ListChecks, BarChart3 } from 'lucide-react';
+import { Building2, Users as UsersIcon, Shield, Home, ListChecks, BarChart3, Key } from 'lucide-react';
 import RealEstateAgencies from './RealEstateAgencies';
 import Projects from './Projects';
 import UsersComponent from './Users';
 import FlowConfig from './FlowConfig';
 import PaymentFlowConfig from './PaymentFlowConfig';
 import CotizadorSettings from './CotizadorSettings';
+import BrokerTokenGenerator from './components/BrokerTokenGenerator';
 
-type Tab = 'projects' | 'agencies' | 'users' | 'permissions' | 'flow' | 'payment-flow' | 'cotizador';
+type Tab = 'projects' | 'agencies' | 'users' | 'permissions' | 'flow' | 'payment-flow' | 'cotizador' | 'broker-tokens';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState<Tab>('projects');
@@ -44,11 +45,15 @@ const Settings = () => {
       name: 'Permisos',
       icon: <Shield className="h-5 w-5" />,
     },
-    // <--- ADICIÓN: Nueva pestaña para Cotizador
     {
       id: 'cotizador' as Tab,
       name: 'Cotizador',
-      icon: <BarChart3 className="h-5 w-5" />, // Puedes cambiar este ícono por uno que prefieras
+      icon: <BarChart3 className="h-5 w-5" />,
+    },
+    {
+      id: 'broker-tokens' as Tab,
+      name: 'Tokens de Broker',
+      icon: <Key className="h-5 w-5" />,
     },
   ];
 
@@ -60,17 +65,14 @@ const Settings = () => {
 
       <div className="bg-white rounded-lg shadow">
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-4 px-4" aria-label="Tabs">
+          <nav className="flex space-x-4 px-4 overflow-x-auto" aria-label="Tabs">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as Tab)}
                 className={`
-                  flex items-center px-4 py-3 text-sm font-medium border-b-2 
-                  ${activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }
+                  flex items-center px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap
+                  ${activeTab === tab.id ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
                 `}
               >
                 {tab.icon}
@@ -88,6 +90,7 @@ const Settings = () => {
           {activeTab === 'payment-flow' && <PaymentFlowConfig />}
           {activeTab === 'permissions' && <div>Contenido de Permisos</div>}
           {activeTab === 'cotizador' && <CotizadorSettings />}
+          {activeTab === 'broker-tokens' && <BrokerTokenGenerator />}
         </div>
       </div>
     </Layout>
