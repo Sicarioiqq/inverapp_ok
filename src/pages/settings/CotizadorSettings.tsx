@@ -5,7 +5,7 @@ import BrokerCommissionsConfig from './components/BrokerCommissionsConfig';
 import ProjectCommercialPolicyConfig from './components/ProjectCommercialPolicyConfig'; // IMPORTA EL NUEVO COMPONENTE
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { Settings, SlidersHorizontal, DollarSign } from 'lucide-react'; // Importar iconos si es necesario
+import { Settings, SlidersHorizontal, DollarSign, Loader2 } from 'lucide-react'; // Added Loader2 import
 
 // ... (tus funciones auxiliares toNumber, getSafeString, normalizeEstado se mantienen igual) ...
 const toNumber = (value: any): number | null => {
