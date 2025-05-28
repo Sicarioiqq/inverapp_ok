@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useUFStore } from '../../stores/ufStore';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
-import { Loader2, Calculator, Download, Check, Plus, Minus } from 'lucide-react';
+import { Loader2, Calculator, Download, Check, Plus, Minus, Home } from 'lucide-react';
 
 interface StockUnit {
   id: string;
