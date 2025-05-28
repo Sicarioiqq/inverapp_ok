@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useUFStore } from '../../stores/ufStore';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
-import { Loader2, Calculator, Download, Check, Plus, Minus, Home } from 'lucide-react';
+import { Loader2, Calculator, Download, Check, Plus, Minus, Home as HomeIcon } from 'lucide-react';
 
 interface StockUnit {
   id: string;
@@ -1101,7 +1101,7 @@ const BrokerQuotePage: React.FC = () => {
               <div className="bg-white rounded-lg shadow-md p-8 text-center">
                 <div className="flex flex-col items-center justify-center">
                   <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                    <Home className="h-8 w-8 text-blue-600" />
+                    <HomeIcon className="h-8 w-8 text-blue-600" />
                   </div>
                   <h2 className="text-lg font-medium text-gray-900 mb-2">Seleccione una Unidad</h2>
                   <p className="text-gray-500 max-w-md">
