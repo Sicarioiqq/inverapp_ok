@@ -40,6 +40,7 @@ interface DashboardStats {
     total: number;
     available: number;
     reserved: number;
+    recent_reservations: number;
   }[];
   brokerStats: {
     name: string;
@@ -49,6 +50,7 @@ interface DashboardStats {
   monthlyReservations: {
     month: string;
     count: number;
+    total_price: number;
   }[];
   monthlyCommissions: {
     month: string;
@@ -89,6 +91,50 @@ interface RecentPayment {
   } | null;
 }
 
+interface Task {
+  name: string;
+  days_to_complete: number;
+}
+
+interface BrokerCommission {
+  commission_amount: number;
+  reservation: {
+    reservation_number: string;
+  };
+  broker: {
+    name: string;
+  };
+}
+
+interface PaymentFlowStage {
+  name: string;
+}
+
+interface Profile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  avatar_url?: string;
+}
+
+interface Project {
+  name: string;
+  stage: string;
+}
+
+interface Client {
+  first_name: string;
+  last_name: string;
+}
+
+interface Broker {
+  name: string;
+}
+
+interface CountResult {
+  count: number;
+}
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
@@ -113,6 +159,7 @@ const Dashboard: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboardStats();
@@ -179,15 +226,18 @@ const Dashboard: React.FC = () => {
           const monthStart = startOfMonth(subMonths(currentDate, 5 - index));
           const monthEnd = endOfMonth(subMonths(currentDate, 5 - index));
           
-          const { count } = await supabase
+          const { count, data } = await supabase
             .from('reservations')
-            .select('*', { count: 'exact', head: true })
+            .select('total_price', { count: 'exact' })
             .gte('reservation_date', monthStart.toISOString())
             .lte('reservation_date', monthEnd.toISOString());
           
+          const total_price = data?.reduce((sum, { total_price }) => sum + (total_price || 0), 0) || 0;
+          
           return {
-            month: format(monthStart, 'MMM', { locale: es }),
-            count: count || 0
+            month: format(monthStart, 'MMMM', { locale: es }),
+            count: count || 0,
+            total_price
           };
         })
       );
@@ -207,7 +257,7 @@ const Dashboard: React.FC = () => {
           const amount = data?.reduce((sum, { commission_amount }) => sum + commission_amount, 0) || 0;
           
           return {
-            month: format(monthStart, 'MMM', { locale: es }),
+            month: format(monthStart, 'MMMM', { locale: es }),
             amount
           };
         })
@@ -278,30 +328,80 @@ const Dashboard: React.FC = () => {
           daysOverdue = Math.max(0, daysElapsed - currentTask.task.days_to_complete);
         }
 
+        const brokerCommission = payment.broker_commission as BrokerCommission;
+        const currentStage = payment.current_stage as PaymentFlowStage;
+        const task = currentTask?.task as Task;
+        const assignee = currentTask?.assignee as Profile;
+
         return {
           id: payment.id,
           commission_flow_id: payment.id,
-          reservation_number: payment.broker_commission.reservation.reservation_number,
-          broker_name: payment.broker_commission.broker.name,
-          commission_amount: payment.broker_commission.commission_amount,
+          reservation_number: brokerCommission.reservation.reservation_number,
+          broker_name: brokerCommission.broker.name,
+          commission_amount: brokerCommission.commission_amount,
           payment_date: payment.started_at,
           status: payment.status,
-          current_stage: payment.current_stage?.name || 'No iniciado',
-          current_task: currentTask?.task?.name || 'Sin tarea pendiente',
+          current_stage: currentStage?.name || 'No iniciado',
+          current_task: task?.name || 'Sin tarea pendiente',
           days_overdue: daysOverdue,
-          assignee: currentTask?.assignee || null
+          assignee: assignee || null
         };
       }));
 
-      // Get project stats
+      // 1. Obtener todas las reservas históricas para contar el total por proyecto
+      const { data: allReservations } = await supabase
+        .from('reservations')
+        .select('project:projects(name)');
+
+      // 2. Obtener reservas de los últimos 3 meses con total_price
+      const threeMonthsAgo = subMonths(currentDate, 3);
       const { data: projectStats } = await supabase
-        .from('projects')
+        .from('reservations')
         .select(`
-          name,
-          total_units:id(count),
-          reserved_units:reservations(count)
+          project:projects(name),
+          total_price
         `)
-        .limit(5);
+        .gte('reservation_date', threeMonthsAgo.toISOString());
+
+      // 3. Agrupar y calcular datos por proyecto
+      const projectMap: { [key: string]: { name: string; recent_reservations: number; recent_total_price: number; total_reservations: number; } } = {};
+
+      // Contar reservas históricas
+      (allReservations || []).forEach(r => {
+        const name = r.project?.name;
+        if (!name) return;
+        if (!projectMap[name]) {
+          projectMap[name] = { name, recent_reservations: 0, recent_total_price: 0, total_reservations: 0 };
+        }
+        projectMap[name].total_reservations += 1;
+      });
+
+      // Contar reservas y suma de UF de los últimos 3 meses
+      (projectStats || []).forEach(r => {
+        const name = r.project?.name;
+        if (!name) return;
+        if (!projectMap[name]) {
+          projectMap[name] = { name, recent_reservations: 0, recent_total_price: 0, total_reservations: 0 };
+        }
+        projectMap[name].recent_reservations += 1;
+        projectMap[name].recent_total_price += r.total_price || 0;
+      });
+
+      // Calcular totales para % de participación
+      const totalRecentReservations = Object.values(projectMap).reduce((sum, p) => sum + p.recent_reservations, 0);
+
+      // Convertir a array, ordenar y tomar top 5
+      const formattedProjectStats = Object.values(projectMap)
+        .filter(p => p.recent_reservations > 0)
+        .sort((a, b) => b.recent_reservations - a.recent_reservations)
+        .slice(0, 5)
+        .map(project => ({
+          name: project.name,
+          recent_reservations: project.recent_reservations,
+          recent_total_price: project.recent_total_price,
+          total_reservations: project.total_reservations,
+          participation: totalRecentReservations > 0 ? (project.recent_reservations / totalRecentReservations) * 100 : 0
+        }));
 
       // Get broker stats
       const { data: brokerStats } = await supabase
@@ -314,34 +414,38 @@ const Dashboard: React.FC = () => {
         .limit(5);
 
       // Format recent reservations
-      const formattedReservations = recentReservations?.map(reservation => ({
-        id: reservation.id,
-        reservation_number: reservation.reservation_number,
-        reservation_date: reservation.reservation_date,
-        client_name: `${reservation.client.first_name} ${reservation.client.last_name}`,
-        project_name: reservation.project.name,
-        project_stage: reservation.project.stage,
-        apartment_number: reservation.apartment_number,
-        seller_name: reservation.seller ? `${reservation.seller.first_name} ${reservation.seller.last_name}` : null,
-        seller_avatar: reservation.seller?.avatar_url,
-        broker_name: reservation.broker?.name,
-        total_price: reservation.total_price
-      })) || [];
+      const formattedReservations = recentReservations?.map(reservation => {
+        const client = reservation.client as Client;
+        const project = reservation.project as Project;
+        const seller = reservation.seller as Profile;
+        const broker = reservation.broker as Broker;
 
-      // Format project stats
-      const formattedProjectStats = projectStats?.map(project => ({
-        name: project.name,
-        total: project.total_units?.count || 0,
-        reserved: project.reserved_units?.count || 0,
-        available: (project.total_units?.count || 0) - (project.reserved_units?.count || 0)
-      })) || [];
+        return {
+          id: reservation.id,
+          reservation_number: reservation.reservation_number,
+          reservation_date: reservation.reservation_date,
+          client_name: `${client.first_name} ${client.last_name}`,
+          project_name: project.name,
+          project_stage: project.stage,
+          apartment_number: reservation.apartment_number,
+          seller_name: seller ? `${seller.first_name} ${seller.last_name}` : null,
+          seller_avatar: seller?.avatar_url,
+          broker_name: broker?.name,
+          total_price: reservation.total_price
+        };
+      }) || [];
 
       // Format broker stats
-      const formattedBrokerStats = brokerStats?.map(broker => ({
-        name: broker.name,
-        reservations: broker.reservations?.count || 0,
-        commissions: broker.commissions?.reduce((sum, { commission_amount }) => sum + commission_amount, 0) || 0
-      })) || [];
+      const formattedBrokerStats = brokerStats?.map(broker => {
+        const reservations = broker.reservations as CountResult;
+        const commissions = broker.commissions as { commission_amount: number }[];
+
+        return {
+          name: broker.name,
+          reservations: reservations?.count || 0,
+          commissions: commissions?.reduce((sum, { commission_amount }) => sum + commission_amount, 0) || 0
+        };
+      }) || [];
 
       setStats({
         totalReservations: reservationsCount || 0,
@@ -397,6 +501,10 @@ const Dashboard: React.FC = () => {
 
   const handlePaymentClick = (paymentId: string) => {
     navigate(`/pagos/flujo/${paymentId}`);
+  };
+
+  const handleMonthClick = (month: string) => {
+    setSelectedMonth(month === selectedMonth ? null : month);
   };
 
   if (loading) {
@@ -523,11 +631,14 @@ const Dashboard: React.FC = () => {
 
             <div className="h-[200px] flex items-end justify-between space-x-2">
               {stats.monthlyReservations.map((month, index) => (
-                <div key={index} className="flex-1 flex flex-col items-center">
+                <div key={index} className="flex-1 flex flex-col items-center relative group">
                   <div className="w-full flex items-end justify-center h-[160px]">
                     <div 
-                      className="w-10 bg-blue-500 bg-opacity-70 rounded-t hover:bg-blue-600 transition-all duration-300 cursor-pointer"
+                      className={`w-10 bg-blue-500 bg-opacity-70 rounded-t hover:bg-blue-600 transition-all duration-300 cursor-pointer ${
+                        selectedMonth === month.month ? 'bg-blue-700' : ''
+                      }`}
                       style={{ height: `${(month.count / maxReservationCount) * 100}%` }}
+                      onClick={() => handleMonthClick(month.month)}
                     ></div>
                   </div>
                   <div className="text-xs text-center mt-2 text-gray-500">
@@ -536,9 +647,35 @@ const Dashboard: React.FC = () => {
                   <div className="text-xs text-center font-medium text-gray-700">
                     {month.count}
                   </div>
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                    Total: {formatCurrency(month.total_price)} UF
+                  </div>
                 </div>
               ))}
             </div>
+            {/* Detalle del mes seleccionado */}
+            {selectedMonth && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">
+                  Detalle de {selectedMonth}
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500">Total Reservas</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {stats.monthlyReservations.find(m => m.month === selectedMonth)?.count || 0}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Total Ventas</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {formatCurrency(stats.monthlyReservations.find(m => m.month === selectedMonth)?.total_price || 0)} UF
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -591,24 +728,38 @@ const Dashboard: React.FC = () => {
       {/* Estadísticas de Proyectos y Brokers */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Estado de Proyectos</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">Top 5 Proyectos (Últimos 3 meses)</h3>
           <div className="space-y-6">
-            {stats.projectStats.map((project, index) => (
-              <div key={index}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-900">{project.name}</span>
-                  <span className="text-sm text-gray-500">
-                    {project.reserved} / {project.total} unidades
-                  </span>
+            {stats.projectStats.map((project, index) => {
+              const maxReservations = Math.max(...stats.projectStats.map(p => p.recent_reservations));
+              const barWidth = (project.recent_reservations / maxReservations) * 100;
+              return (
+                <div key={index} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-900">{project.name}</span>
+                    <span className="text-sm text-blue-600 font-medium">
+                      {project.recent_reservations} reservas
+                    </span>
+                  </div>
+                  <div className="relative h-6 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-500 ease-out"
+                      style={{ width: `${barWidth}%` }}
+                    >
+                      <div className="absolute inset-0 flex items-center px-3">
+                        <span className="text-xs text-white font-medium">
+                          {project.participation.toFixed(1)}% de participación
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{project.total_reservations} ventas históricas</span>
+                    <span>{project.recent_total_price.toLocaleString('es-CL', { minimumFractionDigits: 2 })} UF (últ. 3 meses)</span>
+                  </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full"
-                    style={{ width: `${(project.reserved / project.total) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
