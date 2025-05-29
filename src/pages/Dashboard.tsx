@@ -263,7 +263,7 @@ const Dashboard: React.FC = () => {
         })
       );
 
-      // Get recent reservations
+      // Obtener las 5 reservas más recientes con toda la información relevante
       const { data: recentReservations } = await supabase
         .from('reservations')
         .select(`
@@ -277,8 +277,23 @@ const Dashboard: React.FC = () => {
           seller:profiles(first_name, last_name, avatar_url),
           broker:brokers(name)
         `)
-        .order('created_at', { ascending: false })
+        .order('reservation_date', { ascending: false })
         .limit(5);
+
+      // Formatear las reservas recientes para el renderizado
+      const formattedReservations = (recentReservations || []).map(reservation => ({
+        id: reservation.id,
+        reservation_number: reservation.reservation_number,
+        reservation_date: reservation.reservation_date,
+        apartment_number: reservation.apartment_number,
+        total_price: reservation.total_price,
+        project_name: reservation.project?.name || '',
+        project_stage: reservation.project?.stage || '',
+        client_name: reservation.client ? `${reservation.client.first_name} ${reservation.client.last_name}` : '',
+        seller_name: reservation.seller ? `${reservation.seller.first_name} ${reservation.seller.last_name}` : '',
+        seller_avatar: reservation.seller?.avatar_url || '',
+        broker_name: reservation.broker?.name || ''
+      }));
 
       // Get recent payments (commission flows that have started)
       const { data: recentPaymentsData } = await supabase
@@ -403,49 +418,59 @@ const Dashboard: React.FC = () => {
           participation: totalRecentReservations > 0 ? (project.recent_reservations / totalRecentReservations) * 100 : 0
         }));
 
-      // Get broker stats
+      // 1. Obtener todas las reservas históricas para contar el total por broker
+      const { data: allBrokerReservations } = await supabase
+        .from('reservations')
+        .select('broker:brokers(name)');
+
+      // 2. Obtener reservas de los últimos 3 meses con total_price y broker
       const { data: brokerStats } = await supabase
-        .from('brokers')
+        .from('reservations')
         .select(`
-          name,
-          reservations:reservations(count),
-          commissions:broker_commissions(commission_amount)
+          broker:brokers(name),
+          total_price
         `)
-        .limit(5);
+        .gte('reservation_date', threeMonthsAgo.toISOString());
 
-      // Format recent reservations
-      const formattedReservations = recentReservations?.map(reservation => {
-        const client = reservation.client as Client;
-        const project = reservation.project as Project;
-        const seller = reservation.seller as Profile;
-        const broker = reservation.broker as Broker;
+      // 3. Agrupar y calcular datos por broker
+      const brokerMap: { [key: string]: { name: string; recent_reservations: number; recent_total_price: number; total_reservations: number; } } = {};
 
-        return {
-          id: reservation.id,
-          reservation_number: reservation.reservation_number,
-          reservation_date: reservation.reservation_date,
-          client_name: `${client.first_name} ${client.last_name}`,
-          project_name: project.name,
-          project_stage: project.stage,
-          apartment_number: reservation.apartment_number,
-          seller_name: seller ? `${seller.first_name} ${seller.last_name}` : null,
-          seller_avatar: seller?.avatar_url,
-          broker_name: broker?.name,
-          total_price: reservation.total_price
-        };
-      }) || [];
+      // Contar reservas históricas
+      (allBrokerReservations || []).forEach(r => {
+        const name = r.broker?.name;
+        if (!name) return;
+        if (!brokerMap[name]) {
+          brokerMap[name] = { name, recent_reservations: 0, recent_total_price: 0, total_reservations: 0 };
+        }
+        brokerMap[name].total_reservations += 1;
+      });
 
-      // Format broker stats
-      const formattedBrokerStats = brokerStats?.map(broker => {
-        const reservations = broker.reservations as CountResult;
-        const commissions = broker.commissions as { commission_amount: number }[];
+      // Contar reservas y suma de UF de los últimos 3 meses
+      (brokerStats || []).forEach(r => {
+        const name = r.broker?.name;
+        if (!name) return;
+        if (!brokerMap[name]) {
+          brokerMap[name] = { name, recent_reservations: 0, recent_total_price: 0, total_reservations: 0 };
+        }
+        brokerMap[name].recent_reservations += 1;
+        brokerMap[name].recent_total_price += r.total_price || 0;
+      });
 
-        return {
+      // Calcular totales para % de participación
+      const totalRecentBrokerReservations = Object.values(brokerMap).reduce((sum, b) => sum + b.recent_reservations, 0);
+
+      // Convertir a array, ordenar y tomar top 5
+      const formattedBrokerStats = Object.values(brokerMap)
+        .filter(b => b.recent_reservations > 0)
+        .sort((a, b) => b.recent_reservations - a.recent_reservations)
+        .slice(0, 5)
+        .map(broker => ({
           name: broker.name,
-          reservations: reservations?.count || 0,
-          commissions: commissions?.reduce((sum, { commission_amount }) => sum + commission_amount, 0) || 0
-        };
-      }) || [];
+          recent_reservations: broker.recent_reservations,
+          recent_total_price: broker.recent_total_price,
+          total_reservations: broker.total_reservations,
+          participation: totalRecentBrokerReservations > 0 ? (broker.recent_reservations / totalRecentBrokerReservations) * 100 : 0
+        }));
 
       setStats({
         totalReservations: reservationsCount || 0,
@@ -764,24 +789,38 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Top Brokers</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">Top 5 Brokers (Últimos 3 meses)</h3>
           <div className="space-y-6">
-            {stats.brokerStats.map((broker, index) => (
-              <div key={index}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-900">{broker.name}</span>
-                  <span className="text-sm text-gray-500">
-                    {broker.reservations} reservas • {formatCurrency(broker.commissions)} UF
-                  </span>
+            {stats.brokerStats.map((broker, index) => {
+              const maxReservations = Math.max(...stats.brokerStats.map(b => b.recent_reservations));
+              const barWidth = (broker.recent_reservations / maxReservations) * 100;
+              return (
+                <div key={index} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-900">{broker.name}</span>
+                    <span className="text-sm text-blue-600 font-medium">
+                      {broker.recent_reservations} reservas
+                    </span>
+                  </div>
+                  <div className="relative h-6 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-500 ease-out"
+                      style={{ width: `${barWidth}%` }}
+                    >
+                      <div className="absolute inset-0 flex items-center px-3">
+                        <span className="text-xs text-white font-medium">
+                          {broker.participation.toFixed(1)}% de participación
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{broker.total_reservations} ventas históricas</span>
+                    <span>{broker.recent_total_price.toLocaleString('es-CL', { minimumFractionDigits: 2 })} UF (últ. 3 meses)</span>
+                  </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-green-600 h-2 rounded-full"
-                    style={{ width: `${(broker.reservations / Math.max(...stats.brokerStats.map(b => b.reservations))) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
