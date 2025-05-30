@@ -21,13 +21,11 @@ export const normalizeDate = (dateString: string | null | undefined): string | n
  */
 export const formatDateForInput = (date: Date | null): string => {
   if (!date) return '';
-  
-  // Use Chile timezone (UTC-4)
-  const chileDateString = new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
-    .toISOString()
-    .split('T')[0];
-  
-  return chileDateString;
+  // Usar zona local del navegador
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 /**
@@ -37,15 +35,14 @@ export const formatDateForInput = (date: Date | null): string => {
  */
 export const formatDateTimeForInput = (date: Date | string | null): string => {
   if (!date) return '';
-  
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-  
-  // Use Chile timezone (UTC-4)
-  const chileDateString = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000))
-    .toISOString()
-    .slice(0, 16);
-  
-  return chileDateString;
+  // Usar zona local del navegador
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const hour = String(dateObj.getHours()).padStart(2, '0');
+  const minute = String(dateObj.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hour}:${minute}`;
 };
 
 /**

@@ -8,7 +8,10 @@ export const fetchLatestUFValue = async (): Promise<number | null> => {
   try {
     // Get today's date in YYYY-MM-DD format
     const today = new Date();
-    const formattedDate = today.toISOString().split('T')[0];
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const formattedDate = `${year}-${month}-${day}`;
 
     // First check if we already have today's UF value in the database
     const { data: todayData, error: todayError } = await supabase
@@ -115,7 +118,10 @@ export const fetchUFValueFromBackupAPI = async (): Promise<number | null> => {
 export const storeUFValue = async (value: number): Promise<void> => {
   try {
     const today = new Date();
-    const formattedDate = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const formattedDate = `${year}-${month}-${day}`;
     
     // Check if we already have a value for today
     const { data: existingData, error: checkError } = await supabase

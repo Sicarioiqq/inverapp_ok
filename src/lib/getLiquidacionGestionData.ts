@@ -174,6 +174,7 @@ export async function getLiquidacionGestionData(reservationId: string)
       descripcion: p.observations,
       valorEstimado: p.amount,
       is_against_discount: p.is_against_discount,
+      promotion_type: p.promotion_type
     })),
 
     resumenFinanciero: {

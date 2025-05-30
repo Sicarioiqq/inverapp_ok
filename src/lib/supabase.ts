@@ -40,17 +40,15 @@ export const checkSupabaseConnection = async () => {
 // Helper functions for date formatting with Chile timezone
 export const formatDateChile = (date: string | Date | null): string => {
   if (!date) return '';
-  
   try {
-    // Create a date object
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    
-    // Format with Chile timezone
+    // Usar zona local del navegador
+    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     return new Intl.DateTimeFormat('es-CL', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
-      timeZone: 'America/Santiago'
+      timeZone: userTimeZone
     }).format(dateObj);
   } catch (error) {
     console.error('Error formatting date:', error);
@@ -66,6 +64,9 @@ export const formatDateTimeChile = (date: string | Date | null): string => {
     // Create a date object
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     
+    // Usar zona local del navegador
+    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
     // Format with Chile timezone
     return new Intl.DateTimeFormat('es-CL', {
       day: '2-digit',
@@ -73,7 +74,7 @@ export const formatDateTimeChile = (date: string | Date | null): string => {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'America/Santiago'
+      timeZone: userTimeZone
     }).format(dateObj);
   } catch (error) {
     console.error('Error formatting date and time:', error);

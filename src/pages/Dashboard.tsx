@@ -223,42 +223,67 @@ const Dashboard: React.FC = () => {
       // Get monthly reservations for the last 6 months
       const monthlyReservations = await Promise.all(
         Array.from({ length: 6 }).map(async (_, index) => {
-          const monthStart = startOfMonth(subMonths(currentDate, 5 - index));
-          const monthEnd = endOfMonth(subMonths(currentDate, 5 - index));
+          const monthStartDate = startOfMonth(subMonths(currentDate, 5 - index));
+          const monthEndDate = endOfMonth(subMonths(currentDate, 5 - index));
+          // Formato local YYYY-MM-DD
+          const monthStart = `${monthStartDate.getFullYear()}-${String(monthStartDate.getMonth() + 1).padStart(2, '0')}-${String(monthStartDate.getDate()).padStart(2, '0')}`;
+          const monthEnd = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
           
           const { count, data } = await supabase
             .from('reservations')
             .select('total_price', { count: 'exact' })
-            .gte('reservation_date', monthStart.toISOString())
-            .lte('reservation_date', monthEnd.toISOString());
+            .gte('reservation_date', monthStart)
+            .lte('reservation_date', monthEnd);
           
           const total_price = data?.reduce((sum, { total_price }) => sum + (total_price || 0), 0) || 0;
           
           return {
-            month: format(monthStart, 'MMMM', { locale: es }),
+            month: format(monthStartDate, 'MMMM', { locale: es }),
             count: count || 0,
             total_price
           };
         })
       );
 
-      // Get monthly commissions for the last 6 months
+      // Get monthly net commissions for the last 6 months
       const monthlyCommissions = await Promise.all(
         Array.from({ length: 6 }).map(async (_, index) => {
-          const monthStart = startOfMonth(subMonths(currentDate, 5 - index));
-          const monthEnd = endOfMonth(subMonths(currentDate, 5 - index));
-          
-          const { data } = await supabase
-            .from('broker_commissions')
-            .select('commission_amount')
-            .gte('created_at', monthStart.toISOString())
-            .lte('created_at', monthEnd.toISOString());
-          
-          const amount = data?.reduce((sum, { commission_amount }) => sum + commission_amount, 0) || 0;
-          
+          const monthStartDate = startOfMonth(subMonths(currentDate, 5 - index));
+          const monthEndDate = endOfMonth(subMonths(currentDate, 5 - index));
+          // Formato local YYYY-MM-DD
+          const monthStart = `${monthStartDate.getFullYear()}-${String(monthStartDate.getMonth() + 1).padStart(2, '0')}-${String(monthStartDate.getDate()).padStart(2, '0')}`;
+          const monthEnd = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
+          // 1. Traer reservas del mes de pago de comisión
+          const { data: reservations } = await supabase
+            .from('reservations')
+            .select('id, total_payment, subsidy_payment, commission_payment_month')
+            .not('commission_payment_month', 'is', null)
+            .gte('commission_payment_month', monthStart)
+            .lte('commission_payment_month', monthEnd);
+
+          if (!reservations || reservations.length === 0) {
+            return {
+              month: format(monthStartDate, 'MMMM', { locale: es }),
+              amount: 0
+            };
+          }
+
+          // 2. Para cada reserva, traer promociones contra descuento y calcular neto
+          let totalNet = 0;
+          for (const reservation of reservations) {
+            const { data: promos } = await supabase
+              .from('promotions')
+              .select('amount')
+              .eq('reservation_id', reservation.id)
+              .eq('is_against_discount', true);
+            const promosSum = (promos || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+            const net = (reservation.total_payment || 0) - (reservation.subsidy_payment || 0) - promosSum;
+            totalNet += net;
+          }
+
           return {
-            month: format(monthStart, 'MMMM', { locale: es }),
-            amount
+            month: format(monthStartDate, 'MMMM', { locale: es }),
+            amount: totalNet
           };
         })
       );

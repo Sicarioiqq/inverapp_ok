@@ -402,7 +402,12 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
             {/* Calcular Descuento Disponible - Asegurar orden de operaciones */}
             <View style={[styles.tableColValue, { width: '10%' }]}><Text>{(preciosLista.depto - (preciosLista.depto * (1 - (descuentos?.columnaPct ?? 0)) * (1 - (descuentos?.adicionalPct ?? 0)) * (1 - (descuentos?.otrosPct ?? 0)))).toLocaleString()} UF</Text></View>
             {/* Recuperación Real - Usar el valor pasado y asegurar que no sea N/A si el backend lo envía */}
-            <View style={[styles.tableColValue, { width: '10%' }]}><Text>{(resumenFinanciero.totalEscrituracion - (resumenFinanciero.subsidio ?? 0)).toLocaleString()} UF</Text></View>
+            <View style={[styles.tableColValue, { width: '10%' }]}>
+              <Text>{(
+                (resumenFinanciero.totalEscrituracion - (resumenFinanciero.subsidio ?? 0))
+                - ((preciosLista.estacionamiento || 0) + (preciosLista.bodega || 0))
+              ).toLocaleString()} UF</Text>
+            </View>
           </View>
           {/* Agregar celdas Bono Pie y Cálculo Adicional */}
           <View style={styles.tableRow}>
@@ -454,10 +459,13 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
             <View style={styles.tableRow}>
               <Text style={styles.tableColLabel}>Desc. Menos Com. Broker y Cashback</Text>
               <Text style={styles.tableColValue}>
-                {((resumenFinanciero.totalEscrituracion - (resumenFinanciero.subsidio ?? 0)) - 
-                 (preciosLista.depto * (1 - (descuentos?.columnaPct ?? 0)) * (1 - (descuentos?.adicionalPct ?? 0)) * (1 - (descuentos?.otrosPct ?? 0))) - 
-                 (promociones && promociones.some(p => p.is_against_discount && (p.valorEstimado ?? 0) > 0) ? promociones.filter(p => p.is_against_discount).reduce((sum, p) => sum + (p.valorEstimado ?? 0), 0) : 0) - 
-                 (comisionBroker?.montoBruto ?? 0)).toLocaleString()} UF
+                {(
+                  (resumenFinanciero.totalEscrituracion - (resumenFinanciero.subsidio ?? 0))
+                  - (preciosLista.depto * (1 - (descuentos?.columnaPct ?? 0)) * (1 - (descuentos?.adicionalPct ?? 0)) * (1 - (descuentos?.otrosPct ?? 0)))
+                  - (promociones && promociones.some(p => p.is_against_discount && (p.valorEstimado ?? 0) > 0) ? promociones.filter(p => p.is_against_discount).reduce((sum, p) => sum + (p.valorEstimado ?? 0), 0) : 0)
+                  - (comisionBroker?.montoBruto ?? 0)
+                  - ((preciosLista.estacionamiento || 0) + (preciosLista.bodega || 0))
+                ).toLocaleString()} UF
               </Text>
             </View>
           </View>
@@ -474,7 +482,9 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
              {/* Giftcard Broker */}
              <View style={styles.tableRow}>
               <Text style={styles.tableColLabel}>Giftcard Broker</Text>
-              <Text style={styles.tableColValue}>No Aplica</Text>
+              <Text style={styles.tableColValue}>
+                {promociones && promociones.some(p => (p as any).promotion_type === 'Giftcard') ? 'SI' : 'No Aplica'}
+              </Text>
             </View>
           </View>
         </View>
