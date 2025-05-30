@@ -33,17 +33,6 @@ export async function getLiquidacionGestionData(reservationId: string)
       total_payment,
       subsidy_payment,
       recovery_payment,
-      broker_commissions(
-        commission_amount,
-        commission_includes_tax,
-        net_commission,
-        number_of_payments,
-        first_payment_percentage,
-        difference,
-        penalty_amount,
-        at_risk,
-        at_risk_reason
-      ),
       broker:brokers(
         name,
         business_name,
@@ -52,7 +41,10 @@ export async function getLiquidacionGestionData(reservationId: string)
       seller:profiles(
         first_name,
         last_name
-      )
+      ),
+      column_discount,
+      additional_discount,
+      other_discount
     `)
     .eq('id', reservationId)
     .single();
@@ -72,7 +64,8 @@ export async function getLiquidacionGestionData(reservationId: string)
     .select(`
       promotion_type,
       observations,
-      amount
+      amount,
+      is_against_discount
     `)
     .eq('reservation_id', reservationId);
 
@@ -81,11 +74,28 @@ export async function getLiquidacionGestionData(reservationId: string)
     throw promoError;
   }
 
-  // 3) Mappeo y retorno
+  // 3) Consulta separada de comisión del broker
+  const { data: brokerComArr, error: brokerComError } = await supabase
+    .from('broker_commissions')
+    .select(`
+      commission_amount,
+      commission_includes_tax,
+      net_commission,
+      number_of_payments,
+      first_payment_percentage,
+      pays_secondary
+    `) // Selecciona solo las columnas necesarias
+    .eq('reservation_id', reservationId);
+
+  if (brokerComError) {
+    console.error('Error fetching broker commission data:', brokerComError);
+    throw brokerComError;
+  }
+
+  // 4) Mappeo y retorno
   const client = r.client as any;
   const seller = (r.seller as any) || {};
-  const brokerComArr = (r.broker_commissions as any[]) || [];
-  const brokerRec = brokerComArr[0] || null;
+  const brokerRec = (brokerComArr as any[])[0] || null;
 
   // Función para formatear la fecha si es necesario (opcional, pero recomendado)
   const formatDate = (dateString: string | null | undefined) => {
@@ -99,9 +109,30 @@ export async function getLiquidacionGestionData(reservationId: string)
     }
   };
 
+  // Calcular suma de promociones contra descuento
+  const promocionesContraDescuento = (promoArr || [])
+    .filter((p: any) => p.is_against_discount === true)
+    .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+
+  // Recuperación Real
+  const recuperacionReal = r.total_payment - (r.subsidy_payment || 0);
+  // Comisión Bruta
+  const comisionBruta = brokerRec?.commission_amount || 0;
+  // Precio Mínimo de Venta
+  const precioMinimoVenta = r.minimum_price;
+  // Diferencia final
+  const diferencia = recuperacionReal - precioMinimoVenta - comisionBruta - promocionesContraDescuento;
+
+  // Calcular Primer y Segundo Pago de Comisión
+  const primerPago = (brokerRec?.commission_amount || 0) * ((brokerRec?.first_payment_percentage || 0) / 100);
+  const segundoPago = (brokerRec?.number_of_payments || 0) === 2 
+    ? (brokerRec?.commission_amount || 0) - primerPago
+    : undefined; // Solo hay segundo pago si number_of_payments es 2
+
   return {
     reportTitle: `Liquidación Gestión ${r.reservation_number}`,
     generationDate: new Date().toLocaleDateString('es-CL'),
+    companyLogoUrl: "/logoinversiones.png",
     numeroReserva: r.reservation_number,
 
     cliente: {
@@ -112,8 +143,8 @@ export async function getLiquidacionGestionData(reservationId: string)
     },
 
     unidad: {
-      proyectoNombre: r.project?.name,
-      proyectoEtapa: r.project?.stage,
+      proyectoNombre: (r.project as any)?.name,
+      proyectoEtapa: (r.project as any)?.stage,
       deptoNumero: r.apartment_number,
       estacionamientoNumero: r.parking_number ?? undefined,
       bodegaNumero: r.storage_number ?? undefined,
@@ -133,13 +164,16 @@ export async function getLiquidacionGestionData(reservationId: string)
     },
 
     descuentos: {
-      // Rellena si dispones de los porcentajes
+      columnaPct: r.column_discount ?? 0,
+      adicionalPct: r.additional_discount ?? 0,
+      otrosPct: r.other_discount ?? 0,
     },
 
     promociones: (promoArr || []).map(p => ({
       nombre: p.promotion_type,
       descripcion: p.observations,
       valorEstimado: p.amount,
+      is_against_discount: p.is_against_discount,
     })),
 
     resumenFinanciero: {
@@ -147,16 +181,14 @@ export async function getLiquidacionGestionData(reservationId: string)
       totalEscrituracion: r.total_payment,
       totalRecuperacion: r.recovery_payment,
       subsidio: r.subsidy_payment,
-      diferencia:
-        (r.apartment_price + (r.parking_price || 0) + (r.storage_price || 0))
-        - r.minimum_price,
+      diferencia,
     },
 
     broker: r.broker
       ? {
-          nombre: r.broker.name,
-          razonSocial: r.broker.business_name,
-          rut: r.broker.rut,
+          nombre: (r.broker as any)?.name,
+          razonSocial: (r.broker as any)?.business_name,
+          rut: (r.broker as any)?.rut,
         }
       : undefined,
 
@@ -167,10 +199,9 @@ export async function getLiquidacionGestionData(reservationId: string)
           montoNeto: brokerRec.net_commission,
           numeroPagos: brokerRec.number_of_payments,
           porcentajePrimerPago: brokerRec.first_payment_percentage,
-          diferencia: brokerRec.difference,
-          penaltyAmount: brokerRec.penalty_amount,
-          atRisk: brokerRec.at_risk,
-          atRiskReason: brokerRec.at_risk_reason,
+          pagaSecundario: brokerRec.pays_secondary,
+          primerPago: primerPago,
+          segundoPago: segundoPago,
         }
       : undefined,
 

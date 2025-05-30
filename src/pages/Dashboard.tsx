@@ -532,6 +532,25 @@ const Dashboard: React.FC = () => {
     setSelectedMonth(month === selectedMonth ? null : month);
   };
 
+  const handleReservationClick = async (reservationId: string) => {
+    try {
+      // Obtener el ID del flujo de reserva
+      const { data, error } = await supabase
+        .from('reservation_flows')
+        .select('id')
+        .eq('reservation_id', reservationId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        navigate(`/flujo-reservas/${data.id}`);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -834,7 +853,11 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="divide-y divide-gray-200">
             {stats.recentActivity.reservations.map((reservation) => (
-              <div key={reservation.id} className="p-6 hover:bg-gray-50">
+              <div 
+                key={reservation.id} 
+                className="p-6 hover:bg-gray-50 cursor-pointer"
+                onClick={() => handleReservationClick(reservation.id)}
+              >
                 <div className="flex items-start space-x-4">
                   <div className="flex-shrink-0">
                     {reservation.seller_avatar ? (

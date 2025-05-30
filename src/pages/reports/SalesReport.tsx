@@ -91,7 +91,8 @@ const SalesReport: React.FC = () => {
           total_price,
           minimum_price,
           total_payment
-        `);
+        `)
+        .or('is_rescinded.is.false,is_rescinded.is.null');
 
       // Apply project filter if selected
       if (selectedProject) {
@@ -479,55 +480,55 @@ const SalesReport: React.FC = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th 
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('reservation_number')}
                       >
                         N° Reserva <SortIcon field="reservation_number" />
                       </th>
                       <th 
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('client_name')}
                       >
                         Cliente <SortIcon field="client_name" />
                       </th>
                       <th 
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('project_name')}
                       >
                         Proyecto <SortIcon field="project_name" />
                       </th>
                       <th 
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('apartment_number')}
                       >
                         Depto. <SortIcon field="apartment_number" />
                       </th>
                       <th 
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('broker_name')}
                       >
                         Broker <SortIcon field="broker_name" />
                       </th>
                       <th 
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('reservation_date')}
                       >
                         Fecha Reserva <SortIcon field="reservation_date" />
                       </th>
                       <th 
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('promise_date')}
                       >
                         Fecha Promesa <SortIcon field="promise_date" />
                       </th>
                       <th 
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('deed_date')}
                       >
                         Fecha Escritura <SortIcon field="deed_date" />
                       </th>
                       <th 
-                        className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        className="px-3 py-2 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={() => handleSort('total_payment')}
                       >
                         Escrituración <SortIcon field="total_payment" />
@@ -537,31 +538,31 @@ const SalesReport: React.FC = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {sortedReservations.map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
                           {item.reservation_number}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
                           {item.client_name}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
                           {item.project_name} {item.project_stage}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
                           {item.apartment_number}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
                           {item.broker_name || '-'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
                           {formatDate(item.reservation_date)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
                           {formatDate(item.promise_date)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
                           {formatDate(item.deed_date)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                        <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 text-right">
                           {formatCurrency(item.total_payment)} UF
                         </td>
                       </tr>
@@ -569,10 +570,10 @@ const SalesReport: React.FC = () => {
                   </tbody>
                   <tfoot className="bg-gray-50">
                     <tr>
-                      <td colSpan={8} className="px-6 py-4 text-right text-sm font-medium text-gray-900">
+                      <td colSpan={8} className="px-3 py-2 text-right text-xs font-medium text-gray-900">
                         Total Escrituración:
                       </td>
-                      <td className="px-6 py-4 text-right text-sm font-bold text-gray-900">
+                      <td className="px-3 py-2 text-right text-xs font-bold text-gray-900">
                         {formatCurrency(totals.totalPayment)} UF
                       </td>
                     </tr>
