@@ -435,8 +435,11 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
             <View style={styles.tableRow}>
               <Text style={styles.tableColLabel}>Descuento Disponible</Text>
               <Text style={styles.tableColValue}>
-                {((resumenFinanciero.totalEscrituracion - (resumenFinanciero.subsidio ?? 0)) - 
-                (preciosLista.depto * (1 - (descuentos?.columnaPct ?? 0)) * (1 - (descuentos?.adicionalPct ?? 0)) * (1 - (descuentos?.otrosPct ?? 0)))).toLocaleString()} UF
+                {(
+                  (resumenFinanciero.totalEscrituracion - (resumenFinanciero.subsidio ?? 0))
+                  - (preciosLista.depto * (1 - (descuentos?.columnaPct ?? 0)) * (1 - (descuentos?.adicionalPct ?? 0)) * (1 - (descuentos?.otrosPct ?? 0)))
+                  - ((preciosLista.estacionamiento || 0) + (preciosLista.bodega || 0))
+                ).toLocaleString()} UF
               </Text>
             </View>
             {/* Cashback UF */}

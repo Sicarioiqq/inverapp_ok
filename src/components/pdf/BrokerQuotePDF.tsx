@@ -478,6 +478,43 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
 
 
+  let descuentoDisponibleBroker = 0;
+
+  let montoDescuentoBroker = 0;
+
+  let commissionRate = selectedUnidad?.commission_rate || 0;
+
+  let porcentajeRedondeado = 0;
+
+  if (selectedUnidad && selectedUnidad.valor_lista && selectedUnidad.descuento) {
+
+    const valorLista = selectedUnidad.valor_lista;
+
+    const descuentoUnidad = selectedUnidad.descuento;
+
+    commissionRate = selectedUnidad.commission_rate || 0;
+
+    const valorConDescuento = valorLista * (1 - descuentoUnidad);
+
+    const comisionBroker = valorConDescuento * (commissionRate / 100);
+
+    const montoDescuento = valorLista * descuentoUnidad;
+
+    descuentoDisponibleBroker = (montoDescuento - comisionBroker) / valorLista;
+
+    porcentajeRedondeado = Math.floor(descuentoDisponibleBroker * 1000) / 10;
+
+    montoDescuentoBroker = valorLista * (porcentajeRedondeado / 100);
+
+  }
+
+  // Calcular precioConDescuentoBroker igual que en la web
+  const precioConDescuentoBroker = selectedUnidad && selectedUnidad.valor_lista
+    ? selectedUnidad.valor_lista * (1 - porcentajeRedondeado / 100)
+    : 0;
+
+
+
   return (
 
     <Document>
@@ -570,23 +607,17 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
           <View style={Styles.table}>
 
+            {/* Encabezado de la tabla */}
             <View style={Styles.tableRow}>
-
-              <View style={Styles.pricesHeaderItem}><Text>ÍTEM</Text></View>
-
-              <View style={Styles.pricesHeaderListPrice}><Text>PRECIO LISTA (UF)</Text></View>
-
-              <View style={Styles.pricesHeaderDiscountPct}><Text>DSCTO. %</Text></View>
-
-              <View style={Styles.pricesHeaderDiscountUF}><Text>DSCTO. (UF)</Text></View>
-
-              <View style={Styles.pricesHeaderNetPriceUF}><Text>PRECIO NETO (UF)</Text></View>
-
-              <View style={Styles.pricesHeaderNetPriceCLP}><Text>PRECIO NETO ($)</Text></View>
-
+              <View style={Styles.pricesHeaderItem}><Text>ITEM</Text></View>
+              <View style={Styles.pricesHeaderListPrice}><Text>PRECIO LISTA</Text></View>
+              <View style={Styles.pricesHeaderDiscountPct}><Text>%</Text></View>
+              <View style={Styles.pricesHeaderDiscountUF}><Text>DESCUENTO</Text></View>
+              <View style={Styles.pricesHeaderNetPriceUF}><Text>PRECIO VENTA UF</Text></View>
+              <View style={Styles.pricesHeaderNetPriceCLP}><Text>PRECIO VENTA $</Text></View>
             </View>
 
-            {selectedUnidad && (
+            {quotationType === 'bono' && (
 
               <View style={Styles.tableRow}>
 
@@ -594,19 +625,79 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
                 <View style={Styles.pricesColListPrice}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
 
-                <View style={Styles.pricesColDiscountPct}><Text>{formatCurrency(effectiveDeptDiscountPct)}%</Text></View>
+                <View style={Styles.pricesColDiscountPct}><Text>-</Text></View>
 
-                <View style={Styles.pricesColDiscountUF}><Text>{formatCurrency(actualDeptDiscountUF)}</Text></View>
+                <View style={Styles.pricesColDiscountUF}><Text>-</Text></View>
 
-                <View style={Styles.pricesColNetPriceUF}><Text>{formatCurrency(precioDepartamentoConDescuento)}</Text></View>
+                <View style={Styles.pricesColNetPriceUF}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
 
-                <View style={Styles.pricesColNetPriceCLP}><Text>{ufToPesos(precioDepartamentoConDescuento, ufValue)}</Text></View>
+                <View style={Styles.pricesColNetPriceCLP}><Text>{ufToPesos(precioBaseDepartamento, ufValue)}</Text></View>
 
               </View>
 
             )}
 
-            {addedSecondaryUnits.map(unit => (
+            {quotationType === 'bono' && addedSecondaryUnits.map(unit => (
+
+              <View style={Styles.tableRow} key={unit.id}>
+
+                <View style={Styles.pricesColItem}><Text>{unit.tipo_bien} {unit.unidad}</Text></View>
+
+                <View style={Styles.pricesColListPrice}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
+
+                <View style={Styles.pricesColDiscountPct}><Text>-</Text></View>
+
+                <View style={Styles.pricesColDiscountUF}><Text>-</Text></View>
+
+                <View style={Styles.pricesColNetPriceUF}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
+
+                <View style={Styles.pricesColNetPriceCLP}><Text>{ufToPesos(unit.valor_lista, ufValue)}</Text></View>
+
+              </View>
+
+            ))}
+
+            {quotationType === 'bono' && (
+
+              <View style={Styles.tableRow}>
+
+                <View style={Styles.pricesColItem}><Text style={Styles.boldText}>TOTAL ESCRITURA</Text></View>
+
+                <View style={Styles.pricesColListPrice}></View>
+
+                <View style={Styles.pricesColDiscountPct}></View>
+
+                <View style={Styles.pricesColDiscountUF}></View>
+
+                <View style={Styles.pricesColNetPriceUF}><Text style={Styles.boldText}>{formatCurrency(totalEscritura)}</Text></View>
+
+                <View style={Styles.pricesColNetPriceCLP}><Text style={Styles.boldText}>{ufToPesos(totalEscritura, ufValue)}</Text></View>
+
+              </View>
+
+            )}
+
+            {quotationType !== 'bono' && (
+
+              <View style={Styles.tableRow}>
+
+                <View style={Styles.pricesColItem}><Text>Departamento {selectedUnidad.unidad}</Text></View>
+
+                <View style={Styles.pricesColListPrice}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
+
+                <View style={Styles.pricesColDiscountPct}><Text>{selectedUnidad ? `${porcentajeRedondeado}%` : '0.0%'}</Text></View>
+
+                <View style={Styles.pricesColDiscountUF}><Text>{selectedUnidad ? formatCurrency(montoDescuentoBroker) : '0.00'}</Text></View>
+
+                <View style={Styles.pricesColNetPriceUF}><Text>{formatCurrency(precioConDescuentoBroker)}</Text></View>
+
+                <View style={Styles.pricesColNetPriceCLP}><Text>{ufToPesos(precioConDescuentoBroker, ufValue)}</Text></View>
+
+              </View>
+
+            )}
+
+            {quotationType !== 'bono' && addedSecondaryUnits.map(unit => (
 
               <View style={Styles.tableRow} key={unit.id}>
 
@@ -626,23 +717,29 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
             ))}
 
-            <View style={Styles.tableRow}>
+            {quotationType !== 'bono' && (
+
+              <View style={Styles.tableRow}>
 
                 <View style={Styles.pricesColItem}><Text style={Styles.boldText}>TOTAL ESCRITURA</Text></View>
 
-                <View style={Styles.pricesColListPrice}><Text></Text></View>
+                <View style={Styles.pricesColListPrice}></View>
 
-                <View style={Styles.pricesColDiscountPct}><Text></Text></View>
+                <View style={Styles.pricesColDiscountPct}></View>
 
-                <View style={Styles.pricesColDiscountUF}><Text></Text></View>
+                <View style={Styles.pricesColDiscountUF}></View>
 
                 <View style={Styles.pricesColNetPriceUF}><Text style={Styles.boldText}>{formatCurrency(totalEscritura)}</Text></View>
 
                 <View style={Styles.pricesColNetPriceCLP}><Text style={Styles.boldText}>{ufToPesos(totalEscritura, ufValue)}</Text></View>
 
-            </View>
+              </View>
+
+            )}
 
           </View>
+
+
 
         </View>
 
@@ -670,7 +767,7 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
               <View style={Styles.paymentColGlosa}><Text>Reserva</Text></View>
 
-              <View style={Styles.paymentColPct}><Text>{totalEscritura > 0 ? formatCurrency((pagoReserva / totalEscritura) * 100) : '0.00'}%</Text></View>
+              <View style={Styles.paymentColPct}><Text>{totalFormaDePago > 0 ? formatCurrency((pagoReserva / totalFormaDePago) * 100) : '0.00'}%</Text></View>
 
               <View style={Styles.paymentColPesos}><Text>{ufToPesos(pagoReserva, ufValue)}</Text></View>
 
@@ -682,7 +779,7 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
               <View style={Styles.paymentColGlosa}><Text>Promesa</Text></View>
 
-              <View style={Styles.paymentColPct}><Text>{formatCurrency(pagoPromesaPct)}%</Text></View>
+              <View style={Styles.paymentColPct}><Text>{totalFormaDePago > 0 ? formatCurrency((pagoPromesa / totalFormaDePago) * 100) : '0.00'}%</Text></View>
 
               <View style={Styles.paymentColPesos}><Text>{ufToPesos(pagoPromesa, ufValue)}</Text></View>
 
@@ -694,7 +791,7 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
               <View style={Styles.paymentColGlosa}><Text>Pie</Text></View>
 
-              <View style={Styles.paymentColPct}><Text>{formatCurrency(pagoPiePct)}%</Text></View>
+              <View style={Styles.paymentColPct}><Text>{totalFormaDePago > 0 ? formatCurrency((pagoPie / totalFormaDePago) * 100) : '0.00'}%</Text></View>
 
               <View style={Styles.paymentColPesos}><Text>{ufToPesos(pagoPie, ufValue)}</Text></View>
 
@@ -706,7 +803,7 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
               <View style={Styles.paymentColGlosa}><Text>Crédito Hipotecario</Text></View>
 
-              <View style={Styles.paymentColPct}><Text>{totalEscritura > 0 ? formatCurrency((pagoCreditoHipotecarioCalculado / totalEscritura) * 100) : '0.00'}%</Text></View>
+              <View style={Styles.paymentColPct}><Text>{totalFormaDePago > 0 ? formatCurrency((pagoCreditoHipotecarioCalculado / totalFormaDePago) * 100) : '0.00'}%</Text></View>
 
               <View style={Styles.paymentColPesos}><Text>{ufToPesos(pagoCreditoHipotecarioCalculado, ufValue)}</Text></View>
 
@@ -714,13 +811,13 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
             </View>
 
-            {pagoBonoPieCotizacion > 0 && (
+            {quotationType === 'bono' && pagoBonoPieCotizacion > 0 && (
 
               <View style={Styles.tableRow}>
 
                 <View style={Styles.paymentColGlosa}><Text>Bono Pie</Text></View>
 
-                <View style={Styles.paymentColPct}><Text>{totalEscritura > 0 ? formatCurrency((pagoBonoPieCotizacion / totalEscritura) * 100) : '0.00'}%</Text></View>
+                <View style={Styles.paymentColPct}><Text>{totalFormaDePago > 0 ? formatCurrency((pagoBonoPieCotizacion / totalFormaDePago) * 100) : '0.00'}%</Text></View>
 
                 <View style={Styles.paymentColPesos}><Text>{ufToPesos(pagoBonoPieCotizacion, ufValue)}</Text></View>
 
@@ -734,7 +831,7 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
                 <View style={Styles.paymentColGlosa}><Text style={Styles.boldText}>TOTAL</Text></View>
 
-                <View style={Styles.paymentColPct}><Text style={Styles.boldText}>{totalEscritura > 0 ? formatCurrency((totalFormaDePago / totalEscritura) * 100) : '0.00'}%</Text></View>
+                <View style={Styles.paymentColPct}><Text style={Styles.boldText}>{totalFormaDePago > 0 ? formatCurrency((totalFormaDePago / totalFormaDePago) * 100) : '0.00'}%</Text></View>
 
                 <View style={Styles.paymentColPesos}><Text style={Styles.boldText}>{ufToPesos(totalFormaDePago, ufValue)}</Text></View>
 
