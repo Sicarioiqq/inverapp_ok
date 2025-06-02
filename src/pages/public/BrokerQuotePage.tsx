@@ -6,6 +6,8 @@ import { PDFDownloadLink, BlobProvider } from '@react-pdf/renderer';
 import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
 import { Loader2, Calculator, Download, Plus, Minus, Building, Home, DollarSign, Save, Home as HomeIcon, ArrowLeft, ChevronUp, ChevronDown, Wrench } from 'lucide-react';
 import logoinversiones from './logoinversiones.png';
+import { Dialog, Tab } from '@headlessui/react';
+import * as XLSX from 'xlsx';
 
 interface BrokerQuotePageProps {}
 
@@ -797,6 +799,115 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
     }
   }, [tipoCotizacionWizard, bonoPieYDescuento.bonoPieAplicableUF]);
   
+  // Estado para mostrar el modal de stock completo
+  const [showStockModal, setShowStockModal] = useState(false);
+  
+  // Estados para filtros del modal de stock completo
+  const [stockTab, setStockTab] = useState<'departamentos' | 'secundarios'>('departamentos');
+  const [stockSearch, setStockSearch] = useState('');
+  const [stockProyecto, setStockProyecto] = useState('');
+  const [stockTipologia, setStockTipologia] = useState('');
+  const [stockTipoBien, setStockTipoBien] = useState('');
+
+  // Datos filtrados para departamentos
+  const departamentos = unidades.filter(u => u.tipo_bien === 'DEPARTAMENTO');
+  const departamentosFiltrados = departamentos.filter(u => {
+    // Descuento calculado al broker
+    const valorLista = u.valor_lista || 0;
+    const descuentoUnidad = u.descuento || 0;
+    const commissionRate = getCommissionRate(u.proyecto_nombre);
+    const valorConDescuento = valorLista * (1 - descuentoUnidad);
+    const comisionBroker = valorConDescuento * (commissionRate / 100);
+    const montoDescuento = valorLista * descuentoUnidad;
+    const descuentoDisponibleBroker = ((montoDescuento - comisionBroker) / valorLista) * 100;
+    const porcentajeRedondeado = Math.floor(descuentoDisponibleBroker * 10) / 10;
+    // Filtros
+    if (porcentajeRedondeado < 0) return false;
+    if (stockProyecto && u.proyecto_nombre !== stockProyecto) return false;
+    if (stockTipologia && u.tipologia !== stockTipologia) return false;
+    if (stockSearch) {
+      const s = stockSearch.toLowerCase();
+      if (!(
+        (u.proyecto_nombre || '').toLowerCase().includes(s) ||
+        (u.unidad || '').toLowerCase().includes(s) ||
+        (u.tipologia || '').toLowerCase().includes(s) ||
+        (u.piso || '').toString().includes(s) ||
+        (u.orientacion || '').toLowerCase().includes(s) ||
+        (u.sup_total || '').toString().includes(s)
+      )) return false;
+    }
+    return true;
+  });
+  const proyectosDeptos = Array.from(new Set(departamentos.map(u => u.proyecto_nombre).filter(Boolean)));
+  const tipologiasDeptos = Array.from(new Set(departamentos.map(u => u.tipologia).filter(Boolean)));
+
+  // Datos filtrados para secundarios
+  const secundarios = unidades.filter(u => u.tipo_bien !== 'DEPARTAMENTO');
+  const secundariosFiltrados = secundarios.filter(u => {
+    if (stockProyecto && u.proyecto_nombre !== stockProyecto) return false;
+    if (stockTipoBien && u.tipo_bien !== stockTipoBien) return false;
+    if (stockSearch) {
+      const s = stockSearch.toLowerCase();
+      if (!(
+        (u.proyecto_nombre || '').toLowerCase().includes(s) ||
+        (u.unidad || '').toLowerCase().includes(s) ||
+        (u.tipo_bien || '').toLowerCase().includes(s) ||
+        (u.piso || '').toString().includes(s) ||
+        (u.orientacion || '').toLowerCase().includes(s) ||
+        (u.sup_total || '').toString().includes(s)
+      )) return false;
+    }
+    return true;
+  });
+  const proyectosSecundarios = Array.from(new Set(secundarios.map(u => u.proyecto_nombre).filter(Boolean)));
+  const tiposBienSecundarios = Array.from(new Set(secundarios.map(u => u.tipo_bien).filter(Boolean)));
+
+  // Exportar a Excel
+  const exportarStockExcel = () => {
+    // Departamentos
+    const deptosData = departamentosFiltrados.map(u => {
+      const valorLista = u.valor_lista || 0;
+      const descuentoUnidad = u.descuento || 0;
+      const commissionRate = getCommissionRate(u.proyecto_nombre);
+      const valorConDescuento = valorLista * (1 - descuentoUnidad);
+      const comisionBroker = valorConDescuento * (commissionRate / 100);
+      const montoDescuento = valorLista * descuentoUnidad;
+      const descuentoDisponibleBroker = ((montoDescuento - comisionBroker) / valorLista) * 100;
+      const porcentajeRedondeado = Math.floor(descuentoDisponibleBroker * 10) / 10;
+      const descuentoUF = valorLista * (porcentajeRedondeado / 100);
+      const valorConDescuentoBroker = valorLista - descuentoUF;
+      return {
+        Proyecto: u.proyecto_nombre,
+        Unidad: u.unidad,
+        Tipología: u.tipologia,
+        Piso: u.piso,
+        Orientación: u.orientacion,
+        'Sup. total': u.sup_total,
+        'Valor lista (UF)': valorLista,
+        'Descuento (%)': porcentajeRedondeado,
+        'Descuento (UF)': descuentoUF,
+        'Valor con Descuento (UF)': valorConDescuentoBroker,
+      };
+    });
+    // Secundarios
+    const secundariosData = secundariosFiltrados.map(u => ({
+      Proyecto: u.proyecto_nombre,
+      Unidad: u.unidad,
+      'Tipo de bien': u.tipo_bien,
+      Piso: u.piso,
+      Orientación: u.orientacion,
+      'Sup. total': u.sup_total,
+      'Valor lista (UF)': u.valor_lista || 0,
+    }));
+    // Crear libro
+    const wb = XLSX.utils.book_new();
+    const wsDeptos = XLSX.utils.json_to_sheet(deptosData);
+    XLSX.utils.book_append_sheet(wb, wsDeptos, 'Departamentos');
+    const wsSecundarios = XLSX.utils.json_to_sheet(secundariosData);
+    XLSX.utils.book_append_sheet(wb, wsSecundarios, 'Secundarios');
+    XLSX.writeFile(wb, 'stock_completo.xlsx');
+  };
+  
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
@@ -854,7 +965,7 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
             {wizardStep === 1 && (
               <button
                 className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-md font-semibold hover:bg-blue-200 transition-colors border border-blue-200"
-                // onClick={() => {}}
+                onClick={() => setShowStockModal(true)}
               >
                 <Building className="h-5 w-5" />
                 Ver el stock completo
@@ -1713,6 +1824,154 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
           </div>
         </div>
       </footer>
+      
+      {/* Modal de Stock Completo */}
+      <Dialog open={showStockModal} onClose={() => setShowStockModal(false)} className="fixed z-50 inset-0 overflow-y-auto">
+        <div className="flex items-center justify-center min-h-screen px-4">
+          <div className="fixed inset-0 bg-black opacity-30 z-0"></div>
+          <Dialog.Panel className="relative bg-white rounded-lg shadow-xl max-w-6xl w-full mx-auto p-6 z-10">
+            <Dialog.Title className="text-2xl font-bold mb-4 text-blue-700">Stock Completo de Unidades</Dialog.Title>
+            <div className="mb-4 flex flex-col md:flex-row md:items-end gap-2 md:gap-4">
+              <input
+                type="text"
+                placeholder="Buscar..."
+                value={stockSearch}
+                onChange={e => setStockSearch(e.target.value)}
+                className="border px-2 py-1 rounded w-full md:w-48"
+              />
+              <select
+                value={stockProyecto}
+                onChange={e => setStockProyecto(e.target.value)}
+                className="border px-2 py-1 rounded w-full md:w-48"
+              >
+                <option value="">Todos los proyectos</option>
+                {stockTab === 'departamentos'
+                  ? proyectosDeptos.map(p => <option key={p} value={p}>{p}</option>)
+                  : proyectosSecundarios.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+              {stockTab === 'departamentos' ? (
+                <select
+                  value={stockTipologia}
+                  onChange={e => setStockTipologia(e.target.value)}
+                  className="border px-2 py-1 rounded w-full md:w-48"
+                >
+                  <option value="">Todas las tipologías</option>
+                  {tipologiasDeptos.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              ) : (
+                <select
+                  value={stockTipoBien}
+                  onChange={e => setStockTipoBien(e.target.value)}
+                  className="border px-2 py-1 rounded w-full md:w-48"
+                >
+                  <option value="">Todos los tipos de bien</option>
+                  {tiposBienSecundarios.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              )}
+              <button
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-semibold ml-auto"
+                onClick={exportarStockExcel}
+              >
+                Exportar a Excel
+              </button>
+            </div>
+            <Tab.Group selectedIndex={stockTab === 'departamentos' ? 0 : 1} onChange={i => setStockTab(i === 0 ? 'departamentos' : 'secundarios')}>
+              <Tab.List className="flex gap-2 mb-2">
+                <Tab className={({ selected }) => selected ? 'px-4 py-2 bg-blue-600 text-white rounded font-semibold' : 'px-4 py-2 bg-gray-200 text-gray-700 rounded font-semibold'}>Departamentos</Tab>
+                <Tab className={({ selected }) => selected ? 'px-4 py-2 bg-blue-600 text-white rounded font-semibold' : 'px-4 py-2 bg-gray-200 text-gray-700 rounded font-semibold'}>Secundarios</Tab>
+              </Tab.List>
+              <Tab.Panels>
+                <Tab.Panel>
+                  <div className="overflow-x-auto max-h-[60vh]">
+                    <table className="min-w-full divide-y divide-gray-200 text-xs">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-2 py-2 text-left font-semibold">Proyecto</th>
+                          <th className="px-2 py-2 text-left font-semibold">Unidad</th>
+                          <th className="px-2 py-2 text-left font-semibold">Tipología</th>
+                          <th className="px-2 py-2 text-left font-semibold">Piso</th>
+                          <th className="px-2 py-2 text-left font-semibold">Orientación</th>
+                          <th className="px-2 py-2 text-left font-semibold">Sup. total</th>
+                          <th className="px-2 py-2 text-left font-semibold">Valor lista (UF)</th>
+                          <th className="px-2 py-2 text-left font-semibold">Descuento (%)</th>
+                          <th className="px-2 py-2 text-left font-semibold">Descuento (UF)</th>
+                          <th className="px-2 py-2 text-left font-semibold">Valor con Descuento (UF)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {departamentosFiltrados.map((unidad) => {
+                          const valorLista = unidad.valor_lista || 0;
+                          const descuentoUnidad = unidad.descuento || 0;
+                          const commissionRate = getCommissionRate(unidad.proyecto_nombre);
+                          const valorConDescuento = valorLista * (1 - descuentoUnidad);
+                          const comisionBroker = valorConDescuento * (commissionRate / 100);
+                          const montoDescuento = valorLista * descuentoUnidad;
+                          const descuentoDisponibleBroker = ((montoDescuento - comisionBroker) / valorLista) * 100;
+                          const porcentajeRedondeado = Math.floor(descuentoDisponibleBroker * 10) / 10;
+                          const descuentoUF = valorLista * (porcentajeRedondeado / 100);
+                          const valorConDescuentoBroker = valorLista - descuentoUF;
+                          return (
+                            <tr key={unidad.id}>
+                              <td className="px-2 py-1 whitespace-nowrap">{unidad.proyecto_nombre}</td>
+                              <td className="px-2 py-1 whitespace-nowrap">{unidad.unidad}</td>
+                              <td className="px-2 py-1 whitespace-nowrap">{unidad.tipologia}</td>
+                              <td className="px-2 py-1 whitespace-nowrap">{unidad.piso}</td>
+                              <td className="px-2 py-1 whitespace-nowrap">{unidad.orientacion || '-'}</td>
+                              <td className="px-2 py-1 whitespace-nowrap">{unidad.sup_total}</td>
+                              <td className="px-2 py-1 whitespace-nowrap">{formatCurrency(valorLista)}</td>
+                              <td className="px-2 py-1 whitespace-nowrap">{porcentajeRedondeado}%</td>
+                              <td className="px-2 py-1 whitespace-nowrap">{formatCurrency(descuentoUF)}</td>
+                              <td className="px-2 py-1 whitespace-nowrap">{formatCurrency(valorConDescuentoBroker)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </Tab.Panel>
+                <Tab.Panel>
+                  <div className="overflow-x-auto max-h-[60vh]">
+                    <table className="min-w-full divide-y divide-gray-200 text-xs">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-2 py-2 text-left font-semibold">Proyecto</th>
+                          <th className="px-2 py-2 text-left font-semibold">Unidad</th>
+                          <th className="px-2 py-2 text-left font-semibold">Tipo de bien</th>
+                          <th className="px-2 py-2 text-left font-semibold">Piso</th>
+                          <th className="px-2 py-2 text-left font-semibold">Orientación</th>
+                          <th className="px-2 py-2 text-left font-semibold">Sup. total</th>
+                          <th className="px-2 py-2 text-left font-semibold">Valor lista (UF)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {secundariosFiltrados.map((unidad) => (
+                          <tr key={unidad.id}>
+                            <td className="px-2 py-1 whitespace-nowrap">{unidad.proyecto_nombre}</td>
+                            <td className="px-2 py-1 whitespace-nowrap">{unidad.unidad}</td>
+                            <td className="px-2 py-1 whitespace-nowrap">{unidad.tipo_bien}</td>
+                            <td className="px-2 py-1 whitespace-nowrap">{unidad.piso}</td>
+                            <td className="px-2 py-1 whitespace-nowrap">{unidad.orientacion || '-'}</td>
+                            <td className="px-2 py-1 whitespace-nowrap">{unidad.sup_total}</td>
+                            <td className="px-2 py-1 whitespace-nowrap">{formatCurrency(unidad.valor_lista || 0)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Tab.Panel>
+              </Tab.Panels>
+            </Tab.Group>
+            <div className="flex justify-end mt-4">
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold"
+                onClick={() => setShowStockModal(false)}
+              >
+                Cerrar
+              </button>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
     </div>
   );
 };
