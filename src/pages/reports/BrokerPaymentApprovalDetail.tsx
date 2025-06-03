@@ -152,12 +152,26 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
   const [isRejecting, setIsRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [comentarioJefe, setComentarioJefe] = useState<string>('');
 
   useEffect(() => {
     if (id && session?.user?.id) {
       fetchApprovalDetails();
     }
   }, [id, session?.user?.id]);
+
+  useEffect(() => {
+    if (data && data.brokerCommissionId) {
+      supabase
+        .from('broker_commissions')
+        .select('comentario_jefe_inversiones')
+        .eq('id', data.brokerCommissionId)
+        .single()
+        .then(({ data: comData }) => {
+          if (comData?.comentario_jefe_inversiones) setComentarioJefe(comData.comentario_jefe_inversiones);
+        });
+    }
+  }, [data?.brokerCommissionId]);
 
   const fetchApprovalDetails = async () => {
     if (!id) return;
@@ -392,6 +406,12 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
         
       if (updateError) throw updateError;
       
+      // Update broker_commissions with comentario_jefe_inversiones
+      await supabase
+        .from('broker_commissions')
+        .update({ comentario_jefe_inversiones: comentarioJefe })
+        .eq('id', data.brokerCommissionId);
+      
       // Navigate back to the approval list
       navigate('/informes/aprobacion-liquidaciones');
     } catch (err: any) {
@@ -426,6 +446,12 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
         });
         
       if (commentError) throw commentError;
+      
+      // Update broker_commissions with comentario_jefe_inversiones
+      await supabase
+        .from('broker_commissions')
+        .update({ comentario_jefe_inversiones: rejectReason })
+        .eq('id', data.brokerCommissionId);
       
       // Navigate back to the approval list
       navigate('/informes/aprobacion-liquidaciones');
@@ -1001,6 +1027,18 @@ const BrokerPaymentApprovalDetail: React.FC = () => {
                 </div>
             )}
           </div>
+        </div>
+
+        {/* Observaciones Jefe Inversiones */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Observaciones Jefe Inversiones</label>
+          <textarea
+            className="w-full border border-gray-300 rounded-md p-2 text-sm"
+            rows={3}
+            value={comentarioJefe}
+            onChange={e => setComentarioJefe(e.target.value)}
+            placeholder="Agrega observaciones relevantes para la liquidación..."
+          />
         </div>
 
         {/* Botones de Acción */}

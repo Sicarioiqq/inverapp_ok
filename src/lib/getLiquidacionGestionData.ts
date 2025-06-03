@@ -83,8 +83,9 @@ export async function getLiquidacionGestionData(reservationId: string)
       net_commission,
       number_of_payments,
       first_payment_percentage,
-      pays_secondary
-    `) // Selecciona solo las columnas necesarias
+      pays_secondary,
+      comentario_jefe_inversiones
+    `)
     .eq('reservation_id', reservationId);
 
   if (brokerComError) {
@@ -209,5 +210,7 @@ export async function getLiquidacionGestionData(reservationId: string)
     vendedor: seller && seller.first_name
       ? { nombreCompleto: `${seller.first_name} ${seller.last_name}`.trim() }
       : undefined,
+
+    comentarioJefeInversiones: brokerRec?.comentario_jefe_inversiones || undefined,
   };
 }

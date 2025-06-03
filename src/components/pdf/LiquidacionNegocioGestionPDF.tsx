@@ -69,6 +69,7 @@ export interface LiquidacionGestionData {
     segundoPago?: number;
   };
   vendedor?: { nombreCompleto: string };
+  comentarioJefeInversiones?: string;
 }
 
 const colors = {
@@ -113,6 +114,7 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
     broker,
     comisionBroker,
     vendedor,
+    comentarioJefeInversiones,
   } = props;
 
   return (
@@ -570,6 +572,17 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
                   </Text>
                 </View>
               ))}
+            </View>
+          </>
+        )}
+
+        {comentarioJefeInversiones && (
+          <>
+            <Text style={styles.sectionHeader}>Observaciones Jefe Inversiones</Text>
+            <View style={styles.table}>
+              <View style={styles.tableRow}>
+                <Text style={styles.tableColValue}>{comentarioJefeInversiones}</Text>
+              </View>
             </View>
           </>
         )}
