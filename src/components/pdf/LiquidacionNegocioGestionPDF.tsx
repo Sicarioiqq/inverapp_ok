@@ -257,30 +257,13 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
             {promociones.map((p, i) => {
               const esContraDescuento = p.is_against_discount === true;
               const rowStyle = esContraDescuento ? [styles.tableRow, { backgroundColor: '#FFE5E5' }] : styles.tableRow;
-              // Concatenar detalles adicionales (sin observaciones)
-              const detalles = [
-                p.descripcion,
-                p.beneficiario ? `Beneficiario: ${p.beneficiario}` : null,
-                p.rut ? `RUT: ${p.rut}` : null,
-                p.bank ? `Banco: ${p.bank}` : null,
-                p.account_type ? `Tipo Cuenta: ${p.account_type}` : null,
-                p.account_number ? `N° Cuenta: ${p.account_number}` : null,
-                p.email ? `Email: ${p.email}` : null,
-                p.purchase_order ? `OC: ${p.purchase_order}` : null,
-                p.document_number ? `Doc: ${p.document_number}` : null,
-                p.document_date ? `F. Doc: ${p.document_date}` : null,
-                p.payment_date ? `F. Pago: ${p.payment_date}` : null,
-                // p.observaciones ? `Obs: ${p.observaciones}` : null, // Eliminado
-              ].filter(Boolean).join(' | ');
               return (
                 <View key={i} style={rowStyle}>
                   <Text style={styles.tableColLabel}>
                     {p.nombre} {esContraDescuento ? '(Contra Descuento)' : ''}
                   </Text>
                   <Text style={styles.tableColValue}>
-                    {detalles}
-                    {p.valorEstimado !== undefined && detalles ? ' | ' : ''}
-                    {p.valorEstimado !== undefined && `${p.valorEstimado} UF`}
+                    {p.valorEstimado !== undefined ? `${p.valorEstimado} UF` : ''}
                   </Text>
                 </View>
               );
