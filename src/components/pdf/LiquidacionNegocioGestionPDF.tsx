@@ -257,7 +257,7 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
             {promociones.map((p, i) => {
               const esContraDescuento = p.is_against_discount === true;
               const rowStyle = esContraDescuento ? [styles.tableRow, { backgroundColor: '#FFE5E5' }] : styles.tableRow;
-              // Concatenar detalles adicionales
+              // Concatenar detalles adicionales (sin observaciones)
               const detalles = [
                 p.descripcion,
                 p.beneficiario ? `Beneficiario: ${p.beneficiario}` : null,
@@ -270,7 +270,7 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
                 p.document_number ? `Doc: ${p.document_number}` : null,
                 p.document_date ? `F. Doc: ${p.document_date}` : null,
                 p.payment_date ? `F. Pago: ${p.payment_date}` : null,
-                p.observaciones ? `Obs: ${p.observaciones}` : null,
+                // p.observaciones ? `Obs: ${p.observaciones}` : null, // Eliminado
               ].filter(Boolean).join(' | ');
               return (
                 <View key={i} style={rowStyle}>
@@ -279,8 +279,8 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
                   </Text>
                   <Text style={styles.tableColValue}>
                     {detalles}
-                    {p.valorEstimado !== undefined &&
-                      ` | ${p.valorEstimado} UF`}
+                    {p.valorEstimado !== undefined && detalles ? ' | ' : ''}
+                    {p.valorEstimado !== undefined && `${p.valorEstimado} UF`}
                   </Text>
                 </View>
               );
