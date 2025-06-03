@@ -411,10 +411,19 @@ const ConsolidadoBrokers: React.FC = () => {
       return sum;
     }, 0);
 
-    // Total en proceso de pago (tiene flujo pero no fecha de pago, excluyendo resciliadas)
+    // Total en proceso de pago (solo el porcentaje correspondiente a la etapa en proceso, excluyendo resciliadas y en riesgo)
     const totalInProgress = consolidatedData.reduce((sum, item) => {
-      if (!item.is_rescinded && !item.at_risk && item.is_payment_in_progress) {
-        return sum + item.commission_amount;
+      if (!item.is_rescinded && !item.at_risk && item.has_payment_flow) {
+        let inProgressAmount = 0;
+        // Primer pago en proceso
+        if (item.invoice_1 && !item.payment_1_date) {
+          inProgressAmount += item.commission_amount * (item.first_payment_percentage / 100);
+        }
+        // Segundo pago en proceso
+        if (item.invoice_2 && !item.payment_2_date) {
+          inProgressAmount += item.commission_amount * (1 - item.first_payment_percentage / 100);
+        }
+        return sum + inProgressAmount;
       }
       return sum;
     }, 0);
