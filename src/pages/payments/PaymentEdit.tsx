@@ -110,6 +110,10 @@ const PaymentEdit = () => {
 
   const [appliedPromotions, setAppliedPromotions] = useState<AppliedPromotion[]>([]);
 
+  // 1. Estado para el comentario del jefe de inversiones
+  const [comentarioJefe, setComentarioJefe] = useState<string>('');
+  const [showComentarioModal, setShowComentarioModal] = useState(false);
+
   useEffect(() => {
     if (reservationId) {
       setLoading(true);
@@ -124,6 +128,20 @@ const PaymentEdit = () => {
       });
     } else {
         navigate('/pagos');
+    }
+  }, [reservationId]);
+
+  // 2. Al cargar los datos, setear el comentario si existe
+  useEffect(() => {
+    if (reservationId) {
+      supabase
+        .from('broker_commissions')
+        .select('comentario_jefe_inversiones')
+        .eq('reservation_id', reservationId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.comentario_jefe_inversiones) setComentarioJefe(data.comentario_jefe_inversiones);
+        });
     }
   }, [reservationId]);
 
@@ -277,9 +295,9 @@ const PaymentEdit = () => {
     try {
       setSubmitting(true);
       setError(null);
-      const commissionPayload = { 
+      const commissionPayload = {
         broker_id: reservation.broker.id,
-        reservation_id: reservationId, 
+        reservation_id: reservationId,
         commission_amount: formData.commission_amount,
         commission_includes_tax: formData.commission_includes_tax,
         commission_for_discount: formData.commission_for_discount,
@@ -294,7 +312,7 @@ const PaymentEdit = () => {
         invoice_2_date: formData.invoice_2_date || null,
         payment_2_date: formData.payment_2_date || null,
         updated_by: session?.user.id,
-        // NO enviar 'difference' a la tabla 'broker_commissions' a menos que exista esa columna
+        comentario_jefe_inversiones: comentarioJefe || null,
       };
 
       if (hasPaymentFlow) delete (commissionPayload as any).payment_1_date;
@@ -538,6 +556,49 @@ const PaymentEdit = () => {
               )}
             </div>
           </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <div className="flex items-center mb-2">
+              <FileText className="h-5 w-5 mr-2 text-amber-600" />
+              <h2 className="text-lg font-semibold text-gray-800 flex-1">Observación Jefe Inversiones</h2>
+              <button
+                type="button"
+                className="ml-2 text-blue-600 hover:text-blue-800 text-sm flex items-center"
+                onClick={() => setShowComentarioModal(true)}
+              >
+                <Edit className="h-4 w-4 mr-1" /> Editar
+              </button>
+            </div>
+            <div className="mt-2 text-gray-700 text-sm min-h-[32px]">
+              {comentarioJefe ? comentarioJefe : <span className="italic text-gray-400">Sin observaciones</span>}
+            </div>
+          </div>
+          {showComentarioModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+              <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+                <h3 className="text-lg font-semibold mb-2">Editar Observación Jefe Inversiones</h3>
+                <textarea
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                  rows={4}
+                  value={comentarioJefe}
+                  onChange={e => setComentarioJefe(e.target.value)}
+                  placeholder="Agrega observaciones relevantes para la liquidación..."
+                />
+                <div className="flex justify-end mt-4 space-x-2">
+                  <button
+                    type="button"
+                    className="px-4 py-1.5 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    onClick={() => setShowComentarioModal(false)}
+                  >Cancelar</button>
+                  <button
+                    type="button"
+                    className="px-4 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700"
+                    onClick={() => setShowComentarioModal(false)}
+                  >Guardar</button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end pt-2">
             <button type="submit" disabled={submitting} className="flex items-center px-6 py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
