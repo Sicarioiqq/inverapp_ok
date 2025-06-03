@@ -32,6 +32,8 @@ interface ConsolidadoBrokersItem {
   reservation_id: string;
   commission_flow_id: string | null;
   is_rescinded: boolean;
+  has_payment_flow: boolean;
+  is_payment_in_progress: boolean;
 }
 
 interface AtRiskPopupProps {
@@ -57,7 +59,8 @@ const ConsolidadoBrokers: React.FC = () => {
     totalCommission: 0,
     totalPaid: 0,
     totalPending: 0,
-    totalAtRisk: 0
+    totalAtRisk: 0,
+    totalInProgress: 0
   });
 
   useEffect(() => {
@@ -73,7 +76,8 @@ const ConsolidadoBrokers: React.FC = () => {
         totalCommission: 0,
         totalPaid: 0,
         totalPending: 0,
-        totalAtRisk: 0
+        totalAtRisk: 0,
+        totalInProgress: 0
       });
     }
   }, [selectedBroker]);
@@ -116,14 +120,14 @@ const ConsolidadoBrokers: React.FC = () => {
           penalty_amount,
           at_risk,
           at_risk_reason,
-          reservation:reservations(
+          reservation:reservations!inner(
             id,
             reservation_number,
             apartment_number,
-            project:projects(name, stage),
+            project:projects!inner(name, stage),
             is_rescinded
           ),
-          broker:brokers(id, name)
+          broker:brokers!inner(id, name)
         `)
         .eq('broker_id', brokerId);
 
@@ -183,7 +187,9 @@ const ConsolidadoBrokers: React.FC = () => {
           at_risk: item.at_risk || false,
           at_risk_reason: item.at_risk_reason,
           commission_flow_id: commissionFlowId,
-          is_rescinded: item.reservation.is_rescinded
+          is_rescinded: item.reservation.is_rescinded,
+          has_payment_flow: commissionFlowId !== null,
+          is_payment_in_progress: commissionFlowId !== null && !item.payment_1_date && !item.payment_2_date
         };
       });
 
@@ -370,8 +376,8 @@ const ConsolidadoBrokers: React.FC = () => {
   const SortIcon = ({ field }: { field: string }) => {
     if (sortField !== field) return null;
     return sortDirection === 'asc' ? 
-      <ArrowUp className="h-3 w-3 inline-block ml-1" /> : 
-      <ArrowDown className="h-3 w-3 inline-block ml-1" />;
+      <ArrowUp className="h-3 w-3 inline-block ml-1" aria-label="Orden ascendente" /> : 
+      <ArrowDown className="h-3 w-3 inline-block ml-1" aria-label="Orden descendente" />;
   };
 
   // Calcular totales considerando el estado en riesgo
@@ -385,15 +391,16 @@ const ConsolidadoBrokers: React.FC = () => {
       return sum + item.commission_amount;
     }, 0);
     
-    // Total pagado (lo mismo para todas las operaciones)
+    // Total pagado (excluyendo resciliadas)
     const totalPaid = consolidatedData.reduce((sum, item) => {
+      if (item.is_rescinded) return sum;
       let paidAmount = 0;
       if (item.first_payment_amount) paidAmount += item.first_payment_amount;
       if (item.second_payment_amount) paidAmount += item.second_payment_amount;
       return sum + paidAmount;
     }, 0);
     
-    // Total en riesgo (solo lo pagado para operaciones en riesgo)
+    // Total en riesgo (solo lo pagado para operaciones en riesgo, excluyendo resciliadas)
     const totalAtRisk = consolidatedData.reduce((sum, item) => {
       if (!item.is_rescinded && item.at_risk) {
         let paidAmount = 0;
@@ -403,15 +410,24 @@ const ConsolidadoBrokers: React.FC = () => {
       }
       return sum;
     }, 0);
+
+    // Total en proceso de pago (tiene flujo pero no fecha de pago, excluyendo resciliadas)
+    const totalInProgress = consolidatedData.reduce((sum, item) => {
+      if (!item.is_rescinded && !item.at_risk && item.is_payment_in_progress) {
+        return sum + item.commission_amount;
+      }
+      return sum;
+    }, 0);
     
-    // Total pendiente (comisión total menos pagado)
+    // Total pendiente (comisión total menos pagado, excluyendo resciliadas)
     const totalPending = totalCommission - totalPaid;
 
     return {
       totalCommission,
       totalPaid,
       totalPending,
-      totalAtRisk
+      totalAtRisk,
+      totalInProgress
     };
   };
 
@@ -493,7 +509,7 @@ const ConsolidadoBrokers: React.FC = () => {
                     Total de registros: {consolidatedData.length}
                   </p>
                 </div>
-                <div className="mt-4 md:mt-0 grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="mt-4 md:mt-0 grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div className="text-right">
                     <div className="text-sm text-gray-500">Total Comisiones</div>
                     <div className="text-lg font-semibold text-gray-900">
@@ -513,9 +529,15 @@ const ConsolidadoBrokers: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-right">
+                    <div className="text-sm text-gray-500">Total En Proceso</div>
+                    <div className="text-lg font-semibold text-blue-600">
+                      {formatCurrency(calculatedTotals.totalInProgress)} UF
+                    </div>
+                  </div>
+                  <div className="text-right">
                     <div className="text-sm text-gray-500">Total Pendiente</div>
                     <div className="text-lg font-semibold text-orange-600">
-                      {formatCurrency(calculatedTotals.totalPending)} UF
+                      {formatCurrency(calculatedTotals.totalPending - calculatedTotals.totalInProgress)} UF
                     </div>
                   </div>
                 </div>
@@ -614,9 +636,15 @@ const ConsolidadoBrokers: React.FC = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {sortedData.map((item) => (
                       <tr 
-                        key={item.id} 
-                        className={`hover:bg-gray-50 cursor-pointer ${item.is_rescinded ? 'bg-red-50' : item.at_risk ? 'bg-amber-50' : ''}`}
+                        key={item.id}
                         onClick={() => handleRowClick(item)}
+                        className={`cursor-pointer hover:bg-gray-50 ${(
+                          !item.is_rescinded && item.has_payment_flow && 
+                          (
+                            (item.invoice_1 && !item.payment_1_date) || 
+                            (item.invoice_2 && !item.payment_2_date)
+                          )
+                        ) ? 'bg-blue-50' : ''}`}
                       >
                         <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
                           <div className="flex items-center">
@@ -734,7 +762,7 @@ const ConsolidadoBrokers: React.FC = () => {
                         {formatCurrency(calculatedTotals.totalAtRisk)} UF
                       </td>
                       <td colSpan={2} className="px-2 py-2 text-right text-xs font-bold text-orange-600">
-                        Pendiente: {formatCurrency(calculatedTotals.totalPending)} UF
+                        Pendiente: {formatCurrency(calculatedTotals.totalPending - calculatedTotals.totalInProgress)} UF
                       </td>
                     </tr>
                   </tfoot>
