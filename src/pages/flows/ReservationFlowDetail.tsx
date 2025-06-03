@@ -21,8 +21,11 @@ import {
   CreditCard,
   ClipboardList,
   DollarSign,
-  Ban
+  Ban,
+  Check,
+  X
 } from 'lucide-react';
+import { Dialog } from '@headlessui/react';
 
 interface Task {
   id: string;
@@ -158,6 +161,18 @@ const ReservationFlowDetail = () => {
   const [commentRefreshTrigger, setCommentRefreshTrigger] = useState(0); // Add a refresh trigger
   const [hasPaidCommission, setHasPaidCommission] = useState(false);
   const [commissionAmount, setCommissionAmount] = useState<number | null>(null);
+  // Estados para el modal de gestión documental
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [documentos, setDocumentos] = useState({
+    pre_aprobacion: false,
+    cedula_identidad: false,
+    certificado_afp: false,
+    liquidaciones_sueldo: false,
+    dicom_cmf: false,
+    pep: false,
+    dof: false,
+    formulario_onu: false
+  });
 
   useEffect(() => {
     if (id) {
@@ -187,6 +202,12 @@ const ReservationFlowDetail = () => {
       }
     }
   }, [flow]);
+
+  useEffect(() => {
+    if (flow?.reservation?.id) {
+      cargarEstadosDocumentos(flow.reservation.id);
+    }
+  }, [flow?.reservation?.id]);
 
   const checkAdminStatus = async () => {
     try {
@@ -910,6 +931,113 @@ const ReservationFlowDetail = () => {
     );
   };
 
+  // Función para cargar los estados de los documentos
+  const cargarEstadosDocumentos = async (reservationId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('*')
+        .eq('id', reservationId)
+        .single();
+      if (error) throw error;
+      if (data) {
+        setDocumentos({
+          pre_aprobacion: data.pre_aprobacion_estado || false,
+          cedula_identidad: data.cedula_identidad_estado || false,
+          certificado_afp: data.certificado_afp_estado || false,
+          liquidaciones_sueldo: data.liquidaciones_sueldo_estado || false,
+          dicom_cmf: data.dicom_cmf_estado || false,
+          pep: data.pep_estado || false,
+          dof: data.dof_estado || false,
+          formulario_onu: data.formulario_onu_estado || false
+        });
+      }
+    } catch (err) {
+      // No hacer nada
+    }
+  };
+
+  // Función para manejar cambios en el checklist
+  const handleDocumentChange = (documento: keyof typeof documentos) => {
+    setDocumentos(prev => ({
+      ...prev,
+      [documento]: !prev[documento]
+    }));
+  };
+
+  // Guardar estados de los documentos
+  const guardarEstadosDocumentos = async () => {
+    try {
+      if (!flow?.reservation?.id) return;
+      const { error } = await supabase
+        .from('reservations')
+        .update({
+          pre_aprobacion_estado: documentos.pre_aprobacion,
+          cedula_identidad_estado: documentos.cedula_identidad,
+          certificado_afp_estado: documentos.certificado_afp,
+          liquidaciones_sueldo_estado: documentos.liquidaciones_sueldo,
+          dicom_cmf_estado: documentos.dicom_cmf,
+          pep_estado: documentos.pep,
+          dof_estado: documentos.dof,
+          formulario_onu_estado: documentos.formulario_onu,
+          documentos_actualizados_at: new Date().toISOString()
+        })
+        .eq('id', flow.reservation.id);
+      if (error) throw error;
+      setShowDocumentModal(false);
+    } catch (err) {
+      setShowDocumentModal(false);
+    }
+  };
+
+  // Modal de gestión documental
+  const renderDocumentModal = () => (
+    <Dialog open={showDocumentModal} onClose={() => setShowDocumentModal(false)} className="fixed z-50 inset-0 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="fixed inset-0 bg-black opacity-30 z-0"></div>
+        <Dialog.Panel className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-auto p-6 z-10">
+          <Dialog.Title className="text-xl font-bold mb-4 text-blue-700">Gestión Documental</Dialog.Title>
+          <div className="space-y-4">
+            {Object.entries(documentos).map(([key, value]) => (
+              <div key={key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="font-medium text-gray-700">
+                  {key === 'pre_aprobacion' ? 'Pre Aprobación / Aprobación' :
+                   key === 'cedula_identidad' ? 'Cédula de Identidad' :
+                   key === 'certificado_afp' ? 'Certificado de AFP' :
+                   key === 'liquidaciones_sueldo' ? 'Liquidaciones de Sueldo' :
+                   key === 'dicom_cmf' ? 'DICOM / CMF' :
+                   key === 'pep' ? 'PEP' :
+                   key === 'dof' ? 'DOF' :
+                   key === 'formulario_onu' ? 'Formulario ONU' : key}
+                </span>
+                <button
+                  onClick={() => handleDocumentChange(key as keyof typeof documentos)}
+                  className={`p-2 rounded-full ${value ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}
+                >
+                  {value ? <Check className="h-5 w-5" /> : <X className="h-5 w-5" />}
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 flex justify-end space-x-3">
+            <button
+              onClick={() => setShowDocumentModal(false)}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold"
+            >
+              Cerrar
+            </button>
+            <button
+              onClick={guardarEstadosDocumentos}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold"
+            >
+              Guardar
+            </button>
+          </div>
+        </Dialog.Panel>
+      </div>
+    </Dialog>
+  );
+
   if (loading) {
     return (
       <Layout>
@@ -1041,13 +1169,22 @@ const ReservationFlowDetail = () => {
                 </span>
               )}
             </h2>
-            <button
-              type="button"
-              onClick={() => setEditingInfo(true)}
-              className="text-sm text-blue-600 hover:text-blue-800"
-            >
-              Editar
-            </button>
+            <div className="flex gap-2 items-center">
+              <button
+                type="button"
+                onClick={() => setShowDocumentModal(true)}
+                className="flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md shadow hover:bg-blue-700 transition-colors font-semibold"
+              >
+                <ListChecks className="h-5 w-5 mr-1" /> Gestión Documental
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingInfo(true)}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Editar
+              </button>
+            </div>
           </div>
           
           {flow.reservation.is_rescinded && (
@@ -1454,6 +1591,9 @@ const ReservationFlowDetail = () => {
           ))}
         </div>
       </div>
+
+      {/* Renderizar el modal de gestión documental */}
+      {renderDocumentModal()}
     </Layout>
   );
 };

@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useUFStore } from '../../stores/ufStore';
 import { PDFDownloadLink, BlobProvider } from '@react-pdf/renderer';
 import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
-import { Loader2, Calculator, Download, Plus, Minus, Building, Home, DollarSign, Save, Home as HomeIcon, ArrowLeft, ChevronUp, ChevronDown, Wrench } from 'lucide-react';
+import { Loader2, Calculator, Download, Plus, Minus, Building, Home, DollarSign, Save, Home as HomeIcon, ArrowLeft, ChevronUp, ChevronDown, Wrench, Check, X } from 'lucide-react';
 import logoinversiones from './logoinversiones.png';
 import { Dialog, Tab } from '@headlessui/react';
 import * as XLSX from 'xlsx';
@@ -496,6 +496,8 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
       // Valor por defecto si no hay política
       setPagoReserva(Number((10).toFixed(2)));
     }
+    // Cargar estados de documentos
+    cargarEstadosDocumentos(unidad.id);
   };
   
   // Agregar unidad secundaria
@@ -906,6 +908,132 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
     const wsSecundarios = XLSX.utils.json_to_sheet(secundariosData);
     XLSX.utils.book_append_sheet(wb, wsSecundarios, 'Secundarios');
     XLSX.writeFile(wb, 'stock_completo.xlsx');
+  };
+  
+  // Estados para el modal de gestión documental
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [documentos, setDocumentos] = useState({
+    pre_aprobacion: false,
+    cedula_identidad: false,
+    certificado_afp: false,
+    liquidaciones_sueldo: false,
+    dicom_cmf: false,
+    pep: false,
+    dof: false,
+    formulario_onu: false
+  });
+
+  // Función para manejar cambios en el checklist
+  const handleDocumentChange = (documento: keyof typeof documentos) => {
+    setDocumentos(prev => ({
+      ...prev,
+      [documento]: !prev[documento]
+    }));
+  };
+
+  // Función para guardar los estados de los documentos
+  const guardarEstadosDocumentos = async () => {
+    try {
+      if (!selectedUnidad || !broker) return;
+
+      const { error } = await supabase
+        .from('reservations')
+        .upsert({
+          broker_id: broker.id,
+          unidad_id: selectedUnidad.id,
+          pre_aprobacion_estado: documentos.pre_aprobacion,
+          cedula_identidad_estado: documentos.cedula_identidad,
+          certificado_afp_estado: documentos.certificado_afp,
+          liquidaciones_sueldo_estado: documentos.liquidaciones_sueldo,
+          dicom_cmf_estado: documentos.dicom_cmf,
+          pep_estado: documentos.pep,
+          dof_estado: documentos.dof,
+          formulario_onu_estado: documentos.formulario_onu,
+          documentos_actualizados_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      // Mostrar mensaje de éxito
+      alert('Estados de documentos guardados exitosamente');
+      setShowDocumentModal(false);
+    } catch (err: any) {
+      console.error('Error guardando estados de documentos:', err);
+      alert('Error al guardar los estados de los documentos');
+    }
+  };
+
+  // Modificar el botón de guardar en el modal para usar la nueva función
+  const renderDocumentModal = () => (
+    <Dialog open={showDocumentModal} onClose={() => setShowDocumentModal(false)} className="fixed z-50 inset-0 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="fixed inset-0 bg-black opacity-30 z-0"></div>
+        <Dialog.Panel className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-auto p-6 z-10">
+          <Dialog.Title className="text-xl font-bold mb-4 text-blue-700">Gestión Documental</Dialog.Title>
+          
+          <div className="space-y-4">
+            {Object.entries(documentos).map(([key, value]) => (
+              <div key={key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="font-medium text-gray-700">
+                  {key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                </span>
+                <button
+                  onClick={() => handleDocumentChange(key as keyof typeof documentos)}
+                  className={`p-2 rounded-full ${
+                    value ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                  }`}
+                >
+                  {value ? <Check className="h-5 w-5" /> : <X className="h-5 w-5" />}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex justify-end space-x-3">
+            <button
+              onClick={() => setShowDocumentModal(false)}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold"
+            >
+              Cerrar
+            </button>
+            <button
+              onClick={guardarEstadosDocumentos}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold"
+            >
+              Guardar
+            </button>
+          </div>
+        </Dialog.Panel>
+      </div>
+    </Dialog>
+  );
+  
+  // Función para cargar los estados de los documentos
+  const cargarEstadosDocumentos = async (unidadId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('*')
+        .eq('unidad_id', unidadId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setDocumentos({
+          pre_aprobacion: data.pre_aprobacion_estado || false,
+          cedula_identidad: data.cedula_identidad_estado || false,
+          certificado_afp: data.certificado_afp_estado || false,
+          liquidaciones_sueldo: data.liquidaciones_sueldo_estado || false,
+          dicom_cmf: data.dicom_cmf_estado || false,
+          pep: data.pep_estado || false,
+          dof: data.dof_estado || false,
+          formulario_onu: data.formulario_onu_estado || false
+        });
+      }
+    } catch (err: any) {
+      console.error('Error cargando estados de documentos:', err);
+    }
   };
   
   if (loading) {
@@ -1738,6 +1866,35 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
                     </div>
                   </div>
                   
+                  {/* Sección de reserva */}
+                  <div className="bg-white rounded-lg shadow p-6 mt-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg font-semibold text-gray-800">Información de Reserva</h2>
+                      <button
+                        onClick={() => setShowDocumentModal(true)}
+                        className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md font-semibold hover:bg-blue-200 transition-colors flex items-center gap-2"
+                      >
+                        <Save className="h-5 w-5" />
+                        Gestión Documental
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-500">Monto Reserva</p>
+                        <p className="font-medium">{formatCurrency(pagoReserva)} UF</p>
+                        {ufValue && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            {formatPesos(ufToPesos(pagoReserva))}
+                          </p>
+                        )}
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-500">Fecha de Reserva</p>
+                        <p className="font-medium">{new Date().toLocaleDateString('es-CL')}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
                   {/* Botones de acción */}
                   <div className="mt-6 flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3">
                     {/* PDF Download Link */}
@@ -1972,6 +2129,7 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
           </Dialog.Panel>
         </div>
       </Dialog>
+      {renderDocumentModal()}
     </div>
   );
 };
