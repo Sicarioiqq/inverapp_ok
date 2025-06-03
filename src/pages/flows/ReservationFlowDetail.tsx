@@ -23,7 +23,8 @@ import {
   DollarSign,
   Ban,
   Check,
-  X
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { Dialog } from '@headlessui/react';
 
@@ -1175,7 +1176,28 @@ const ReservationFlowDetail = () => {
                 onClick={() => setShowDocumentModal(true)}
                 className="flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md shadow hover:bg-blue-700 transition-colors font-semibold"
               >
-                <ListChecks className="h-5 w-5 mr-1" /> Gestión Documental
+                {(() => {
+                  const checks = [
+                    documentos.pre_aprobacion,
+                    documentos.cedula_identidad,
+                    documentos.certificado_afp,
+                    documentos.liquidaciones_sueldo,
+                    documentos.dicom_cmf,
+                    documentos.pep,
+                    documentos.dof,
+                    documentos.formulario_onu
+                  ];
+                  const total = checks.length;
+                  const completos = checks.filter(Boolean).length;
+                  if (completos === total) {
+                    return <Check className="h-5 w-5 mr-1 text-green-300" />;
+                  } else if (completos === 0) {
+                    return <X className="h-5 w-5 mr-1 text-red-300" />;
+                  } else {
+                    return <AlertCircle className="h-5 w-5 mr-1 text-yellow-300" />;
+                  }
+                })()}
+                Gestión Documental
               </button>
               <button
                 type="button"

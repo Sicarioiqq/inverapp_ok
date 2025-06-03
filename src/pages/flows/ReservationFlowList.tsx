@@ -530,20 +530,35 @@ const ReservationFlowList = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     {(() => {
                       const doc = flow.reservation;
-                      const completa =
-                        doc.pre_aprobacion_estado &&
-                        doc.cedula_identidad_estado &&
-                        doc.certificado_afp_estado &&
-                        doc.liquidaciones_sueldo_estado &&
-                        doc.dicom_cmf_estado &&
-                        doc.pep_estado &&
-                        doc.dof_estado &&
-                        doc.formulario_onu_estado;
+                      const checks = [
+                        doc.pre_aprobacion_estado,
+                        doc.cedula_identidad_estado,
+                        doc.certificado_afp_estado,
+                        doc.liquidaciones_sueldo_estado,
+                        doc.dicom_cmf_estado,
+                        doc.pep_estado,
+                        doc.dof_estado,
+                        doc.formulario_onu_estado
+                      ];
+                      const total = checks.length;
+                      const completos = checks.filter(Boolean).length;
+                      let icon = null;
+                      let title = '';
+                      if (completos === total) {
+                        icon = <CheckCircle2 className="h-6 w-6 text-green-600" />;
+                        title = 'Gestión documental completa';
+                      } else if (completos === 0) {
+                        icon = <XCircle className="h-6 w-6 text-red-500" />;
+                        title = 'Faltan todos los documentos';
+                      } else {
+                        icon = <AlertCircle className="h-6 w-6 text-yellow-500" />;
+                        title = 'Gestión documental parcial';
+                      }
                       return (
                         <button
                           type="button"
                           className="mx-auto"
-                          title={completa ? 'Gestión documental completa' : 'Faltan documentos'}
+                          title={title}
                           onClick={e => {
                             e.stopPropagation();
                             setSelectedFlow(flow);
@@ -551,11 +566,7 @@ const ReservationFlowList = () => {
                             setShowDocumentModal(true);
                           }}
                         >
-                          {completa ? (
-                            <CheckCircle2 className="h-6 w-6 text-green-600" />
-                          ) : (
-                            <XCircle className="h-6 w-6 text-red-500" />
-                          )}
+                          {icon}
                         </button>
                       );
                     })()}
