@@ -4,6 +4,8 @@ import { supabase, formatDateChile, formatCurrency } from '../../lib/supabase'; 
 import { useAuthStore } from '../../stores/authStore';
 import Layout from '../../components/Layout';
 import { ArrowLeft, Save, Loader2, TrendingUp, Wallet, DollarSign, TrendingDown, Minus, Gift, Info, Edit, FileText } from 'lucide-react';
+import { usePopup } from '../../contexts/PopupContext';
+import PromotionPopup from '../../components/PromotionPopup';
 
 // --- Definiciones de Tipos para Promociones ---
 export const PROMOTION_TYPES_ARRAY = [
@@ -69,6 +71,7 @@ const PaymentEdit = () => {
   const { id: reservationId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { session } = useAuthStore();
+  const { showPopup } = usePopup();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -314,6 +317,25 @@ const PaymentEdit = () => {
     }
   };
 
+  // Función para abrir el modal de edición de promoción
+  const handleEditPromotion = (promotion: AppliedPromotion) => {
+    showPopup(
+      <PromotionPopup
+        reservationId={reservationId || ''}
+        existingPromotion={promotion}
+        onSave={(updatedPromotion) => {
+          // Actualizar la lista de promociones después de guardar
+          setAppliedPromotions(prev => prev.map(p => p.id === updatedPromotion.id ? updatedPromotion : p));
+        }}
+        onClose={() => showPopup(null)}
+      />,
+      {
+        title: 'Editar Promoción',
+        size: 'md'
+      }
+    );
+  };
+
   if (loading) { return <Layout><div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 text-blue-600 animate-spin" /></div></Layout>; }
   if (error && !reservation) { return <Layout><div className="bg-red-50 text-red-600 p-4 rounded-lg">Error: {error}</div></Layout>; }
   if (!reservation && !loading) { return <Layout><div className="p-4 text-center text-gray-500">No se encontró información para esta reserva.</div></Layout>; }
@@ -396,11 +418,23 @@ const PaymentEdit = () => {
                 </h2>
                  <button 
                     type="button"
-                    onClick={() => navigate(`/reservas/editar/${reservationId}`)}
+                    onClick={() => showPopup(
+                      <PromotionPopup
+                        reservationId={reservationId || ''}
+                        onSave={(newPromotion) => {
+                          setAppliedPromotions(prev => [...prev, newPromotion]);
+                        }}
+                        onClose={() => showPopup(null)}
+                      />,
+                      {
+                        title: 'Agregar Promoción',
+                        size: 'md'
+                      }
+                    )}
                     className="text-sm text-blue-600 hover:text-blue-700 flex items-center"
-                    title="Gestionar Promociones en la Reserva"
+                    title="Agregar Promoción"
                 >
-                    <Edit className="h-4 w-4 mr-1" /> Gestionar Promociones
+                    <Gift className="h-4 w-4 mr-1" /> Agregar Promoción
                 </button>
               </div>
               {appliedPromotions.length > 0 ? (
@@ -432,6 +466,14 @@ const PaymentEdit = () => {
                           {promo.document_number && (<p><strong>Doc. Pago N°:</strong> {promo.document_number} {promo.document_date ? `(Fecha Emisión: ${formatDateChile(promo.document_date)})` : ''}</p>)}
                           {promo.payment_date && (<p><strong>Fecha Pago Promoción:</strong> {formatDateChile(promo.payment_date)}</p>)}
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => handleEditPromotion(promo)}
+                          className="mt-2 text-blue-600 hover:text-blue-700 flex items-center"
+                          title="Editar Promoción"
+                        >
+                          <Edit className="h-4 w-4 mr-1" /> Editar
+                        </button>
                     </div>
                   ))}
                 </div>

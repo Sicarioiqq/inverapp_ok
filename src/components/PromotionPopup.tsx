@@ -51,7 +51,7 @@ interface PromotionPopupProps {
   reservationId: string;
   onSave: (newPromotion: AppliedPromotion) => void; // Callback para notificar al padre
   onClose: () => void;
-  // existingPromotion?: AppliedPromotion; // Para futura edición
+  existingPromotion?: AppliedPromotion; // Prop para edición de promoción existente
 }
 
 const ACCOUNT_TYPES_OPTIONS = [
@@ -64,29 +64,50 @@ const PromotionPopup: React.FC<PromotionPopupProps> = ({
   reservationId,
   onSave,
   onClose,
-  // existingPromotion,
+  existingPromotion,
 }) => {
   const { session } = useAuthStore();
   const { hidePopup } = usePopup();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState<Omit<AppliedPromotion, 'id' | 'created_at' | 'updated_at' | 'created_by'>>({
-    reservation_id: reservationId,
-    promotion_type: PROMOTION_TYPES_ARRAY[0],
-    amount: 0,
-    is_against_discount: true,
-    observations: '',
-    beneficiary: '',
-    rut: '',
-    bank: '',
-    account_type: ACCOUNT_TYPES_OPTIONS[0],
-    account_number: '',
-    email: '',
-    purchase_order: '',
-    document_number: '',
-    document_date: null,
-    payment_date: null,
+  const [formData, setFormData] = useState<Omit<AppliedPromotion, 'id' | 'created_at' | 'updated_at' | 'created_by'>>(() => {
+    if (existingPromotion) {
+      return {
+        reservation_id: existingPromotion.reservation_id,
+        promotion_type: existingPromotion.promotion_type,
+        amount: existingPromotion.amount,
+        is_against_discount: existingPromotion.is_against_discount,
+        observations: existingPromotion.observations || '',
+        beneficiary: existingPromotion.beneficiary,
+        rut: existingPromotion.rut,
+        bank: existingPromotion.bank,
+        account_type: existingPromotion.account_type,
+        account_number: existingPromotion.account_number,
+        email: existingPromotion.email,
+        purchase_order: existingPromotion.purchase_order || '',
+        document_number: existingPromotion.document_number || '',
+        document_date: existingPromotion.document_date,
+        payment_date: existingPromotion.payment_date,
+      };
+    }
+    return {
+      reservation_id: reservationId,
+      promotion_type: PROMOTION_TYPES_ARRAY[0],
+      amount: 0,
+      is_against_discount: true,
+      observations: '',
+      beneficiary: '',
+      rut: '',
+      bank: '',
+      account_type: ACCOUNT_TYPES_OPTIONS[0],
+      account_number: '',
+      email: '',
+      purchase_order: '',
+      document_number: '',
+      document_date: null,
+      payment_date: null,
+    };
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -126,23 +147,32 @@ const PromotionPopup: React.FC<PromotionPopupProps> = ({
       const dataToSave = {
         ...formData,
         created_by: session?.user?.id,
-        updated_by: session?.user?.id, // Para el trigger de updated_at
+        updated_by: session?.user?.id,
         document_date: formData.document_date || null,
         payment_date: formData.payment_date || null,
         observations: formData.observations?.trim() === '' ? null : formData.observations?.trim(),
         purchase_order: formData.purchase_order?.trim() === '' ? null : formData.purchase_order?.trim(),
         document_number: formData.document_number?.trim() === '' ? null : formData.document_number?.trim(),
       };
-      
-      const { data, error: saveError } = await supabase
-        .from('promotions') 
-        .insert(dataToSave)
-        .select()
-        .single();
 
-      if (saveError) {
-        console.error('Error saving promotion:', saveError);
-        throw saveError;
+      let data;
+      if (existingPromotion) {
+        const { data: updateData, error: updateError } = await supabase
+          .from('promotions')
+          .update(dataToSave)
+          .eq('id', existingPromotion.id)
+          .select()
+          .single();
+        if (updateError) throw updateError;
+        data = updateData;
+      } else {
+        const { data: insertData, error: insertError } = await supabase
+          .from('promotions')
+          .insert(dataToSave)
+          .select()
+          .single();
+        if (insertError) throw insertError;
+        data = insertData;
       }
 
       if (data) {
@@ -169,10 +199,8 @@ const PromotionPopup: React.FC<PromotionPopupProps> = ({
         </div>
       )}
 
-      {/* // --- MODIFICACIÓN: Añadido onSubmit al form --- */}
       <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-0">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-          {/* Columna 1 */}
           <div>
             <label htmlFor="promotion_type" className="block text-sm font-medium text-gray-700">Tipo de Promoción *</label>
             <select id="promotion_type" name="promotion_type" value={formData.promotion_type} onChange={handleChange} required
@@ -206,7 +234,6 @@ const PromotionPopup: React.FC<PromotionPopupProps> = ({
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" />
           </div>
 
-          {/* Columna 2 */}
           <div>
             <label htmlFor="bank" className="block text-sm font-medium text-gray-700">Banco</label>
             <input type="text" id="bank" name="bank" value={formData.bank} onChange={handleChange}
@@ -258,7 +285,6 @@ const PromotionPopup: React.FC<PromotionPopupProps> = ({
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
             Cancelar
           </button>
-          {/* --- MODIFICACIÓN: El botón de guardar ahora es de tipo submit --- */}
           <button type="submit" disabled={loading} 
             className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
             {loading ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <Save className="h-5 w-5 mr-2" />}
