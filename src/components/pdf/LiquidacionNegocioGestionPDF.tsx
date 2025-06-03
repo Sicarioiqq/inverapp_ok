@@ -9,6 +9,24 @@ import {
   Image,
 } from '@react-pdf/renderer';
 
+export interface PromotionDetalle {
+  nombre: string;
+  descripcion?: string;
+  valorEstimado?: number;
+  is_against_discount?: boolean;
+  beneficiario?: string;
+  rut?: string;
+  bank?: string;
+  account_type?: string;
+  account_number?: string;
+  email?: string;
+  purchase_order?: string;
+  document_number?: string;
+  document_date?: string;
+  payment_date?: string;
+  observaciones?: string;
+}
+
 export interface LiquidacionGestionData {
   reportTitle: string;
   generationDate: string;
@@ -30,7 +48,7 @@ export interface LiquidacionGestionData {
     totalLista: number;
   };
   descuentos?: { columnaPct?: number; adicionalPct?: number; otrosPct?: number };
-  promociones?: Array<{ nombre: string; descripcion?: string; valorEstimado?: number; is_against_discount?: boolean }>;
+  promociones?: PromotionDetalle[];
   resumenFinanciero: {
     precioMinimoVenta: number;
     totalEscrituracion: number;
@@ -64,7 +82,9 @@ const styles = StyleSheet.create({
   page: { fontSize: 8, fontFamily: 'Helvetica', padding: 20, backgroundColor: colors.white },
   header: { fontSize: 14, textAlign: 'center', marginBottom: 10, color: colors.text, fontWeight: 'bold' },
   subHeader: { fontSize: 8, textAlign: 'center', marginBottom: 12, color: colors.text },
-  logo: { width: 120, height: 40, objectFit: 'contain', alignSelf: 'center', marginBottom: 16 },
+  logo: { width: 80, height: 28, objectFit: 'contain', marginRight: 12 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', marginBottom: 10 },
+  headerTitle: { flex: 1, textAlign: 'center' },
   sectionHeader: { fontSize: 10, fontWeight: 'bold', marginBottom: 4, color: colors.text },
   table: { width: 'auto', marginBottom: 8, borderWidth: 1, borderColor: colors.border, flexDirection: 'column' },
   tableRow: {
@@ -98,8 +118,10 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {companyLogoUrl && <Image src={companyLogoUrl} style={styles.logo} />}
-        <Text style={styles.header}>{reportTitle}</Text>
+        <View style={styles.headerRow}>
+          {companyLogoUrl && <Image src={companyLogoUrl} style={styles.logo} />}
+          <Text style={[styles.header, styles.headerTitle]}>{reportTitle}</Text>
+        </View>
         <Text style={styles.subHeader}>Reserva: {numeroReserva} | Fecha: {generationDate}</Text>
 
         {/* Cliente */}
@@ -235,12 +257,31 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
             {promociones.map((p, i) => {
               const esContraDescuento = p.is_against_discount === true;
               const rowStyle = esContraDescuento ? [styles.tableRow, { backgroundColor: '#FFE5E5' }] : styles.tableRow;
+              // Concatenar detalles adicionales
+              const detalles = [
+                p.descripcion,
+                p.beneficiario ? `Beneficiario: ${p.beneficiario}` : null,
+                p.rut ? `RUT: ${p.rut}` : null,
+                p.bank ? `Banco: ${p.bank}` : null,
+                p.account_type ? `Tipo Cuenta: ${p.account_type}` : null,
+                p.account_number ? `N° Cuenta: ${p.account_number}` : null,
+                p.email ? `Email: ${p.email}` : null,
+                p.purchase_order ? `OC: ${p.purchase_order}` : null,
+                p.document_number ? `Doc: ${p.document_number}` : null,
+                p.document_date ? `F. Doc: ${p.document_date}` : null,
+                p.payment_date ? `F. Pago: ${p.payment_date}` : null,
+                p.observaciones ? `Obs: ${p.observaciones}` : null,
+              ].filter(Boolean).join(' | ');
               return (
                 <View key={i} style={rowStyle}>
                   <Text style={styles.tableColLabel}>
                     {p.nombre} {esContraDescuento ? '(Contra Descuento)' : ''}
                   </Text>
-                  <Text style={styles.tableColValue}>{p.descripcion} {p.valorEstimado ?? ''}</Text>
+                  <Text style={styles.tableColValue}>
+                    {detalles}
+                    {p.valorEstimado !== undefined &&
+                      ` | ${p.valorEstimado} UF`}
+                  </Text>
                 </View>
               );
             })}
@@ -420,10 +461,39 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
             <View style={[styles.tableColLabel, { width: '10%', backgroundColor: 'transparent', borderRightWidth: 0 }]}></View>
             {/* Celda Bono Pie bajo Desc. Disp. */}
             <View style={[styles.tableColLabel, { width: '15%' }]}><Text>Bono Pie:</Text></View>
-            <View style={[styles.tableColValue, { width: '10%' }]}><Text>{(((preciosLista.depto - (resumenFinanciero.totalEscrituracion - (resumenFinanciero.subsidio ?? 0)))/preciosLista.depto)*100).toFixed(2)} %</Text></View>
-            {/* Celda cálculo bajo Rec. Real */}
-            {/* Asegurar que Precio Lista sea distinto de cero para evitar división por cero */}
-            <View style={[styles.tableColValue, { width: '10%' }]}><Text>{((preciosLista.depto - (resumenFinanciero.totalEscrituracion - (resumenFinanciero.subsidio ?? 0)))).toLocaleString() ?? '0'} UF</Text></View>
+            <View style={[styles.tableColValue, { width: '10%' }]}> {/* % Bono Pie */}
+              <Text>
+                {(() => {
+                  const precioLista = preciosLista.depto || 0;
+                  let recuperacionReal = resumenFinanciero.recuperacionReal;
+                  if (recuperacionReal === undefined) {
+                    recuperacionReal = (resumenFinanciero.totalEscrituracion - (resumenFinanciero.subsidio ?? 0)) - ((preciosLista.estacionamiento || 0) + (preciosLista.bodega || 0));
+                  }
+                  if (precioLista > 0 && recuperacionReal !== undefined) {
+                    const pct = 1 - (recuperacionReal / precioLista);
+                    return (pct * 100).toFixed(2) + ' %';
+                  }
+                  return '0.00 %';
+                })()}
+              </Text>
+            </View>
+            {/* Nueva celda: % Bono Pie * Precio Lista en UF */}
+            <View style={[styles.tableColValue, { width: '10%' }]}> {/* UF equivalente al % Bono Pie */}
+              <Text>
+                {(() => {
+                  const precioLista = preciosLista.depto || 0;
+                  let recuperacionReal = resumenFinanciero.recuperacionReal;
+                  if (recuperacionReal === undefined) {
+                    recuperacionReal = (resumenFinanciero.totalEscrituracion - (resumenFinanciero.subsidio ?? 0)) - ((preciosLista.estacionamiento || 0) + (preciosLista.bodega || 0));
+                  }
+                  if (precioLista > 0 && recuperacionReal !== undefined) {
+                    const pct = 1 - (recuperacionReal / precioLista);
+                    return (pct * precioLista).toFixed(2) + ' UF';
+                  }
+                  return '0.00 UF';
+                })()}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -491,6 +561,35 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
             </View>
           </View>
         </View>
+
+        {/* Al final de la segunda hoja: Detalle de Promociones */}
+        {promociones && promociones.length > 0 && (
+          <>
+            <Text style={styles.sectionHeader}>Detalle de Promociones</Text>
+            <View style={styles.table}>
+              {promociones.map((p, i) => (
+                <View key={i} style={styles.tableRow}>
+                  <Text style={styles.tableColLabel}>{p.nombre}</Text>
+                  <Text style={styles.tableColValue}>
+                    {p.valorEstimado !== undefined ? `${p.valorEstimado} UF` : ''}
+                    {p.descripcion ? ` | ${p.descripcion}` : ''}
+                    {p.beneficiario ? ` | Beneficiario: ${p.beneficiario}` : ''}
+                    {p.rut ? ` | RUT: ${p.rut}` : ''}
+                    {p.bank ? ` | Banco: ${p.bank}` : ''}
+                    {p.account_type ? ` | Tipo Cuenta: ${p.account_type}` : ''}
+                    {p.account_number ? ` | N° Cuenta: ${p.account_number}` : ''}
+                    {p.email ? ` | Email: ${p.email}` : ''}
+                    {p.purchase_order ? ` | OC: ${p.purchase_order}` : ''}
+                    {p.document_number ? ` | Doc: ${p.document_number}` : ''}
+                    {p.document_date ? ` | F. Doc: ${p.document_date}` : ''}
+                    {p.payment_date ? ` | F. Pago: ${p.payment_date}` : ''}
+                    {p.observaciones ? ` | Obs: ${p.observaciones}` : ''}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
 
         <Text
           style={styles.footer}
