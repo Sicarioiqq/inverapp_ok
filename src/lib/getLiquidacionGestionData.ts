@@ -102,6 +102,15 @@ export async function getLiquidacionGestionData(reservationId: string)
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return undefined;
     try {
+      // Si el string es tipo "YYYY-MM-DD", parsear como local
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        if (year && month && day) {
+          const date = new Date(year, month - 1, day);
+          return new Intl.DateTimeFormat('es-CL').format(date);
+        }
+      }
+      // Si no, fallback al parseo normal
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return dateString;
       return new Intl.DateTimeFormat('es-CL').format(date);
