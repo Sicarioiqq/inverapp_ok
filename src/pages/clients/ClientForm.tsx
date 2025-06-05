@@ -10,6 +10,8 @@ interface ClientFormData {
   first_name: string;
   last_name: string;
   birth_date: string;
+  direccion?: string;
+  comuna?: string;
   phone: string;
   email: string;
 }
@@ -25,6 +27,8 @@ const ClientForm = () => {
     first_name: '',
     last_name: '',
     birth_date: '',
+    direccion: '',
+    comuna: '',
     phone: '',
     email: '',
   });
@@ -50,6 +54,8 @@ const ClientForm = () => {
         setFormData({
           ...data,
           birth_date: data.birth_date.split('T')[0],
+          direccion: data.direccion || '',
+          comuna: data.comuna || '',
         });
       }
     } catch (err: any) {
@@ -208,6 +214,34 @@ const ClientForm = () => {
                 name="birth_date"
                 required
                 value={formData.birth_date}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="direccion" className="block text-sm font-medium text-gray-700">
+                Dirección
+              </label>
+              <input
+                type="text"
+                id="direccion"
+                name="direccion"
+                value={formData.direccion}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="comuna" className="block text-sm font-medium text-gray-700">
+                Comuna
+              </label>
+              <input
+                type="text"
+                id="comuna"
+                name="comuna"
+                value={formData.comuna}
                 onChange={handleChange}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
