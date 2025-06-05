@@ -6,7 +6,6 @@ import Layout from '../../components/Layout';
 import StageCard from '../../components/StageCard';
 import TaskAssignmentPopup from '../../components/TaskAssignmentPopup';
 import TaskCommentPopup from '../../components/TaskCommentPopup';
-import ClientMultipleReservationsAlert from '../../components/ClientMultipleReservationsAlert';
 import RescindReservationPopup from '../../components/RescindReservationPopup';
 import { 
   ArrowLeft, 
@@ -24,7 +23,8 @@ import {
   Ban,
   Check,
   X,
-  AlertCircle
+  AlertCircle,
+  ChevronRight
 } from 'lucide-react';
 import { Dialog } from '@headlessui/react';
 
@@ -135,6 +135,15 @@ const NUMBER_TO_MONTH: Record<string, string> = {
   '12': 'diciembre'
 };
 
+interface ClientReservation {
+  id: string;
+  reservation_number: string;
+  reservation_date: string;
+  project?: { name: string; stage: string };
+  apartment_number: string;
+  reservation_flow: { id: string };
+}
+
 const ReservationFlowDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -174,9 +183,13 @@ const ReservationFlowDetail = () => {
     dof: false,
     formulario_onu: false
   });
+  const [clientReservations, setClientReservations] = useState<ClientReservation[]>([]);
+  const [showReservationsPanel, setShowReservationsPanel] = useState(false);
 
   useEffect(() => {
+    console.log('ReservationFlowDetail id:', id);
     if (id) {
+      setLoading(true);
       checkAdminStatus();
       fetchFlow();
     }
@@ -209,6 +222,34 @@ const ReservationFlowDetail = () => {
       cargarEstadosDocumentos(flow.reservation.id);
     }
   }, [flow?.reservation?.id]);
+
+  useEffect(() => {
+    const fetchClientReservations = async () => {
+      if (flow?.reservation?.client?.id) {
+        const { data, error } = await supabase
+          .from('reservations')
+          .select(`
+            id,
+            reservation_number,
+            reservation_date,
+            project:projects(name, stage),
+            apartment_number,
+            reservation_flow:reservation_flows!reservation_flows_reservation_id_fkey(id)
+          `)
+          .eq('client_id', flow.reservation.client.id)
+          .order('reservation_date', { ascending: false });
+        if (!error && data) {
+          setClientReservations(data);
+        }
+      }
+    };
+    fetchClientReservations();
+  }, [flow?.reservation?.client?.id]);
+
+  // Mostrar el panel lateral solo cuando el usuario lo solicite
+  useEffect(() => {
+    setShowReservationsPanel(false);
+  }, [id]);
 
   const checkAdminStatus = async () => {
     try {
@@ -297,9 +338,16 @@ const ReservationFlowDetail = () => {
           )
         `)
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
-      if (reservationError) throw reservationError;
+      if (reservationError) {
+        setError('No se pudo cargar el flujo de reserva. Intenta nuevamente.');
+        return;
+      }
+      if (!reservationData) {
+        setError('No se encontró el flujo de reserva.');
+        return;
+      }
 
       // Get stages and tasks
       const { data: stagesData, error: stagesError } = await supabase
@@ -356,12 +404,21 @@ const ReservationFlowDetail = () => {
             
             // Get assignees from both task_assignments and the assignee_id field
             const taskAssignments = assignments?.filter(a => a.task_id === task.id) || [];
-            const assigneesFromAssignments = taskAssignments.map(ta => ({
-              id: ta.user.id,
-              first_name: ta.user.first_name,
-              last_name: ta.user.last_name,
-              avatar_url: ta.user.avatar_url
-            }));
+            const assigneesFromAssignments = taskAssignments.map(ta => {
+              if (!ta || !ta.user) return undefined;
+              const user = Array.isArray(ta.user) ? ta.user[0] : ta.user;
+              return user ? {
+                id: user.id,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                avatar_url: user.avatar_url
+              } : undefined;
+            }).filter(Boolean) as {
+              id: string;
+              first_name: string;
+              last_name: string;
+              avatar_url?: string;
+            }[];
             
             // Add assignee from assignee_id if it exists and is not already included
             let assignees = [...assigneesFromAssignments];
@@ -435,8 +492,17 @@ const ReservationFlowDetail = () => {
         }
       }
 
+      // Transformar relaciones a objetos si vienen como array en reservationData
+      let reservationObj = reservationData.reservation;
+      if (Array.isArray(reservationObj)) reservationObj = reservationObj[0];
+      if (reservationObj) {
+        reservationObj.client = Array.isArray(reservationObj.client) ? reservationObj.client[0] : reservationObj.client;
+        reservationObj.project = Array.isArray(reservationObj.project) ? reservationObj.project[0] : reservationObj.project;
+        reservationObj.broker = Array.isArray(reservationObj.broker) ? reservationObj.broker[0] : reservationObj.broker;
+      }
       setFlow({
         ...reservationData,
+        reservation: reservationObj,
         stages
       });
     } catch (err: any) {
@@ -547,12 +613,21 @@ const ReservationFlowDetail = () => {
           const updatedTasks = stage.tasks.map(async (task) => {
             if (task.id === taskId) {
               // Get assignees from both task_assignments and the assignee_id field
-              const assigneesFromAssignments = assignments?.map(a => ({
-                id: a.user.id,
-                first_name: a.user.first_name,
-                last_name: a.user.last_name,
-                avatar_url: a.user.avatar_url
-              })) || [];
+              const assigneesFromAssignments = assignments?.map(a => {
+                if (!a || !a.user) return undefined;
+                const user = Array.isArray(a.user) ? a.user[0] : a.user;
+                return user ? {
+                  id: user.id,
+                  first_name: user.first_name,
+                  last_name: user.last_name,
+                  avatar_url: user.avatar_url
+                } : undefined;
+              }).filter(Boolean) as {
+                id: string;
+                first_name: string;
+                last_name: string;
+                avatar_url?: string;
+              }[];
               
               // Add assignee from assignee_id if it exists and is not already included
               let assignees = [...assigneesFromAssignments];
@@ -1061,501 +1136,386 @@ const ReservationFlowDetail = () => {
 
   return (
     <Layout>
-      <div className="max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={() => navigate('/flujo-reservas')}
-            className="flex items-center text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-5 w-5 mr-2" />
-            Volver
-          </button>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            Flujo de Reserva {flow.reservation.reservation_number}
-            {flow.reservation.is_rescinded && (
-              <span className="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
-                Resciliada
-              </span>
-            )}
-          </h1>
-          
-          {/* Navigation Icons */}
-          <div className="flex space-x-3">
-            <button
-              onClick={navigateToEditClient}
-              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-              title="Editar Cliente"
-            >
-              <Users className="h-5 w-5" />
-            </button>
-            
-            <button
-              onClick={navigateToEditReservation}
-              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-              title="Editar Reserva"
-            >
-              <Edit2 className="h-5 w-5" />
-            </button>
-            
-            {flow.reservation.broker?.id && (
-              <>
-                <button
-                  onClick={navigateToEditBroker}
-                  className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                  title="Editar Broker"
-                >
-                  <Building2 className="h-5 w-5" />
-                </button>
-                
-                <button
-                  onClick={navigateToEditCommission}
-                  className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                  title="Editar Comisión"
-                >
-                  <DollarSign className="h-5 w-5" />
-                </button>
-                
-                <button
-                  onClick={navigateToPaymentFlow}
-                  className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                  title="Flujo de Pago"
-                >
-                  <Wallet className="h-5 w-5" />
-                </button>
-              </>
-            )}
-            
-            <button
-              onClick={navigateToDocuments}
-              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-              title="Documentos"
-            >
-              <FileText className="h-5 w-5" />
-            </button>
-            
-            <button
-              onClick={navigateToTaskTracking}
-              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-              title="Seguimiento de Tareas"
-            >
-              <ClipboardList className="h-5 w-5" />
-            </button>
-
-            {isAdmin && !flow.reservation.is_rescinded && (
-              <button
-                onClick={handleRescind}
-                className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-colors"
-                title="Resciliar Reserva"
-              >
-                <Ban className="h-5 w-5" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {taskError && (
-          <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6">
-            {taskError}
+      <div className="max-w-7xl mx-auto relative">
+        {/* Panel lateral de reservas del cliente */}
+        {showReservationsPanel && (
+          <div className="fixed top-20 right-0 w-80 h-[calc(100vh-5rem)] bg-white border-l shadow-lg z-30 overflow-y-auto p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-semibold text-blue-700">Reservas del Cliente</h3>
+              <button onClick={() => setShowReservationsPanel(false)} className="text-gray-400 hover:text-gray-700"><X className="h-5 w-5" /></button>
+            </div>
+            <ul className="space-y-2">
+              {clientReservations.map(rsv => (
+                <li key={rsv.id}>
+                  <button
+                    className={`w-full text-left px-3 py-2 rounded hover:bg-blue-50 flex items-center justify-between ${rsv.id === flow.reservation.id ? 'bg-blue-100 font-bold' : ''}`}
+                    disabled={rsv.id === flow.reservation.id}
+                    onClick={() => {
+                      console.log('Reserva clickeada:', rsv);
+                      console.log('reservation_flow:', rsv.reservation_flow);
+                      const flowId = rsv.reservation_flow?.id;
+                      if (flowId) {
+                        setShowReservationsPanel(false);
+                        navigate(`/flujo-reservas/${flowId}`);
+                      }
+                    }}
+                  >
+                    <span>
+                      <span className="block text-sm text-gray-900">Reserva {rsv.reservation_number}</span>
+                      <span className="block text-xs text-gray-500">{rsv.project?.name} {rsv.project?.stage} - Depto {rsv.apartment_number}</span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
-
-        {/* Información de la Reserva */}
-        <div className={`bg-white rounded-lg shadow-md p-6 mb-6 ${flow.reservation.is_rescinded ? 'border-2 border-red-300' : ''}`}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Información de la Reserva
+        {/* Botón flotante para abrir el panel si está oculto */}
+        {clientReservations.length > 1 && !showReservationsPanel && (
+          <button
+            className="fixed top-1/2 right-0 z-30 bg-blue-600 text-white px-3 py-2 rounded-l shadow-lg hover:bg-blue-700"
+            onClick={() => setShowReservationsPanel(true)}
+          >
+            Ver Reservas
+          </button>
+        )}
+        <div className="max-w-5xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => navigate('/flujo-reservas')}
+              className="flex items-center text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="h-5 w-5 mr-2" />
+              Volver
+            </button>
+            <h1 className="text-2xl font-semibold text-gray-900">
+              Flujo de Reserva {flow.reservation.reservation_number}
               {flow.reservation.is_rescinded && (
                 <span className="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
                   Resciliada
                 </span>
               )}
-            </h2>
-            <div className="flex gap-2 items-center">
+            </h1>
+            
+            {/* Navigation Icons */}
+            <div className="flex space-x-3">
               <button
-                type="button"
-                onClick={() => setShowDocumentModal(true)}
-                className="flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md shadow hover:bg-blue-700 transition-colors font-semibold"
+                onClick={navigateToEditClient}
+                className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                title="Editar Cliente"
               >
-                {(() => {
-                  const checks = [
-                    documentos.pre_aprobacion,
-                    documentos.cedula_identidad,
-                    documentos.certificado_afp,
-                    documentos.liquidaciones_sueldo,
-                    documentos.dicom_cmf,
-                    documentos.pep,
-                    documentos.dof,
-                    documentos.formulario_onu
-                  ];
-                  const total = checks.length;
-                  const completos = checks.filter(Boolean).length;
-                  if (completos === total) {
-                    return <Check className="h-5 w-5 mr-1 text-green-300" />;
-                  } else if (completos === 0) {
-                    return <X className="h-5 w-5 mr-1 text-red-300" />;
-                  } else {
-                    return <AlertCircle className="h-5 w-5 mr-1 text-yellow-300" />;
-                  }
-                })()}
-                Gestión Documental
+                <Users className="h-5 w-5" />
               </button>
+              
               <button
-                type="button"
-                onClick={() => setEditingInfo(true)}
-                className="text-sm text-blue-600 hover:text-blue-800"
+                onClick={navigateToEditReservation}
+                className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                title="Editar Reserva"
               >
-                Editar
+                <Edit2 className="h-5 w-5" />
               </button>
+              
+              {flow.reservation.broker?.id && (
+                <>
+                  <button
+                    onClick={navigateToEditBroker}
+                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                    title="Editar Broker"
+                  >
+                    <Building2 className="h-5 w-5" />
+                  </button>
+                  
+                  <button
+                    onClick={navigateToEditCommission}
+                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                    title="Editar Comisión"
+                  >
+                    <DollarSign className="h-5 w-5" />
+                  </button>
+                  
+                  <button
+                    onClick={navigateToPaymentFlow}
+                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                    title="Flujo de Pago"
+                  >
+                    <Wallet className="h-5 w-5" />
+                  </button>
+                </>
+              )}
+              
+              <button
+                onClick={navigateToDocuments}
+                className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                title="Documentos"
+              >
+                <FileText className="h-5 w-5" />
+              </button>
+              
+              <button
+                onClick={navigateToTaskTracking}
+                className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                title="Seguimiento de Tareas"
+              >
+                <ClipboardList className="h-5 w-5" />
+              </button>
+
+              {isAdmin && !flow.reservation.is_rescinded && (
+                <button
+                  onClick={handleRescind}
+                  className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-colors"
+                  title="Resciliar Reserva"
+                >
+                  <Ban className="h-5 w-5" />
+                </button>
+              )}
             </div>
           </div>
-          
-          {flow.reservation.is_rescinded && (
-            <div className="mb-4 p-3 bg-red-50 rounded-md border border-red-200">
-              <p className="text-sm font-medium text-red-800">Reserva resciliada</p>
-              {flow.reservation.rescinded_reason && (
-                <p className="text-sm text-red-700 mt-1">
-                  <span className="font-medium">Motivo:</span> {flow.reservation.rescinded_reason}
-                </p>
-              )}
-              {flow.reservation.rescinded_at && (
-                <p className="text-sm text-red-700 mt-1">
-                  <span className="font-medium">Fecha:</span> {formatDate(flow.reservation.rescinded_at)}
-                </p>
-              )}
+
+          {taskError && (
+            <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6">
+              {taskError}
             </div>
           )}
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Cliente
-              </label>
-              <div className="mt-1 text-gray-900">
-                {`${flow.reservation.client.first_name} ${flow.reservation.client.last_name}`}
-              </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Proyecto
-              </label>
-              <div className="mt-1 text-gray-900">
-                {`${flow.reservation.project.name} ${flow.reservation.project.stage}`}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Departamento
-              </label>
-              <div className="mt-1 text-gray-900">
-                {flow.reservation.apartment_number}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Etapa Actual
-              </label>
-              <div className="mt-1 text-gray-900">
-                {flow.current_stage?.name || 'No iniciado'}
-              </div>
-            </div>
-
-            {flow.reservation.broker && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Broker
-                </label>
-                <div className="mt-1 text-gray-900">
-                  {flow.reservation.broker.name}
-                </div>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Fecha Reserva
-              </label>
-              <div className="mt-1 text-gray-900">
-                {formatDate(flow.reservation.reservation_date)}
-              </div>
-            </div>
-
-            {editingInfo ? (
-              <>
-                <div>
-                  <label htmlFor="promise_date" className="block text-sm font-medium text-gray-700">
-                    Fecha Promesa
-                  </label>
-                  <input
-                    type="date"
-                    id="promise_date"
-                    name="promise_date"
-                    value={bankFormData.promise_date}
-                    onChange={handleBankChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="deed_date" className="block text-sm font-medium text-gray-700">
-                    Fecha Escritura
-                  </label>
-                  <input
-                    type="date"
-                    id="deed_date"
-                    name="deed_date"
-                    value={bankFormData.deed_date}
-                    onChange={handleBankChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="commission_payment_month" className="block text-sm font-medium text-gray-700">
-                    Mes Pago Comisión
-                  </label>
-                  <input
-                    type="month"
-                    id="commission_payment_month"
-                    name="commission_payment_month"
-                    value={bankFormData.commission_payment_month ? bankFormData.commission_payment_month.substring(0, 7) : ''}
-                    onChange={handleBankChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Formato: YYYY-MM (ej: 2025-04 para abril de 2025)
-                  </p>
-                </div>
-
-                <div>
-                  <label htmlFor="commission_projection_month" className="block text-sm font-medium text-gray-700">
-                    Proyección Comisión
-                  </label>
-                  <input
-                    type="month"
-                    id="commission_projection_month"
-                    name="commission_projection_month"
-                    value={bankFormData.commission_projection_month ? bankFormData.commission_projection_month.substring(0, 7) : ''}
-                    onChange={handleBankChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Formato: YYYY-MM (ej: 2025-04 para abril de 2025)
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Fecha Promesa
-                  </label>
-                  <div className="mt-1 text-gray-900">
-                    {flow.reservation.promise_date ? formatDate(flow.reservation.promise_date) : 'No especificada'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Fecha Escritura
-                  </label>
-                  <div className="mt-1 text-gray-900">
-                    {flow.reservation.deed_date ? formatDate(flow.reservation.deed_date) : 'No especificada'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Mes Pago Comisión
-                  </label>
-                  <div className="mt-1 text-gray-900">
-                    {flow.reservation.commission_payment_month ? 
-                      formatDateToMonthYear(flow.reservation.commission_payment_month) : 
-                      'No especificado'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Proyección Comisión
-                  </label>
-                  <div className="mt-1 text-gray-900">
-                    {flow.reservation.commission_projection_month ? 
-                      formatDateToMonthYear(flow.reservation.commission_projection_month) : 
-                      'No especificado'}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          {editingInfo && (
-            <div className="mt-4 flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingInfo(false);
-                  setBankFormData({
-                    bank_name: flow.reservation.bank_name || '',
-                    bank_executive: flow.reservation.bank_executive || '',
-                    bank_executive_email: flow.reservation.bank_executive_email || '',
-                    bank_executive_phone: flow.reservation.bank_executive_phone || '',
-                    promise_date: flow.reservation.promise_date || '',
-                    deed_date: flow.reservation.deed_date || '',
-                    commission_payment_month: flow.reservation.commission_payment_month ? 
-                      formatDateToMonthYear(flow.reservation.commission_payment_month) : '',
-                    commission_projection_month: flow.reservation.commission_projection_month ? 
-                      formatDateToMonthYear(flow.reservation.commission_projection_month) : ''
-                  });
-                }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveBank}
-                disabled={savingBank}
-                className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                {savingBank ? (
-                  <>
-                    <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                    Guardando...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Guardar
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Banco Escrituración - Solo para entrega inmediata */}
-        {isImmediateDelivery() && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          {/* Información de la Reserva */}
+          <div className={`bg-white rounded-lg shadow-md p-6 mb-6 ${flow.reservation.is_rescinded ? 'border-2 border-red-300' : ''}`}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">
-                Banco Escrituración
+                Información de la Reserva
+                {flow.reservation.is_rescinded && (
+                  <span className="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                    Resciliada
+                  </span>
+                )}
               </h2>
-              <button
-                onClick={() => setEditingBank(true)}
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
-                Editar
-              </button>
+              <div className="flex gap-2 items-center">
+                <button
+                  type="button"
+                  onClick={() => setShowDocumentModal(true)}
+                  className="flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md shadow hover:bg-blue-700 transition-colors font-semibold"
+                >
+                  {(() => {
+                    const checks = [
+                      documentos.pre_aprobacion,
+                      documentos.cedula_identidad,
+                      documentos.certificado_afp,
+                      documentos.liquidaciones_sueldo,
+                      documentos.dicom_cmf,
+                      documentos.pep,
+                      documentos.dof,
+                      documentos.formulario_onu
+                    ];
+                    const total = checks.length;
+                    const completos = checks.filter(Boolean).length;
+                    if (completos === total) {
+                      return <Check className="h-5 w-5 mr-1 text-green-300" />;
+                    } else if (completos === 0) {
+                      return <X className="h-5 w-5 mr-1 text-red-300" />;
+                    } else {
+                      return <AlertCircle className="h-5 w-5 mr-1 text-yellow-300" />;
+                    }
+                  })()}
+                  Gestión Documental
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingInfo(true)}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Editar
+                </button>
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {editingBank ? (
+            
+            {flow.reservation.is_rescinded && (
+              <div className="mb-4 p-3 bg-red-50 rounded-md border border-red-200">
+                <p className="text-sm font-medium text-red-800">Reserva resciliada</p>
+                {flow.reservation.rescinded_reason && (
+                  <p className="text-sm text-red-700 mt-1">
+                    <span className="font-medium">Motivo:</span> {flow.reservation.rescinded_reason}
+                  </p>
+                )}
+                {flow.reservation.rescinded_at && (
+                  <p className="text-sm text-red-700 mt-1">
+                    <span className="font-medium">Fecha:</span> {formatDate(flow.reservation.rescinded_at)}
+                  </p>
+                )}
+              </div>
+            )}
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Cliente
+                </label>
+                <div className="mt-1 text-gray-900">
+                  {`${flow.reservation.client.first_name} ${flow.reservation.client.last_name}`}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Proyecto
+                </label>
+                <div className="mt-1 text-gray-900">
+                  {`${flow.reservation.project.name} ${flow.reservation.project.stage}`}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Departamento
+                </label>
+                <div className="mt-1 text-gray-900">
+                  {flow.reservation.apartment_number}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Etapa Actual
+                </label>
+                <div className="mt-1 text-gray-900">
+                  {flow.current_stage?.name || 'No iniciado'}
+                </div>
+              </div>
+
+              {flow.reservation.broker && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Broker
+                  </label>
+                  <div className="mt-1 text-gray-900">
+                    {flow.reservation.broker.name}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Fecha Reserva
+                </label>
+                <div className="mt-1 text-gray-900">
+                  {formatDate(flow.reservation.reservation_date)}
+                </div>
+              </div>
+
+              {editingInfo ? (
                 <>
                   <div>
-                    <label htmlFor="bank_name" className="block text-sm font-medium text-gray-700">
-                      Banco
+                    <label htmlFor="promise_date" className="block text-sm font-medium text-gray-700">
+                      Fecha Promesa
                     </label>
                     <input
-                      type="text"
-                      id="bank_name"
-                      name="bank_name"
-                      value={bankFormData.bank_name}
+                      type="date"
+                      id="promise_date"
+                      name="promise_date"
+                      value={bankFormData.promise_date}
                       onChange={handleBankChange}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="bank_executive" className="block text-sm font-medium text-gray-700">
-                      Ejecutivo
+                    <label htmlFor="deed_date" className="block text-sm font-medium text-gray-700">
+                      Fecha Escritura
                     </label>
                     <input
-                      type="text"
-                      id="bank_executive"
-                      name="bank_executive"
-                      value={bankFormData.bank_executive}
+                      type="date"
+                      id="deed_date"
+                      name="deed_date"
+                      value={bankFormData.deed_date}
                       onChange={handleBankChange}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="bank_executive_email" className="block text-sm font-medium text-gray-700">
-                      Correo Ejecutivo
+                    <label htmlFor="commission_payment_month" className="block text-sm font-medium text-gray-700">
+                      Mes Pago Comisión
                     </label>
                     <input
-                      type="email"
-                      id="bank_executive_email"
-                      name="bank_executive_email"
-                      value={bankFormData.bank_executive_email}
+                      type="month"
+                      id="commission_payment_month"
+                      name="commission_payment_month"
+                      value={bankFormData.commission_payment_month ? bankFormData.commission_payment_month.substring(0, 7) : ''}
                       onChange={handleBankChange}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Formato: YYYY-MM (ej: 2025-04 para abril de 2025)
+                    </p>
                   </div>
 
                   <div>
-                    <label htmlFor="bank_executive_phone" className="block text-sm font-medium text-gray-700">
-                      Teléfono Ejecutivo
+                    <label htmlFor="commission_projection_month" className="block text-sm font-medium text-gray-700">
+                      Proyección Comisión
                     </label>
                     <input
-                      type="text"
-                      id="bank_executive_phone"
-                      name="bank_executive_phone"
-                      value={bankFormData.bank_executive_phone}
+                      type="month"
+                      id="commission_projection_month"
+                      name="commission_projection_month"
+                      value={bankFormData.commission_projection_month ? bankFormData.commission_projection_month.substring(0, 7) : ''}
                       onChange={handleBankChange}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Formato: YYYY-MM (ej: 2025-04 para abril de 2025)
+                    </p>
                   </div>
                 </>
               ) : (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      Banco
+                      Fecha Promesa
                     </label>
                     <div className="mt-1 text-gray-900">
-                      {flow.reservation.bank_name || 'No especificado'}
+                      {flow.reservation.promise_date ? formatDate(flow.reservation.promise_date) : 'No especificada'}
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      Ejecutivo
+                      Fecha Escritura
                     </label>
                     <div className="mt-1 text-gray-900">
-                      {flow.reservation.bank_executive || 'No especificado'}
+                      {flow.reservation.deed_date ? formatDate(flow.reservation.deed_date) : 'No especificada'}
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      Correo Ejecutivo
+                      Mes Pago Comisión
                     </label>
                     <div className="mt-1 text-gray-900">
-                      {flow.reservation.bank_executive_email || 'No especificado'}
+                      {flow.reservation.commission_payment_month ? 
+                        formatDateToMonthYear(flow.reservation.commission_payment_month) : 
+                        'No especificado'}
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      Teléfono Ejecutivo
+                      Proyección Comisión
                     </label>
                     <div className="mt-1 text-gray-900">
-                      {flow.reservation.bank_executive_phone || 'No especificado'}
+                      {flow.reservation.commission_projection_month ? 
+                        formatDateToMonthYear(flow.reservation.commission_projection_month) : 
+                        'No especificado'}
                     </div>
                   </div>
                 </>
               )}
             </div>
 
-            {editingBank && (
+            {editingInfo && (
               <div className="mt-4 flex justify-end space-x-3">
                 <button
                   type="button"
                   onClick={() => {
-                    setEditingBank(false);
+                    setEditingInfo(false);
                     setBankFormData({
                       bank_name: flow.reservation.bank_name || '',
                       bank_executive: flow.reservation.bank_executive || '',
@@ -1594,28 +1554,188 @@ const ReservationFlowDetail = () => {
               </div>
             )}
           </div>
-        )}
 
-        {/* Etapas y Tareas */}
-        <div className="space-y-6">
-          {flow.stages.map((stage) => (
-            <StageCard
-              key={stage.id}
-              title={stage.name}
-              tasks={stage.tasks}
-              isCompleted={stage.isCompleted}
-              onAssign={handleAssign}
-              onComment={handleComment}
-              onStatusChange={handleStatusChange}
-              reservationFlowId={flow.id}
-              isAdmin={isAdmin}
-            />
-          ))}
+          {/* Banco Escrituración - Solo para entrega inmediata */}
+          {isImmediateDelivery() && (
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Banco Escrituración
+                </h2>
+                <button
+                  onClick={() => setEditingBank(true)}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Editar
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {editingBank ? (
+                  <>
+                    <div>
+                      <label htmlFor="bank_name" className="block text-sm font-medium text-gray-700">
+                        Banco
+                      </label>
+                      <input
+                        type="text"
+                        id="bank_name"
+                        name="bank_name"
+                        value={bankFormData.bank_name}
+                        onChange={handleBankChange}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="bank_executive" className="block text-sm font-medium text-gray-700">
+                        Ejecutivo
+                      </label>
+                      <input
+                        type="text"
+                        id="bank_executive"
+                        name="bank_executive"
+                        value={bankFormData.bank_executive}
+                        onChange={handleBankChange}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="bank_executive_email" className="block text-sm font-medium text-gray-700">
+                        Correo Ejecutivo
+                      </label>
+                      <input
+                        type="email"
+                        id="bank_executive_email"
+                        name="bank_executive_email"
+                        value={bankFormData.bank_executive_email}
+                        onChange={handleBankChange}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="bank_executive_phone" className="block text-sm font-medium text-gray-700">
+                        Teléfono Ejecutivo
+                      </label>
+                      <input
+                        type="text"
+                        id="bank_executive_phone"
+                        name="bank_executive_phone"
+                        value={bankFormData.bank_executive_phone}
+                        onChange={handleBankChange}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Banco
+                      </label>
+                      <div className="mt-1 text-gray-900">
+                        {flow.reservation.bank_name || 'No especificado'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Ejecutivo
+                      </label>
+                      <div className="mt-1 text-gray-900">
+                        {flow.reservation.bank_executive || 'No especificado'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Correo Ejecutivo
+                      </label>
+                      <div className="mt-1 text-gray-900">
+                        {flow.reservation.bank_executive_email || 'No especificado'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Teléfono Ejecutivo
+                      </label>
+                      <div className="mt-1 text-gray-900">
+                        {flow.reservation.bank_executive_phone || 'No especificado'}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {editingBank && (
+                <div className="mt-4 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingBank(false);
+                      setBankFormData({
+                        bank_name: flow.reservation.bank_name || '',
+                        bank_executive: flow.reservation.bank_executive || '',
+                        bank_executive_email: flow.reservation.bank_executive_email || '',
+                        bank_executive_phone: flow.reservation.bank_executive_phone || '',
+                        promise_date: flow.reservation.promise_date || '',
+                        deed_date: flow.reservation.deed_date || '',
+                        commission_payment_month: flow.reservation.commission_payment_month ? 
+                          formatDateToMonthYear(flow.reservation.commission_payment_month) : '',
+                        commission_projection_month: flow.reservation.commission_projection_month ? 
+                          formatDateToMonthYear(flow.reservation.commission_projection_month) : ''
+                      });
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveBank}
+                    disabled={savingBank}
+                    className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    {savingBank ? (
+                      <>
+                        <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Guardar
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Etapas y Tareas */}
+          <div className="space-y-6">
+            {flow.stages.map((stage) => (
+              <StageCard
+                key={stage.id}
+                title={stage.name}
+                tasks={stage.tasks}
+                isCompleted={stage.isCompleted}
+                onAssign={handleAssign}
+                onComment={handleComment}
+                onStatusChange={handleStatusChange}
+                reservationFlowId={flow.id}
+                isAdmin={isAdmin}
+              />
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* Renderizar el modal de gestión documental */}
-      {renderDocumentModal()}
+        {/* Renderizar el modal de gestión documental */}
+        {renderDocumentModal()}
+      </div>
     </Layout>
   );
 };
