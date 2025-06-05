@@ -20,6 +20,7 @@ interface TaskNotification {
   apartment_number: string;
   broker_name?: string;
   created_at: string;
+  assigned_by_name?: string;
 }
 
 const Notifications = () => {
@@ -55,6 +56,8 @@ const Notifications = () => {
           reservation_flow_id,
           task_id,
           created_at,
+          assigned_by,
+          assigned_by_profile:assigned_by(*),
           task:sale_flow_tasks(
             name,
             stage:sale_flow_stages(
@@ -105,8 +108,22 @@ const Notifications = () => {
         })
       );
 
+      // Transformar relaciones a objetos si vienen como array
+      const transformed = data!.map((assignment: any) => {
+        if (!assignment.reservation_flow || !assignment.task) return assignment;
+        const reservation = Array.isArray(assignment.reservation_flow.reservation) ? assignment.reservation_flow.reservation[0] : assignment.reservation_flow.reservation;
+        if (reservation) {
+          reservation.client = Array.isArray(reservation.client) ? reservation.client[0] : reservation.client;
+          reservation.broker = Array.isArray(reservation.broker) ? reservation.broker[0] : reservation.broker;
+          reservation.project = Array.isArray(reservation.project) ? reservation.project[0] : reservation.project;
+        }
+        assignment.reservation_flow.reservation = reservation;
+        assignment.task.stage = Array.isArray(assignment.task.stage) ? assignment.task.stage[0] : assignment.task.stage;
+        return assignment;
+      });
+
       // Format tasks
-      const formattedTasks = data!.map(assignment => {
+      const formattedTasks = transformed.map(assignment => {
         const taskStatus = flowTaskStatuses.find(
           status => status.reservation_flow_id === assignment.reservation_flow_id && 
                     status.task_id === assignment.task_id
@@ -125,6 +142,7 @@ const Notifications = () => {
           client_name: `${assignment.reservation_flow.reservation.client.first_name} ${assignment.reservation_flow.reservation.client.last_name}`,
           apartment_number: assignment.reservation_flow.reservation.apartment_number,
           broker_name: assignment.reservation_flow.reservation.broker?.name,
+          assigned_by_name: assignment.assigned_by_profile ? `${assignment.assigned_by_profile.first_name} ${assignment.assigned_by_profile.last_name}` : undefined,
           created_at: assignment.created_at
         };
       });
@@ -185,8 +203,26 @@ const Notifications = () => {
 
       if (error) throw error;
 
+      // Transformar relaciones a objetos si vienen como array para payment tasks
+      const transformedPayment = data.map((task: any) => {
+        if (!task.commission_flow || !task.task) return task;
+        const brokerCommission = Array.isArray(task.commission_flow.broker_commission) ? task.commission_flow.broker_commission[0] : task.commission_flow.broker_commission;
+        if (brokerCommission) {
+          const reservation = Array.isArray(brokerCommission.reservation) ? brokerCommission.reservation[0] : brokerCommission.reservation;
+          if (reservation) {
+            reservation.client = Array.isArray(reservation.client) ? reservation.client[0] : reservation.client;
+            reservation.broker = Array.isArray(reservation.broker) ? reservation.broker[0] : reservation.broker;
+            reservation.project = Array.isArray(reservation.project) ? reservation.project[0] : reservation.project;
+          }
+          brokerCommission.reservation = reservation;
+        }
+        task.commission_flow.broker_commission = brokerCommission;
+        task.task.stage = Array.isArray(task.task.stage) ? task.task.stage[0] : task.task.stage;
+        return task;
+      });
+
       // Format tasks
-      return data.map(task => ({
+      return transformedPayment.map(task => ({
         type: 'payment' as const,
         commission_flow_id: task.commission_flow_id,
         reservation_number: task.commission_flow.broker_commission.reservation.reservation_number,
@@ -199,6 +235,7 @@ const Notifications = () => {
         client_name: `${task.commission_flow.broker_commission.reservation.client.first_name} ${task.commission_flow.broker_commission.reservation.client.last_name}`,
         apartment_number: task.commission_flow.broker_commission.reservation.apartment_number,
         broker_name: task.commission_flow.broker_commission.reservation.broker.name,
+        assigned_by_name: task.commission_flow.broker_commission.reservation.broker.name,
         created_at: task.created_at
       }));
     } catch (err: any) {
@@ -334,7 +371,7 @@ const Notifications = () => {
                           </div>
                           <div className="mt-2 text-sm">
                             <span className={getDaysSinceAssigned(task.created_at) >= 3 ? "text-red-600 font-bold" : "text-gray-500"}>
-                              Asignada hace {getDaysSinceAssigned(task.created_at)} días
+                              {task.assigned_by_name ? `Asignado por ${task.assigned_by_name} ` : ''}hace {getDaysSinceAssigned(task.created_at)} días
                             </span>
                           </div>
                         </div>
