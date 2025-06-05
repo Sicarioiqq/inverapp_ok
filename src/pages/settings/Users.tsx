@@ -12,6 +12,7 @@ interface User {
   is_seller: boolean;
   user_type: string;
   avatar_url?: string;
+  rut?: string;
 }
 
 const Users = () => {
@@ -57,7 +58,8 @@ const Users = () => {
         position: profile.position || '',
         is_seller: profile.is_seller || false,
         user_type: profile.user_type || '',
-        avatar_url: profile.avatar_url
+        avatar_url: profile.avatar_url,
+        rut: profile.Rut || ''
       }));
 
       setUsers(formattedUsers);
@@ -87,7 +89,8 @@ const Users = () => {
         position: profile.position || '',
         is_seller: profile.is_seller || false,
         user_type: profile.user_type || '',
-        avatar_url: profile.avatar_url
+        avatar_url: profile.avatar_url,
+        rut: profile.Rut || ''
       }));
 
       setUsers(formattedUsers);
@@ -164,6 +167,9 @@ const Users = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Tipo
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Rut
+                </th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Vendedor
                 </th>
@@ -203,6 +209,9 @@ const Users = () => {
                     <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                       {user.user_type}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {user.rut}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <span className={`h-4 w-4 rounded-full ${user.is_seller ? 'bg-green-400' : 'bg-gray-300'} inline-block`}></span>

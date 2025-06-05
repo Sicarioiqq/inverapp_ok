@@ -27,6 +27,8 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Dialog } from '@headlessui/react';
+import FormularioONUPDF from '../../components/pdf/FormularioONUPDF';
+import { PDFDownloadLink } from '@react-pdf/renderer';
 
 interface Task {
   id: string;
@@ -62,11 +64,15 @@ interface ReservationFlow {
       id: string;
       first_name: string;
       last_name: string;
+      rut: string;
+      direccion: string;
+      comuna: string;
     };
     project: {
       name: string;
       stage: string;
       deadline: string;
+      commune?: string;
     };
     apartment_number: string;
     broker?: {
@@ -142,6 +148,10 @@ interface ClientReservation {
   project?: { name: string; stage: string };
   apartment_number: string;
   reservation_flow: { id: string };
+  promise_date?: string;
+  deed_date?: string;
+  commission_payment_month?: string;
+  commission_projection_month?: string;
 }
 
 const ReservationFlowDetail = () => {
@@ -185,6 +195,14 @@ const ReservationFlowDetail = () => {
   });
   const [clientReservations, setClientReservations] = useState<ClientReservation[]>([]);
   const [showReservationsPanel, setShowReservationsPanel] = useState(false);
+  const [showONUDialog, setShowONUDialog] = useState(false);
+  const [jefaturas, setJefaturas] = useState<any[]>([]);
+  const [vendedores, setVendedores] = useState<any[]>([]);
+  const [selectedJefatura, setSelectedJefatura] = useState<any>(null);
+  const [selectedVendedor, setSelectedVendedor] = useState<any>(null);
+  const [onuPDFReady, setOnuPDFReady] = useState(false);
+  const [showDocumentOptions, setShowDocumentOptions] = useState(false);
+  const comunaProyecto = flow?.reservation?.project?.commune;
 
   useEffect(() => {
     console.log('ReservationFlowDetail id:', id);
@@ -232,6 +250,10 @@ const ReservationFlowDetail = () => {
             id,
             reservation_number,
             reservation_date,
+            promise_date,
+            deed_date,
+            commission_payment_month,
+            commission_projection_month,
             project:projects(name, stage),
             apartment_number,
             reservation_flow:reservation_flows!reservation_flows_reservation_id_fkey(id)
@@ -239,7 +261,18 @@ const ReservationFlowDetail = () => {
           .eq('client_id', flow.reservation.client.id)
           .order('reservation_date', { ascending: false });
         if (!error && data) {
-          setClientReservations(data);
+          setClientReservations(data.map((r: any) => ({
+            id: r.id,
+            reservation_number: r.reservation_number,
+            reservation_date: r.reservation_date,
+            promise_date: r.promise_date,
+            deed_date: r.deed_date,
+            commission_payment_month: r.commission_payment_month,
+            commission_projection_month: r.commission_projection_month,
+            project: r.project,
+            apartment_number: r.apartment_number,
+            reservation_flow: r.reservation_flow
+          })));
         }
       }
     };
@@ -320,8 +353,8 @@ const ReservationFlowDetail = () => {
             id,
             reservation_number,
             reservation_date,
-            client:clients(id, first_name, last_name),
-            project:projects(name, stage, deadline),
+            client:clients(id, first_name, last_name, rut, direccion, comuna),
+            project:projects(name, stage, deadline, commune),
             apartment_number,
             broker:brokers(id, name),
             bank_name,
@@ -966,18 +999,20 @@ const ReservationFlowDetail = () => {
     }
   };
 
+  const fetchONUUsers = async () => {
+    const { data: jefes } = await supabase.from('profiles').select('*').in('position', ['SUB GERENTE COMERCIAL', 'JEFE CANAL INVERSIONES']);
+    const { data: vends } = await supabase.from('profiles').select('*').eq('position', 'KEY ACCOUNT MANAGER');
+    setJefaturas(jefes || []);
+    setVendedores(vends || []);
+  };
+
+  const openONUDialog = () => {
+    fetchONUUsers();
+    setShowONUDialog(true);
+  };
+
   const navigateToDocuments = () => {
-    // This would navigate to a documents page if it existed
-    // For now, we'll just show a popup
-    showPopup(
-      <div className="p-4">
-        <p>Funcionalidad de documentos en desarrollo.</p>
-      </div>,
-      {
-        title: 'Documentos del Cliente',
-        size: 'md'
-      }
-    );
+    setShowDocumentOptions(true);
   };
 
   const navigateToTaskTracking = () => {
@@ -1114,6 +1149,40 @@ const ReservationFlowDetail = () => {
     </Dialog>
   );
 
+  // Modal de opciones de documentos
+  const renderDocumentOptionsModal = () => (
+    <Dialog open={showDocumentOptions} onClose={() => setShowDocumentOptions(false)} className="fixed z-50 inset-0 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="fixed inset-0 bg-black opacity-30 z-0"></div>
+        <Dialog.Panel className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-auto p-6 z-10">
+          <Dialog.Title className="text-xl font-bold mb-4 text-blue-700">Seleccionar Documento</Dialog.Title>
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                setShowDocumentOptions(false);
+                fetchONUUsers();
+                setShowONUDialog(true);
+              }}
+              className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center justify-between"
+            >
+              <span className="font-medium">Formulario ONU</span>
+              <ChevronRight className="h-5 w-5 text-blue-600" />
+            </button>
+            {/* Aquí se pueden agregar más opciones de documentos en el futuro */}
+          </div>
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={() => setShowDocumentOptions(false)}
+              className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+            >
+              Cancelar
+            </button>
+          </div>
+        </Dialog.Panel>
+      </div>
+    </Dialog>
+  );
+
   if (loading) {
     return (
       <Layout>
@@ -1151,8 +1220,6 @@ const ReservationFlowDetail = () => {
                     className={`w-full text-left px-3 py-2 rounded hover:bg-blue-50 flex items-center justify-between ${rsv.id === flow.reservation.id ? 'bg-blue-100 font-bold' : ''}`}
                     disabled={rsv.id === flow.reservation.id}
                     onClick={() => {
-                      console.log('Reserva clickeada:', rsv);
-                      console.log('reservation_flow:', rsv.reservation_flow);
                       const flowId = rsv.reservation_flow?.id;
                       if (flowId) {
                         setShowReservationsPanel(false);
@@ -1163,6 +1230,10 @@ const ReservationFlowDetail = () => {
                     <span>
                       <span className="block text-sm text-gray-900">Reserva {rsv.reservation_number}</span>
                       <span className="block text-xs text-gray-500">{rsv.project?.name} {rsv.project?.stage} - Depto {rsv.apartment_number}</span>
+                      <span className="block text-xs text-gray-400 mt-1">Promesa: {rsv.promise_date ? formatDate(rsv.promise_date) : '-'}</span>
+                      <span className="block text-xs text-gray-400">Escritura: {rsv.deed_date ? formatDate(rsv.deed_date) : '-'}</span>
+                      <span className="block text-xs text-gray-400">Pago Comisión: {rsv.commission_payment_month ? formatDateToMonthYear(rsv.commission_payment_month) : '-'}</span>
+                      <span className="block text-xs text-gray-400">Proy. Comisión: {rsv.commission_projection_month ? formatDateToMonthYear(rsv.commission_projection_month) : '-'}</span>
                     </span>
                     <ChevronRight className="h-4 w-4 text-gray-400" />
                   </button>
@@ -1735,6 +1806,54 @@ const ReservationFlowDetail = () => {
 
         {/* Renderizar el modal de gestión documental */}
         {renderDocumentModal()}
+
+        {showONUDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+              <h2 className="text-lg font-bold mb-4">Generar Formulario ONU</h2>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Jefatura</label>
+                <select className="w-full border rounded p-2" value={selectedJefatura?.id || ''} onChange={e => setSelectedJefatura(jefaturas.find(j => j.id === e.target.value))}>
+                  <option value="">Seleccione una jefatura</option>
+                  {jefaturas.map(j => (
+                    <option key={j.id} value={j.id}>{j.first_name} {j.last_name} - {j.position}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Vendedor</label>
+                <select className="w-full border rounded p-2" value={selectedVendedor?.id || ''} onChange={e => setSelectedVendedor(vendedores.find(v => v.id === e.target.value))}>
+                  <option value="">Seleccione un vendedor</option>
+                  {vendedores.map(v => (
+                    <option key={v.id} value={v.id}>{v.first_name} {v.last_name} - {v.position}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setShowONUDialog(false)}>Cancelar</button>
+                {selectedJefatura && selectedVendedor ? (
+                  <PDFDownloadLink
+                    document={<FormularioONUPDF
+                      jefatura={{ nombre: `${selectedJefatura.first_name} ${selectedJefatura.last_name}`, rut: selectedJefatura.rut, cargo: selectedJefatura.position }}
+                      vendedor={{ nombre: `${selectedVendedor.first_name} ${selectedVendedor.last_name}`, rut: selectedVendedor.rut }}
+                      cliente={{ nombre: `${flow.reservation.client.first_name} ${flow.reservation.client.last_name}`, rut: flow.reservation.client.rut, direccion: flow.reservation.client.direccion, comuna: flow.reservation.client.comuna, nacionalidad: flow.reservation.client.nacionalidad || 'chilena' }}
+                      proyecto={flow.reservation.project.name}
+                      fechaHora={new Date().toLocaleString('es-CL', { dateStyle: 'long', timeStyle: 'short' })}
+                      comunaProyecto={comunaProyecto || '________'}
+                    />}
+                    fileName={`Formulario_ONU_${flow.reservation.client.first_name}_${flow.reservation.client.last_name}.pdf`}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Generar PDF
+                  </PDFDownloadLink>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de opciones de documentos */}
+        {renderDocumentOptionsModal()}
       </div>
     </Layout>
   );

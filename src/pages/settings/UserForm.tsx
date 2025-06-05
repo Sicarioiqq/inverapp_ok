@@ -11,6 +11,7 @@ interface User {
   is_seller: boolean;
   user_type: string;
   avatar_url?: string;
+  rut?: string;
 }
 
 interface UserFormProps {
@@ -38,6 +39,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
     position: user?.position || '',
     is_seller: user?.is_seller || false,
     user_type: user?.user_type || '',
+    rut: user?.rut || '',
     password: '' // Solo para nuevos usuarios
   });
 
@@ -149,7 +151,8 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
             position: formData.position,
             is_seller: formData.is_seller,
             user_type: formData.user_type,
-            avatar_url: avatar_url
+            avatar_url: avatar_url,
+            Rut: formData.rut
           })
           .eq('id', user.id);
 
@@ -178,7 +181,8 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
               last_name: formData.last_name,
               position: formData.position,
               is_seller: formData.is_seller,
-              user_type: formData.user_type
+              user_type: formData.user_type,
+              Rut: formData.rut
             }
           }
         });
@@ -204,7 +208,8 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
               position: formData.position,
               is_seller: formData.is_seller,
               user_type: formData.user_type,
-              avatar_url
+              avatar_url,
+              Rut: formData.rut
             });
 
           if (profileError) throw profileError;
@@ -396,6 +401,19 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label htmlFor="rut" className="block text-sm font-medium text-gray-700">
+              Rut
+            </label>
+            <input
+              type="text"
+              id="rut"
+              value={formData.rut}
+              onChange={(e) => setFormData(prev => ({ ...prev, rut: e.target.value }))}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
           </div>
 
           <div className="md:col-span-2">
