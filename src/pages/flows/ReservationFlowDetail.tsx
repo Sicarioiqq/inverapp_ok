@@ -1000,8 +1000,8 @@ const ReservationFlowDetail = () => {
   };
 
   const fetchONUUsers = async () => {
-    const { data: jefes } = await supabase.from('profiles').select('*').in('position', ['SUB GERENTE COMERCIAL', 'JEFE CANAL INVERSIONES']);
-    const { data: vends } = await supabase.from('profiles').select('*').eq('position', 'KEY ACCOUNT MANAGER');
+    const { data: jefes } = await supabase.from('profiles').select('id, first_name, last_name, rut, position').in('position', ['SUB GERENTE COMERCIAL', 'JEFE CANAL INVERSIONES']);
+    const { data: vends } = await supabase.from('profiles').select('id, first_name, last_name, rut, position').eq('position', 'KEY ACCOUNT MANAGER');
     setJefaturas(jefes || []);
     setVendedores(vends || []);
   };
