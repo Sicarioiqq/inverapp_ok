@@ -263,6 +263,15 @@ const Notifications = () => {
     return acc;
   }, {} as Record<string, TaskNotification[]>);
 
+  // Agregar función para calcular días desde asignación
+  const getDaysSinceAssigned = (assignedAt: string) => {
+    if (!assignedAt) return 0;
+    const assignedDate = new Date(assignedAt);
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - assignedDate.getTime()) / (1000 * 60 * 60 * 24));
+    return diff;
+  };
+
   return (
     <Layout>
       <div className="max-w-5xl mx-auto">
@@ -323,8 +332,10 @@ const Notifications = () => {
                           <div className="mt-2 text-base text-gray-900">
                             {task.task_name}
                           </div>
-                          <div className="mt-2 text-sm text-gray-500">
-                            Asignada el {new Date(task.created_at).toLocaleDateString()}
+                          <div className="mt-2 text-sm">
+                            <span className={getDaysSinceAssigned(task.created_at) >= 3 ? "text-red-600 font-bold" : "text-gray-500"}>
+                              Asignada hace {getDaysSinceAssigned(task.created_at)} días
+                            </span>
                           </div>
                         </div>
                         <button
