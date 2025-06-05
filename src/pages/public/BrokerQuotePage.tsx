@@ -43,6 +43,7 @@ interface ProjectPolicy {
   comuna: string | null;
   commission_rate: number;
   observaciones?: string;
+  habilitacion?: boolean;
 }
 
 interface BrokerProjectCommission {
@@ -180,9 +181,6 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
         
         setBroker(brokerData);
         
-        // Cargar unidades disponibles
-        await fetchUnidades();
-        
         // Cargar políticas comerciales
         await fetchProjectPolicies();
         
@@ -207,10 +205,10 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
       let allUnidades: Unidad[] = [];
       for (let from = 0; ; from += BATCH) {
         const { data: chunk, error: chunkErr } = await supabase
-        .from('stock_unidades')
-        .select('*')
-        .eq('estado_unidad', 'Disponible')
-        .order('proyecto_nombre', { ascending: true })
+          .from('stock_unidades')
+          .select('*')
+          .eq('estado_unidad', 'Disponible')
+          .order('proyecto_nombre', { ascending: true })
           .order('unidad', { ascending: true })
           .range(from, from + BATCH - 1);
         if (chunkErr) throw chunkErr;
@@ -218,33 +216,16 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
         allUnidades = allUnidades.concat(chunk);
         if (chunk.length < BATCH) break;
       }
-      setUnidades(allUnidades);
-      setFilteredUnidades(allUnidades);
-
-      // Traer todos los proyectos únicos (paginando si es necesario)
-      const BATCH_PROY = 1000;
-      let all: { proyecto_nombre: string }[] = [];
-      for (let from = 0; ; from += BATCH_PROY) {
-        const { data: chunk, error: chunkErr } = await supabase
-          .from('stock_unidades')
-          .select('proyecto_nombre')
-          .neq('proyecto_nombre', null)
-          .neq('proyecto_nombre', '')
-          .order('proyecto_nombre')
-          .range(from, from + BATCH_PROY - 1);
-        if (chunkErr) throw chunkErr;
-        if (!chunk?.length) break;
-        all = all.concat(chunk);
-        if (chunk.length < BATCH_PROY) break;
-      }
-      const proyectos = Array.from(new Set(all.map(r => r.proyecto_nombre).filter(Boolean) as string[])).sort();
-      setProyectosDisponibles(proyectos);
-      
-      // Extraer tipologías disponibles (solo para departamentos)
+      // Filtrar unidades SOLO por proyectos habilitados en la política comercial
+      const unidadesFiltradas = allUnidades.filter((u: Unidad) => proyectosHabilitadosPolitica.includes(u.proyecto_nombre));
+      setUnidades(unidadesFiltradas);
+      setFilteredUnidades(unidadesFiltradas);
+      // Proyectos únicos habilitados (ya no se usa aquí, lo maneja fetchProjectPolicies)
+      // Tipologías
       const tipologias = [...new Set(
-        (allUnidades || []).filter(u => u.tipo_bien === 'DEPARTAMENTO')
-            .map(u => u.tipologia)
-            .filter(Boolean)
+        (unidadesFiltradas || []).filter((u: Unidad) => u.tipo_bien === 'DEPARTAMENTO')
+          .map((u: Unidad) => u.tipologia)
+          .filter(Boolean)
       )];
       setTipologiasDisponibles(tipologias as string[]);
     } catch (err: any) {
@@ -259,19 +240,22 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
       const { data, error } = await supabase
         .from('project_commercial_policies')
         .select('*');
-      
       if (error) throw error;
-      
       // Convertir a un objeto indexado por nombre de proyecto
-      const policiesMap: Record<string, ProjectPolicy> = {};
+      const policiesMap: Record<string, ProjectPolicy & { habilitacion?: boolean }> = {};
+      const proyectosHabilitados: string[] = [];
       data?.forEach(policy => {
         policiesMap[policy.project_name] = {
           ...policy,
           bono_pie_max_pct: policy.bono_pie_max_pct * 100 // Convertir de decimal a porcentaje
         };
+        if (policy.habilitacion) {
+          proyectosHabilitados.push(policy.project_name);
+        }
       });
-      
       setProjectPolicies(policiesMap);
+      setProyectosDisponibles(proyectosHabilitados.sort());
+      setProyectosHabilitadosPolitica(proyectosHabilitados);
     } catch (err: any) {
       console.error('Error cargando políticas comerciales:', err);
     }
@@ -1035,6 +1019,17 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
       console.error('Error cargando estados de documentos:', err);
     }
   };
+  
+  // 1. Guardar la lista de proyectos habilitados en un estado global
+  const [proyectosHabilitadosPolitica, setProyectosHabilitadosPolitica] = useState<string[]>([]);
+
+  // Asegurarse de que fetchUnidades se ejecute después de fetchProjectPolicies
+  useEffect(() => {
+    if (proyectosHabilitadosPolitica.length > 0) {
+      fetchUnidades();
+    }
+    // eslint-disable-next-line
+  }, [proyectosHabilitadosPolitica]);
   
   if (loading) {
     return (

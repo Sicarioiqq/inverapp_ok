@@ -14,6 +14,7 @@ interface Project {
   real_estate_agency: {
     business_name: string;
   };
+  estado_proyecto: boolean;
 }
 
 const Projects = () => {
@@ -157,7 +158,7 @@ const Projects = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {projects.map((project) => (
-                <tr key={project.id} className="hover:bg-gray-50">
+                <tr key={project.id} className={`hover:bg-gray-50 ${!project.estado_proyecto ? 'opacity-50' : ''}`}>
                   <td className="px-6 py-3 whitespace-nowrap">
                     {project.logo_url ? (
                       <img

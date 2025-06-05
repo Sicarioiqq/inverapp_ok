@@ -17,6 +17,7 @@ interface ProjectCommercialPolicy {
     comuna: string | null;
     created_at: string;
     updated_at: string;
+    habilitacion: boolean;
 }
 
 interface Unidad {
@@ -37,34 +38,34 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
             setLoading(true);
             setError(null);
             try {
-                // Fetch unique project names from stock_unidades
-                const { data: stockData, error: stockError } = await supabase
-                    .from('stock_unidades')
-                    .select('proyecto_nombre')
-                    .neq('proyecto_nombre', '') // Evitar proyectos vacíos
-                    .order('proyecto_nombre', { ascending: true });
-
-                if (stockError) throw stockError;
-
-                const uniqueProjectNames = Array.from(new Set(stockData.map(u => u.proyecto_nombre)))
-                                                .filter((name): name is string => name !== null); // Filter out nulls and ensure string type
-
+                // Fetch unique project names from stock_unidades (paginado)
+                const BATCH = 1000;
+                let allStock: { proyecto_nombre: string }[] = [];
+                for (let from = 0; ; from += BATCH) {
+                    const { data: chunk, error: stockError } = await supabase
+                        .from('stock_unidades')
+                        .select('proyecto_nombre')
+                        .neq('proyecto_nombre', '')
+                        .order('proyecto_nombre', { ascending: true })
+                        .range(from, from + BATCH - 1);
+                    if (stockError) throw stockError;
+                    if (!chunk?.length) break;
+                    allStock = allStock.concat(chunk);
+                    if (chunk.length < BATCH) break;
+                }
+                const uniqueProjectNames = Array.from(new Set(allStock.map(u => u.proyecto_nombre)))
+                                                .filter((name): name is string => name !== null);
                 setProjectNames(uniqueProjectNames);
 
                 // Fetch existing commercial policies
                 const { data: policiesData, error: policiesError } = await supabase
                     .from('project_commercial_policies')
                     .select('*');
-
                 if (policiesError) throw policiesError;
-
                 setPolicies(policiesData.map(policy => ({
                     ...policy,
-                    // Asegúrate de que el bono_pie_max_pct se maneje como número
-                    // y lo convertimos a porcentaje para la UI (ej. 0.15 a 15)
                     bono_pie_max_pct: parseFloat(((policy.bono_pie_max_pct || 0) * 100).toFixed(2)),
                 })) || []);
-
             } catch (err: any) {
                 console.error('Error fetching data:', err);
                 setError(`Error al cargar datos: ${err.message || 'Desconocido'}`);
@@ -140,6 +141,7 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                     comuna: null,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
+                    habilitacion: false,
                     ...{ [field]: processedValue }
                 };
                 return [...prevPolicies, newPolicy];
@@ -158,7 +160,8 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                 bono_pie_max_pct: policy.bono_pie_max_pct / 100, // Convert percentage to decimal for storage
                 fecha_tope: policy.fecha_tope,
                 observaciones: policy.observaciones,
-                comuna: policy.comuna
+                comuna: policy.comuna,
+                habilitacion: policy.habilitacion
             };
 
             if (policy.id) {
@@ -234,6 +237,26 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
         return policies.find(p => p.project_name === projectName);
     };
 
+    const toggleHabilitacion = async (policy: ProjectCommercialPolicy) => {
+        try {
+            await supabase
+                .from('project_commercial_policies')
+                .update({ habilitacion: !policy.habilitacion })
+                .eq('id', policy.id);
+            // Refrescar políticas
+            const { data: policiesData, error: policiesError } = await supabase
+                .from('project_commercial_policies')
+                .select('*');
+            if (policiesError) throw policiesError;
+            setPolicies(policiesData.map(policy => ({
+                ...policy,
+                bono_pie_max_pct: parseFloat(((policy.bono_pie_max_pct || 0) * 100).toFixed(2)),
+            })) || []);
+        } catch (err) {
+            toast.error('Error actualizando habilitación');
+        }
+    };
+
     return (
         <div className="bg-white shadow rounded p-6">
             <h2 className="text-2xl font-semibold mb-4 text-gray-800">
@@ -277,6 +300,7 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Observaciones
                                 </th>
+                                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Habilitado</th>
                                 <th scope="col" className="relative px-6 py-3">
                                     <span className="sr-only">Acciones</span>
                                 </th>
@@ -354,6 +378,22 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                                                 disabled={isSavingThisRow} // Deshabilitar si la fila está guardando
                                             />
                                         </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                            {policy ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleHabilitacion(policy)}
+                                                    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none ${policy.habilitacion ? 'bg-green-500' : 'bg-gray-300'}`}
+                                                    title={policy.habilitacion ? 'Deshabilitar' : 'Habilitar'}
+                                                >
+                                                    <span
+                                                        className={`inline-block w-5 h-5 transform bg-white rounded-full shadow transition-transform ${policy.habilitacion ? 'translate-x-5' : 'translate-x-1'}`}
+                                                    />
+                                                </button>
+                                            ) : (
+                                                <span className="text-gray-400">Sin política</span>
+                                            )}
+                                        </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <button
                                                 onClick={() => handleSavePolicy({
@@ -366,6 +406,7 @@ const ProjectCommercialPolicyConfig: React.FC = () => {
                                                     comuna: currentComuna,
                                                     created_at: policy?.created_at || new Date().toISOString(),
                                                     updated_at: new Date().toISOString(),
+                                                    habilitacion: policy?.habilitacion || false
                                                 })}
                                                 className={`text-indigo-600 hover:text-indigo-900 ml-2 p-2 rounded-full ${isSavingThisRow ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 disabled={isSavingThisRow}

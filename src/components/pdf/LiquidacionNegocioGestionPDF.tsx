@@ -70,6 +70,7 @@ export interface LiquidacionGestionData {
   };
   vendedor?: { nombreCompleto: string };
   comentarioJefeInversiones?: string;
+  neteoCastigos?: { reserva: string; proyecto: string; depto: string; monto: string; signo: string; descripcion?: string }[];
 }
 
 const colors = {
@@ -115,6 +116,7 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
     comisionBroker,
     vendedor,
     comentarioJefeInversiones,
+    neteoCastigos,
   } = props;
 
   return (
@@ -583,6 +585,32 @@ export const LiquidacionGestionDocument: React.FC<LiquidacionGestionData> = (pro
               <View style={styles.tableRow}>
                 <Text style={styles.tableColValue}>{comentarioJefeInversiones}</Text>
               </View>
+            </View>
+          </>
+        )}
+
+        {neteoCastigos && neteoCastigos.length > 0 && (
+          <>
+            <Text style={styles.sectionHeader}>Detalle de Neteo de Castigos</Text>
+            <View style={styles.table}>
+              <View style={styles.tableRow}>
+                <Text style={[styles.tableColLabel, { width: '7%' }]}> </Text>
+                <Text style={[styles.tableColLabel, { width: '20%' }]}>N° Reserva</Text>
+                <Text style={[styles.tableColLabel, { width: '28%' }]}>Proyecto</Text>
+                <Text style={[styles.tableColLabel, { width: '15%' }]}>Depto</Text>
+                <Text style={[styles.tableColLabel, { width: '20%' }]}>Monto</Text>
+                <Text style={[styles.tableColLabel, { width: '20%' }]}>Descripción</Text>
+              </View>
+              {neteoCastigos.map((castigo, idx) => (
+                <View key={idx} style={[styles.tableRow, castigo.signo === '=' ? { fontWeight: 'bold', backgroundColor: '#E0F7FA' } : {}]}> 
+                  <Text style={{ width: '7%', textAlign: 'center', fontWeight: castigo.signo === '=' ? 'bold' : 'normal', color: castigo.signo === '+' ? '#388e3c' : castigo.signo === '-' ? '#d32f2f' : '#1976d2' }}>{castigo.signo}</Text>
+                  <Text style={{ width: '20%' }}>{castigo.reserva}</Text>
+                  <Text style={{ width: '28%' }}>{castigo.proyecto}</Text>
+                  <Text style={{ width: '15%' }}>{castigo.depto}</Text>
+                  <Text style={{ width: '20%', fontWeight: castigo.signo === '=' ? 'bold' : 'normal' }}>{castigo.monto}</Text>
+                  <Text style={{ width: '20%', fontStyle: 'italic', color: '#888' }}>{castigo.descripcion || ''}</Text>
+                </View>
+              ))}
             </View>
           </>
         )}

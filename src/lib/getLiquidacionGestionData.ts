@@ -78,13 +78,15 @@ export async function getLiquidacionGestionData(reservationId: string)
   const { data: brokerComArr, error: brokerComError } = await supabase
     .from('broker_commissions')
     .select(`
+      id,
       commission_amount,
       commission_includes_tax,
       net_commission,
       number_of_payments,
       first_payment_percentage,
       pays_secondary,
-      comentario_jefe_inversiones
+      comentario_jefe_inversiones,
+      es_neteador
     `)
     .eq('reservation_id', reservationId);
 
@@ -93,10 +95,70 @@ export async function getLiquidacionGestionData(reservationId: string)
     throw brokerComError;
   }
 
+  const brokerRec = (brokerComArr as any[])[0] || null;
+
+  // Consulta detalles de neteo si la comisión es absorbente
+  let neteoCastigos: { signo: string; reserva: string; proyecto: string; depto: string; monto: string; descripcion?: string }[] = [];
+  if (brokerRec?.es_neteador && brokerRec.id) {
+    // Buscar el neteo asociado a esta comisión
+    const { data: neteosArr, error: neteosError } = await supabase
+      .from('neteos')
+      .select('id, monto_total_neteado')
+      .eq('unidad_absorbente_id', brokerRec.id)
+      .limit(1);
+    if (neteosError) throw neteosError;
+    const neteo = neteosArr?.[0];
+    if (neteo) {
+      // Buscar detalles de neteo
+      const { data: detallesArr, error: detallesError } = await supabase
+        .from('neteo_detalles')
+        .select(`
+          monto_castigo,
+          unidad_castigada:unidad_castigada_id(
+            reservation:reservations(
+              reservation_number,
+              apartment_number,
+              project:projects(name)
+            )
+          )
+        `)
+        .eq('neteo_id', neteo.id);
+      if (detallesError) throw detallesError;
+      // Línea +: Negocio original
+      neteoCastigos.push({
+        signo: '+',
+        reserva: r.reservation_number,
+        proyecto: (r.project as any)?.name || '',
+        depto: r.apartment_number || '',
+        monto: `${Number(brokerRec.commission_amount + neteo.monto_total_neteado).toLocaleString('es-CL', {minimumFractionDigits:2})} UF`,
+        descripcion: 'Comisión Original'
+      });
+      // Líneas -: Castigos
+      (detallesArr || []).forEach((d: any) => {
+        neteoCastigos.push({
+          signo: '-',
+          reserva: d.unidad_castigada?.reservation?.reservation_number || '',
+          proyecto: d.unidad_castigada?.reservation?.project?.name || '',
+          depto: d.unidad_castigada?.reservation?.apartment_number || '',
+          monto: `${Number(d.monto_castigo).toLocaleString('es-CL', {minimumFractionDigits:2})} UF`,
+          descripcion: 'Castigo neteado'
+        });
+      });
+      // Línea =: Resultado
+      neteoCastigos.push({
+        signo: '=',
+        reserva: '',
+        proyecto: '',
+        depto: '',
+        monto: `${Number(brokerRec.commission_amount).toLocaleString('es-CL', {minimumFractionDigits:2})} UF`,
+        descripcion: 'Comisión broker resultante'
+      });
+    }
+  }
+
   // 4) Mappeo y retorno
   const client = r.client as any;
   const seller = (r.seller as any) || {};
-  const brokerRec = (brokerComArr as any[])[0] || null;
 
   // Función para formatear la fecha si es necesario (opcional, pero recomendado)
   const formatDate = (dateString: string | null | undefined) => {
@@ -221,5 +283,6 @@ export async function getLiquidacionGestionData(reservationId: string)
       : undefined,
 
     comentarioJefeInversiones: brokerRec?.comentario_jefe_inversiones || undefined,
+    neteoCastigos,
   };
 }

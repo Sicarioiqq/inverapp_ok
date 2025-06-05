@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import Layout from '../../components/Layout';
-import { Download, Search, Calendar, ArrowDown, ArrowUp, Building2, Loader2, Ban, AlertCircle } from 'lucide-react';
+import { Download, Search, Calendar, ArrowDown, ArrowUp, Building2, Loader2, Ban, AlertCircle, ShieldCheck } from 'lucide-react';
 import { usePopup } from '../../contexts/PopupContext';
 
 interface Broker {
@@ -34,6 +34,8 @@ interface ConsolidadoBrokersItem {
   is_rescinded: boolean;
   has_payment_flow: boolean;
   is_payment_in_progress: boolean;
+  neteada: boolean;
+  neteador: boolean;
 }
 
 interface AtRiskPopupProps {
@@ -44,6 +46,15 @@ interface AtRiskPopupProps {
   onSave: () => void;
   onClose: () => void;
 }
+
+type NeteoCastigoModalProps = {
+  saldoAFavor: number;
+  castigadas: ConsolidadoBrokersItem[];
+  selected: string[];
+  onSelect: (ids: string[]) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+};
 
 const ConsolidadoBrokers: React.FC = () => {
   const navigate = useNavigate();
@@ -62,6 +73,10 @@ const ConsolidadoBrokers: React.FC = () => {
     totalAtRisk: 0,
     totalInProgress: 0
   });
+  const [showNeteoModal, setShowNeteoModal] = useState(false);
+  const [absorbedUnit, setAbsorbedUnit] = useState<ConsolidadoBrokersItem | null>(null);
+  const [selectedCastigadas, setSelectedCastigadas] = useState<string[]>([]);
+  const [neteoDetalles, setNeteoDetalles] = useState<any[]>([]);
 
   useEffect(() => {
     fetchBrokers();
@@ -127,7 +142,9 @@ const ConsolidadoBrokers: React.FC = () => {
             project:projects!inner(name, stage),
             is_rescinded
           ),
-          broker:brokers!inner(id, name)
+          broker:brokers!inner(id, name),
+          es_neteada,
+          es_neteador
         `)
         .eq('broker_id', brokerId);
 
@@ -151,7 +168,7 @@ const ConsolidadoBrokers: React.FC = () => {
       );
 
       // Formatear los datos para la tabla
-      const formattedData = data.map(item => {
+      const formattedData = data.map((item: any) => {
         // Calcular montos de pagos
         const firstPaymentAmount = item.payment_1_date 
           ? (item.commission_amount * (item.first_payment_percentage / 100)) 
@@ -169,11 +186,11 @@ const ConsolidadoBrokers: React.FC = () => {
 
         return {
           id: item.id,
-          reservation_id: item.reservation.id,
-          reservation_number: item.reservation.reservation_number,
-          project_name: item.reservation.project.name,
-          project_stage: item.reservation.project.stage,
-          apartment_number: item.reservation.apartment_number,
+          reservation_id: item.reservation?.id,
+          reservation_number: item.reservation?.reservation_number,
+          project_name: item.reservation?.project?.name,
+          project_stage: item.reservation?.project?.stage,
+          apartment_number: item.reservation?.apartment_number,
           purchase_order: item.purchase_order,
           invoice_1: item.invoice_1,
           payment_1_date: item.payment_1_date,
@@ -187,9 +204,11 @@ const ConsolidadoBrokers: React.FC = () => {
           at_risk: item.at_risk || false,
           at_risk_reason: item.at_risk_reason,
           commission_flow_id: commissionFlowId,
-          is_rescinded: item.reservation.is_rescinded,
+          is_rescinded: item.reservation?.is_rescinded,
           has_payment_flow: commissionFlowId !== null,
-          is_payment_in_progress: commissionFlowId !== null && !item.payment_1_date && !item.payment_2_date
+          is_payment_in_progress: commissionFlowId !== null && !item.payment_1_date && !item.payment_2_date,
+          neteada: item.es_neteada || false,
+          neteador: item.es_neteador || false
         };
       });
 
@@ -322,6 +341,72 @@ const ConsolidadoBrokers: React.FC = () => {
     );
   };
 
+  const handleConfirmNeteo = async () => {
+    if (!absorbedUnit) return;
+    setLoading(true);
+    try {
+      // Suma de castigos seleccionados
+      const castigadasSeleccionadas = castigadasDisponibles.filter(u => selectedCastigadas.includes(u.id));
+      const sumaCastigos = castigadasSeleccionadas.reduce((sum, u) => sum + (u.penalty || 0), 0);
+
+      // 1. Insertar neteo
+      const { data: neteo, error: neteoError } = await supabase
+        .from('neteos')
+        .insert({
+          unidad_absorbente_id: absorbedUnit.id,
+          monto_total_neteado: sumaCastigos
+        })
+        .select()
+        .single();
+      if (neteoError) throw neteoError;
+
+      // 2. Insertar detalles de neteo
+      const detalles = castigadasSeleccionadas.map(u => ({
+        neteo_id: neteo.id,
+        unidad_castigada_id: u.id,
+        monto_castigo: u.penalty || 0
+      }));
+      const { error: detallesError } = await supabase
+        .from('neteo_detalles')
+        .insert(detalles);
+      if (detallesError) throw detallesError;
+
+      // 3. Actualizar flags en broker_commissions
+      // Absorbente
+      const { error: updateAbsError } = await supabase
+        .from('broker_commissions')
+        .update({
+          commission_amount: absorbedUnit.commission_amount - sumaCastigos,
+          es_neteador: true
+        })
+        .eq('id', absorbedUnit.id);
+      if (updateAbsError) throw updateAbsError;
+      // Castigadas
+      const { error: updateCastigadasError } = await supabase
+        .from('broker_commissions')
+        .update({ es_neteada: true })
+        .in('id', castigadasSeleccionadas.map(u => u.id));
+      if (updateCastigadasError) throw updateCastigadasError;
+
+      // 4. Refrescar datos
+      await fetchConsolidatedData(selectedBroker);
+      setShowNeteoModal(false);
+      setSelectedCastigadas([]);
+      setAbsorbedUnit(null);
+      setLoading(false);
+      showPopup(
+        <div className="p-4 text-green-700">¡Neteo realizado y guardado correctamente!</div>,
+        { title: 'Éxito', size: 'sm', duration: 2500 }
+      );
+    } catch (err: any) {
+      setLoading(false);
+      showPopup(
+        <div className="p-4 text-red-700">Error al guardar el neteo: {err.message}</div>,
+        { title: 'Error', size: 'sm', duration: 4000 }
+      );
+    }
+  };
+
   const sortedData = [...consolidatedData].sort((a, b) => {
     let comparison = 0;
     
@@ -391,24 +476,24 @@ const ConsolidadoBrokers: React.FC = () => {
       return sum + item.commission_amount;
     }, 0);
     
-    // Total pagado (excluyendo resciliadas)
+    // Total pagado (incluyendo resciliadas)
     const totalPaid = consolidatedData.reduce((sum, item) => {
-      if (item.is_rescinded) return sum;
       let paidAmount = 0;
       if (item.first_payment_amount) paidAmount += item.first_payment_amount;
       if (item.second_payment_amount) paidAmount += item.second_payment_amount;
       return sum + paidAmount;
     }, 0);
     
-    // Total en riesgo (solo lo pagado para operaciones en riesgo, excluyendo resciliadas)
+    // Total en riesgo: suma pagos de registros en riesgo y solo los castigos NO neteados
     const totalAtRisk = consolidatedData.reduce((sum, item) => {
+      let subtotal = 0;
       if (!item.is_rescinded && item.at_risk) {
-        let paidAmount = 0;
-        if (item.first_payment_amount) paidAmount += item.first_payment_amount;
-        if (item.second_payment_amount) paidAmount += item.second_payment_amount;
-        return sum + paidAmount;
+        if (item.first_payment_amount) subtotal += item.first_payment_amount;
+        if (item.second_payment_amount) subtotal += item.second_payment_amount;
       }
-      return sum;
+      // Sumar castigo solo si NO está neteada
+      if (item.penalty && !item.neteada) subtotal += item.penalty;
+      return sum + subtotal;
     }, 0);
 
     // Total en proceso de pago (solo el porcentaje correspondiente a la etapa en proceso, excluyendo resciliadas y en riesgo)
@@ -442,6 +527,9 @@ const ConsolidadoBrokers: React.FC = () => {
 
   // Recalcular totales para asegurar que estén actualizados
   const calculatedTotals = calculateTotals();
+
+  // Filtra unidades castigadas no neteadas
+  const castigadasDisponibles = consolidatedData.filter(item => item.penalty && item.penalty > 0 && !item.neteada);
 
   return (
     <Layout>
@@ -659,10 +747,13 @@ const ConsolidadoBrokers: React.FC = () => {
                           <div className="flex items-center">
                             {item.reservation_number}
                             {item.is_rescinded && (
-                              <Ban className="h-4 w-4 ml-1 text-red-500" title="Resciliada" />
+                              <Ban className="h-4 w-4 ml-1 text-red-500" />
                             )}
                             {!item.is_rescinded && item.at_risk && (
-                              <AlertCircle className="h-4 w-4 ml-1 text-amber-500" title={`En Riesgo: ${item.at_risk_reason || 'Sin motivo especificado'}`} />
+                              <AlertCircle className="h-4 w-4 ml-1 text-amber-500" />
+                            )}
+                            {item.neteador && (
+                              <ShieldCheck className="h-4 w-4 ml-1 text-blue-600" />
                             )}
                           </div>
                         </td>
@@ -731,7 +822,11 @@ const ConsolidadoBrokers: React.FC = () => {
                         </td>
                         <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 text-right">
                           {item.penalty ? (
-                            <span className="text-red-600">{formatCurrency(item.penalty)} UF</span>
+                            item.neteada ? (
+                              <span className="text-gray-400 line-through">{formatCurrency(item.penalty)} UF</span>
+                            ) : (
+                              <span className="text-red-600">{formatCurrency(item.penalty)} UF</span>
+                            )
                           ) : (
                             '-'
                           )}
@@ -749,6 +844,16 @@ const ConsolidadoBrokers: React.FC = () => {
                           >
                             {item.at_risk ? 'Editar Riesgo' : 'Marcar En Riesgo'}
                           </button>
+                          {/* Botón Neteo Castigo */}
+                          {item.commission_amount > 0 && !item.at_risk && !item.is_rescinded && !item.neteador && castigadasDisponibles.length > 0 && (
+                            <button
+                              onClick={(e) => { setAbsorbedUnit(item); setShowNeteoModal(true); }}
+                              className="ml-2 px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 border border-blue-200"
+                              title="Neteo Castigo"
+                            >
+                              Neteo Castigo
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -781,6 +886,17 @@ const ConsolidadoBrokers: React.FC = () => {
           </>
         )}
       </div>
+      {/* Renderiza el modal de neteo si corresponde */}
+      {showNeteoModal && absorbedUnit && (
+        <NeteoCastigoModal
+          saldoAFavor={absorbedUnit.commission_amount}
+          castigadas={castigadasDisponibles}
+          selected={selectedCastigadas}
+          onSelect={setSelectedCastigadas}
+          onClose={() => { setShowNeteoModal(false); setAbsorbedUnit(null); setSelectedCastigadas([]); }}
+          onConfirm={handleConfirmNeteo}
+        />
+      )}
     </Layout>
   );
 };
@@ -908,6 +1024,53 @@ const AtRiskPopup: React.FC<AtRiskPopupProps> = ({
         </button>
       </div>
     </form>
+  );
+};
+
+// Componente Modal para Neteo de Castigo
+const NeteoCastigoModal: React.FC<NeteoCastigoModalProps> = ({ saldoAFavor, castigadas, selected, onSelect, onClose, onConfirm }) => {
+  const sumaCastigos = castigadas.filter((u) => selected.includes(u.id)).reduce((sum, u) => sum + (u.penalty || 0), 0);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+      <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg">
+        <h2 className="text-lg font-bold mb-4 text-blue-700">Neteo Castigo</h2>
+        <div className="mb-4">
+          <div className="mb-2 text-sm">Saldo a favor: <span className="font-bold text-green-700">{saldoAFavor.toLocaleString('es-CL', {minimumFractionDigits:2})} UF</span></div>
+          <div className="mb-2 text-sm">Castigos seleccionados: <span className="font-bold text-red-700">{sumaCastigos.toLocaleString('es-CL', {minimumFractionDigits:2})} UF</span></div>
+        </div>
+        <div className="max-h-60 overflow-y-auto border rounded mb-4">
+          <table className="min-w-full text-xs">
+            <thead>
+              <tr className="bg-gray-100">
+                <th></th>
+                <th>N° Reserva</th>
+                <th>Proyecto</th>
+                <th>Depto</th>
+                <th>Monto Castigo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {castigadas.map((u) => (
+                <tr key={u.id}>
+                  <td><input type="checkbox" checked={selected.includes(u.id)} onChange={e => {
+                    if (e.target.checked) onSelect([...selected, u.id]);
+                    else onSelect(selected.filter((id) => id !== u.id));
+                  }} disabled={sumaCastigos + (u.penalty || 0) > saldoAFavor && !selected.includes(u.id)} /></td>
+                  <td>{u.reservation_number}</td>
+                  <td>{u.project_name}</td>
+                  <td>{u.apartment_number}</td>
+                  <td className="text-red-700">{u.penalty?.toLocaleString('es-CL', {minimumFractionDigits:2})} UF</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold">Cancelar</button>
+          <button onClick={() => onConfirm()} disabled={sumaCastigos === 0 || sumaCastigos > saldoAFavor} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold disabled:opacity-50">Confirmar Neteo</button>
+        </div>
+      </div>
+    </div>
   );
 };
 
