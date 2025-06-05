@@ -102,6 +102,12 @@ const ClientForm = () => {
 
       const clientData = {
         ...formData,
+        rut: formData.rut.toUpperCase(),
+        first_name: formData.first_name.toUpperCase(),
+        last_name: formData.last_name.toUpperCase(),
+        direccion: formData.direccion ? formData.direccion.toUpperCase() : '',
+        comuna: formData.comuna ? formData.comuna.toUpperCase() : '',
+        email: formData.email.toUpperCase(),
         updated_by: session?.user.id,
       };
 
