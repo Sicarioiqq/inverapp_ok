@@ -44,6 +44,7 @@ interface ProjectPolicy {
   commission_rate: number;
   observaciones?: string;
   habilitacion?: boolean;
+  real_estate_agency_id?: string;
 }
 
 interface BrokerProjectCommission {
@@ -136,6 +137,10 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
   const [promesaPctInput, setPromesaPctInput] = useState<string>(pagoPromesaPct.toFixed(2));
   const [piePctInput, setPiePctInput] = useState<string>(pagoPiePct.toFixed(2));
   const [creditoPctInput, setCreditoPctInput] = useState<string>(pagoCreditoHipotecarioPct.toFixed(2));
+
+  // 1. Agrega un estado para la inmobiliaria seleccionada
+  const [realEstateAgency, setRealEstateAgency] = useState<any>(null);
+  const [montoReservaPesos, setMontoReservaPesos] = useState<number | null>(null);
 
   useEffect(() => { setPromesaPctInput(pagoPromesaPct.toFixed(2)); }, [pagoPromesaPct]);
   useEffect(() => { setPiePctInput(pagoPiePct.toFixed(2)); }, [pagoPiePct]);
@@ -458,30 +463,36 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
   };
   
   // Seleccionar unidad
-  const handleSelectUnidad = (unidad: Unidad) => {
-    // Obtener commission_rate para el proyecto de la unidad
-    const commissionRate = getCommissionRate(unidad.proyecto_nombre);
-    // Agregar commission_rate a la unidad seleccionada
-    setSelectedUnidad({ ...unidad, commission_rate: commissionRate });
-    // Limpiar unidades secundarias al cambiar de departamento
+  const handleSelectUnidad = async (unidad: Unidad) => {
+    setSelectedUnidad({ ...unidad, commission_rate: getCommissionRate(unidad.proyecto_nombre) });
     setAddedSecondaryUnits([]);
-    // Establecer valores por defecto para forma de pago
     setPagoPromesaPct(10);
     setPagoPiePct(10);
     // Si hay política comercial para este proyecto, aplicar monto de reserva
+    let realEstateAgencyId = null;
     if (unidad.proyecto_nombre && projectPolicies[unidad.proyecto_nombre]) {
       const policy = projectPolicies[unidad.proyecto_nombre];
-      // Convertir monto de reserva de pesos a UF
       if (ufValue && policy.monto_reserva_pesos > 0) {
         const reservaUF = policy.monto_reserva_pesos / ufValue;
         setPagoReserva(Number(reservaUF.toFixed(2)));
       }
+      setMontoReservaPesos(policy.monto_reserva_pesos);
+      realEstateAgencyId = policy.real_estate_agency_id;
     } else {
-      // Valor por defecto si no hay política
       setPagoReserva(Number((10).toFixed(2)));
+      setMontoReservaPesos(null);
     }
-    // Cargar estados de documentos
-    cargarEstadosDocumentos(unidad.id);
+    // Obtener datos de la inmobiliaria desde la política comercial
+    if (realEstateAgencyId) {
+      const { data: agencyData, error: agencyError } = await supabase
+        .from('real_estate_agencies')
+        .select('business_name, rut, bank, account_type, account_number')
+        .eq('id', realEstateAgencyId)
+        .maybeSingle();
+      setRealEstateAgency(agencyData || null);
+    } else {
+      setRealEstateAgency(null);
+    }
   };
   
   // Agregar unidad secundaria
@@ -907,14 +918,6 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
     formulario_onu: false
   });
 
-  // Función para manejar cambios en el checklist
-  const handleDocumentChange = (documento: keyof typeof documentos) => {
-    setDocumentos(prev => ({
-      ...prev,
-      [documento]: !prev[documento]
-    }));
-  };
-
   // Función para guardar los estados de los documentos
   const guardarEstadosDocumentos = async () => {
     try {
@@ -944,79 +947,6 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
     } catch (err: any) {
       console.error('Error guardando estados de documentos:', err);
       alert('Error al guardar los estados de los documentos');
-    }
-  };
-
-  // Modificar el botón de guardar en el modal para usar la nueva función
-  const renderDocumentModal = () => (
-    <Dialog open={showDocumentModal} onClose={() => setShowDocumentModal(false)} className="fixed z-50 inset-0 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4">
-        <div className="fixed inset-0 bg-black opacity-30 z-0"></div>
-        <Dialog.Panel className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-auto p-6 z-10">
-          <Dialog.Title className="text-xl font-bold mb-4 text-blue-700">Gestión Documental</Dialog.Title>
-          
-          <div className="space-y-4">
-            {Object.entries(documentos).map(([key, value]) => (
-              <div key={key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="font-medium text-gray-700">
-                  {key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                </span>
-                <button
-                  onClick={() => handleDocumentChange(key as keyof typeof documentos)}
-                  className={`p-2 rounded-full ${
-                    value ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                  }`}
-                >
-                  {value ? <Check className="h-5 w-5" /> : <X className="h-5 w-5" />}
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6 flex justify-end space-x-3">
-            <button
-              onClick={() => setShowDocumentModal(false)}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold"
-            >
-              Cerrar
-            </button>
-            <button
-              onClick={guardarEstadosDocumentos}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold"
-            >
-              Guardar
-            </button>
-          </div>
-        </Dialog.Panel>
-      </div>
-    </Dialog>
-  );
-  
-  // Función para cargar los estados de los documentos
-  const cargarEstadosDocumentos = async (unidadId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('reservations')
-        .select('*')
-        .eq('unidad_id', unidadId)
-        .single();
-
-      if (error) throw error;
-
-      if (data) {
-        setDocumentos({
-          pre_aprobacion: data.pre_aprobacion_estado || false,
-          cedula_identidad: data.cedula_identidad_estado || false,
-          certificado_afp: data.certificado_afp_estado || false,
-          liquidaciones_sueldo: data.liquidaciones_sueldo_estado || false,
-          dicom_cmf: data.dicom_cmf_estado || false,
-          pep: data.pep_estado || false,
-          dof: data.dof_estado || false,
-          formulario_onu: data.formulario_onu_estado || false
-        });
-      }
-    } catch (err: any) {
-      console.error('Error cargando estados de documentos:', err);
     }
   };
   
@@ -1865,27 +1795,32 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
                   <div className="bg-white rounded-lg shadow p-6 mt-6">
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-lg font-semibold text-gray-800">Información de Reserva</h2>
-                      <button
-                        onClick={() => setShowDocumentModal(true)}
-                        className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md font-semibold hover:bg-blue-200 transition-colors flex items-center gap-2"
-                      >
-                        <Save className="h-5 w-5" />
-                        Gestión Documental
-                      </button>
+                      
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="bg-gray-50 p-4 rounded-lg">
-                        <p className="text-sm text-gray-500">Monto Reserva</p>
-                        <p className="font-medium">{formatCurrency(pagoReserva)} UF</p>
-                        {ufValue && (
-                          <p className="text-sm text-gray-500 mt-1">
-                            {formatPesos(ufToPesos(pagoReserva))}
-                          </p>
-                        )}
+                        <p className="text-sm text-gray-500">Inmobiliaria</p>
+                        <p className="font-medium">{realEstateAgency?.business_name || '-'}</p>
                       </div>
                       <div className="bg-gray-50 p-4 rounded-lg">
-                        <p className="text-sm text-gray-500">Fecha de Reserva</p>
-                        <p className="font-medium">{new Date().toLocaleDateString('es-CL')}</p>
+                        <p className="text-sm text-gray-500">Rut Inmobiliaria</p>
+                        <p className="font-medium">{realEstateAgency?.rut || '-'}</p>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-500">Banco</p>
+                        <p className="font-medium">{realEstateAgency?.bank || '-'}</p>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-500">Tipo Cuenta</p>
+                        <p className="font-medium">{realEstateAgency?.account_type || '-'}</p>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-500">N° de Cuenta</p>
+                        <p className="font-medium">{realEstateAgency?.account_number || '-'}</p>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-500">Monto Reserva</p>
+                        <p className="font-medium">{montoReservaPesos !== null ? formatPesos(montoReservaPesos) : '-'}</p>
                       </div>
                     </div>
                   </div>
@@ -1992,7 +1927,7 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
                 className="border px-2 py-1 rounded w-full md:w-48"
               />
               <select
-                value={stockProyecto}
+                value={stockProyecto || ''}
                 onChange={e => setStockProyecto(e.target.value)}
                 className="border px-2 py-1 rounded w-full md:w-48"
               >
@@ -2003,7 +1938,7 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
               </select>
               {stockTab === 'departamentos' ? (
                 <select
-                  value={stockTipologia}
+                  value={stockTipologia || ''}
                   onChange={e => setStockTipologia(e.target.value)}
                   className="border px-2 py-1 rounded w-full md:w-48"
                 >
@@ -2012,7 +1947,7 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
                 </select>
               ) : (
                 <select
-                  value={stockTipoBien}
+                  value={stockTipoBien || ''}
                   onChange={e => setStockTipoBien(e.target.value)}
                   className="border px-2 py-1 rounded w-full md:w-48"
                 >
@@ -2124,7 +2059,6 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
           </Dialog.Panel>
         </div>
       </Dialog>
-      {renderDocumentModal()}
     </div>
   );
 };
