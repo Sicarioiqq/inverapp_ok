@@ -1256,17 +1256,21 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
                           let bonoPieUFLocal = 0;
                           let bonoPiePctLocal = 0;
                           if (tipoCotizacionWizard === 'descuento' || tipoCotizacionWizard === 'bono') {
-                            const descuentoUnidad = unidad.descuento || 0;
-                            const valorLista = unidad.valor_lista || 0;
-                            const commissionRate = getCommissionRate(unidad.proyecto_nombre);
-                            valorConDescuento = valorLista * (1 - descuentoUnidad);
-                            const comisionBroker = valorConDescuento * (commissionRate / 100);
-                            const montoDescuento = valorLista * descuentoUnidad;
-                            descuentoDisponibleBroker = ((montoDescuento - comisionBroker) / valorLista) * 100;
+                            // Valores de las tablas
+                            const valorLista = unidad.valor_lista || 0; // de stock_unidades
+                            const descuentoUnidad = unidad.descuento || 0; // de stock_unidades
+                            const commissionRate = getCommissionRate(unidad.proyecto_nombre) / 100; // de broker_project_commissions convertido a decimal
+
+                            // Fórmula exacta: (valor_lista-(((valor_lista*(1-descuento))*commission_rate)+(valor_lista*(1-descuento))))/valor_lista
+                            const valorConDescuentoBase = valorLista * (1 - descuentoUnidad);
+                            const comisionBroker = valorConDescuentoBase * commissionRate;
+                            const valorConDescuentoYComision = valorConDescuentoBase + comisionBroker;
+                            descuentoDisponibleBroker = ((valorLista - valorConDescuentoYComision) / valorLista) * 100;
                             porcentajeRedondeado = Math.floor(descuentoDisponibleBroker * 10) / 10;
                             bonoPieUFLocal = valorLista * (porcentajeRedondeado / 100);
                             bonoPiePctLocal = porcentajeRedondeado;
-                            descuento = descuentoDisponibleBroker;
+                            descuento = porcentajeRedondeado;
+                            valorConDescuento = valorLista - (valorLista * (porcentajeRedondeado / 100));
                           }
                           return (
                             <tr key={unidad.id} className="hover:bg-blue-50 cursor-pointer" onClick={() => handleSelectUnidad(unidad)}>
@@ -1279,8 +1283,8 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
                               <td className="px-4 py-2 whitespace-nowrap">{formatCurrency(unidad.valor_lista || 0)}</td>
                               {tipoCotizacionWizard === 'descuento' && (
                                 <>
-                                  <td className="px-4 py-2 whitespace-nowrap">{Math.floor(descuento * 10) / 10}%</td>
-                                  <td className="px-4 py-2 whitespace-nowrap">{valorConDescuento.toFixed(2)} UF</td>
+                                  <td className="px-4 py-2 whitespace-nowrap">{descuentoDisponibleBroker.toFixed(1)}%</td>
+                                  <td className="px-4 py-2 whitespace-nowrap">{formatCurrency(valorConDescuento)} UF</td>
                                 </>
                               )}
                               {tipoCotizacionWizard === 'bono' && (
