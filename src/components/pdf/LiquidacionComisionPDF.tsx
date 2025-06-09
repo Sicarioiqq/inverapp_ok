@@ -119,7 +119,7 @@ const LiquidacionComisionPDF: React.FC<LiquidacionComisionPDFProps> = ({ datos }
         </View>
         <View style={styles.row}>
           <Text style={styles.label}>DCTO. DISPONIBLE CON COMISIÓN</Text>
-          <Text style={styles.value}>{formatUF(datos.dctoDisponibleConComisionUF)}</Text>
+          <Text style={styles.value}>{datos.dctoDisponibleConComisionUF.toFixed(2)}%</Text>
         </View>
       </View>
       {datos.politicaComercial && (

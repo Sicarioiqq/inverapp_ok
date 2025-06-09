@@ -27,6 +27,7 @@ const CotizadorAdmin: React.FC = () => {
   const [selectedProyecto, setSelectedProyecto] = useState<string>('');
   const [selectedTipologia, setSelectedTipologia] = useState<string>('');
   const [selectedUnidad, setSelectedUnidad] = useState<string>('');
+  const [unidadInput, setUnidadInput] = useState('');
 
   const navigate = useNavigate();
 
@@ -85,16 +86,17 @@ const CotizadorAdmin: React.FC = () => {
       u.tipo_bien === 'DEPARTAMENTO' &&
       (!selectedProyecto || u.proyecto_nombre === selectedProyecto) &&
       (!selectedTipologia || u.tipologia === selectedTipologia) &&
-      (!selectedUnidad || u.unidad === selectedUnidad)
+      (!selectedUnidad || u.unidad === selectedUnidad) &&
+      (!unidadInput || (u.unidad && u.unidad.toLowerCase().includes(unidadInput.toLowerCase())))
     );
-  }, [unidades, selectedProyecto, selectedTipologia, selectedUnidad]);
+  }, [unidades, selectedProyecto, selectedTipologia, selectedUnidad, unidadInput]);
 
   return (
     <Layout>
       <div className="max-w-7xl mx-auto p-6">
         <h1 className="text-2xl font-bold mb-6">Cotizador Administración</h1>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
+          <div className="md:col-span-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Proyecto</label>
             <select
               className="w-full border rounded px-3 py-2"
@@ -111,7 +113,7 @@ const CotizadorAdmin: React.FC = () => {
               ))}
             </select>
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Tipología</label>
             <select
               className="w-full border rounded px-3 py-2"
@@ -128,10 +130,10 @@ const CotizadorAdmin: React.FC = () => {
               ))}
             </select>
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">N° Bien</label>
             <select
-              className="w-full border rounded px-3 py-2"
+              className="w-full border rounded px-3 py-2 mb-1"
               value={selectedUnidad}
               onChange={e => setSelectedUnidad(e.target.value)}
               disabled={!selectedProyecto || !selectedTipologia}
@@ -141,6 +143,16 @@ const CotizadorAdmin: React.FC = () => {
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>
+          </div>
+          <div className="md:col-span-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Buscar N° bien manualmente</label>
+            <input
+              type="text"
+              className="w-full border rounded px-3 py-2"
+              placeholder="Buscar N° bien"
+              value={unidadInput}
+              onChange={e => setUnidadInput(e.target.value)}
+            />
           </div>
         </div>
         {loading ? (

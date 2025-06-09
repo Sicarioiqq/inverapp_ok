@@ -200,12 +200,13 @@ const CalculoComisionBroker: React.FC = () => {
   const ufDisponibleBroker = ufDisponibleDcto - (comisionUF ?? 0);
 
   // Cálculo Dcto. Disponible con Comisión según fórmula proporcionada
-  // =IF(D27="SI";(D23+V29)*D31;D23*D31)
-  // D27: incluyeSecundarios, D23: precioMinimo, V29: totalSecundariosValor, D31: comisión (decimal)
-  const comisionPct = commissionObj?.commission_rate ? commissionObj.commission_rate / 100 : 0;
-  const dctoDisponibleConComisionUF = incluyeSecundarios
-    ? (precioMinimo + totalSecundariosValor) * comisionPct
-    : precioMinimo * comisionPct;
+  // Fórmula: ((valor_lista - ((valor_lista * (1 - descuento)) * (1 + commission_rate))) / valor_lista) * 100
+  const valorLista = precioListaDepto ?? 0;
+  const descuento = unidad?.descuento ?? 0;
+  const commissionRate = commissionObj?.commission_rate ? commissionObj.commission_rate / 100 : 0;
+  const valorConDescuentoBase = valorLista * (1 - descuento);
+  const precioFinal = valorConDescuentoBase * (1 + commissionRate);
+  const dctoDisponibleConComisionPct = valorLista > 0 ? ((valorLista - precioFinal) / valorLista) * 100 : 0;
 
   const handleGuardarYGenerarPDF = async () => {
     setSaving(true);
@@ -245,7 +246,7 @@ const CalculoComisionBroker: React.FC = () => {
       comisionIVAIncluido: comisionUF ?? 0,
       comisionPct: (commissionObj?.commission_rate ?? 0) / 100,
       politicaComercial: observacionesPolitica,
-      dctoDisponibleConComisionUF,
+      dctoDisponibleConComisionUF: dctoDisponibleConComisionPct,
     }} />;
     const asPdf = pdf();
     asPdf.updateContainer(pdfDoc);
@@ -465,7 +466,7 @@ const CalculoComisionBroker: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="font-medium">Dcto. Disponible con Comisión:</span>
-                      <span className="font-bold text-green-600">{dctoDisponibleConComisionUF.toFixed(2)} UF</span>
+                      <span className="font-bold text-green-600">{dctoDisponibleConComisionPct.toFixed(2)}%</span>
                     </div>
                   </div>
                   <div className="bg-white shadow rounded-lg p-4 mb-4">
@@ -531,6 +532,16 @@ const CalculoComisionBroker: React.FC = () => {
                             ));
                           }}
                           className="border rounded px-2 py-1 w-24 text-right bg-blue-100 focus:bg-blue-200"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="font-medium mb-0">Política Comercial (solo para esta cotización)</label>
+                        <textarea
+                          className="border rounded px-2 py-1 bg-blue-100 focus:bg-blue-200 resize-none"
+                          rows={2}
+                          value={observacionesPolitica || ''}
+                          onChange={e => setObservacionesPolitica(e.target.value)}
+                          placeholder="Agrega una política comercial personalizada para esta cotización"
                         />
                       </div>
                       {secundariosSeleccionados.map((s, idx) => (
