@@ -31,6 +31,9 @@ import BrokerPaymentApprovalDetail from './pages/reports/BrokerPaymentApprovalDe
 import ConsolidadoBrokers from './pages/reports/ConsolidadoBrokers';
 import StockReportPage from './pages/reports/StockReportPage';
 import BrokerQuotePage from './pages/public/BrokerQuotePage';
+import CotizadorSettings from './pages/settings/CotizadorSettings';
+import CotizadorAdmin from './pages/CotizadorAdmin';
+import CalculoComisionBroker from './pages/CalculoComisionBroker';
 
 function App() {
   const { session, initialize } = useAuthStore();
@@ -189,6 +192,16 @@ function App() {
           <Route path="/configuracion" element={
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          } />
+          <Route path="/cotizador" element={
+            <ProtectedRoute>
+              <CotizadorAdmin />
+            </ProtectedRoute>
+          } />
+          <Route path="/calculo-comision-broker/:unidadId" element={
+            <ProtectedRoute>
+              <CalculoComisionBroker />
             </ProtectedRoute>
           } />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

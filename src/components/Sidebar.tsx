@@ -13,7 +13,8 @@ import {
   PackageSearch,
   CreditCard,
   CheckSquare,
-  ShieldCheck
+  ShieldCheck,
+  ShoppingBasket
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
@@ -107,6 +108,11 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, o
       title: 'Pagos',
       icon: <Wallet className="h-5 w-5" />,
       path: '/pagos',
+    },
+    {
+      title: 'Cotizador',
+      icon: <ShoppingBasket className="h-5 w-5" />,
+      path: '/cotizador',
     },
     {
       title: 'Informes',
