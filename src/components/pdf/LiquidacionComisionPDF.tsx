@@ -63,6 +63,7 @@ interface LiquidacionComisionPDFProps {
     precioMinimo: number;
     comisionIVAIncluido: number;
     comisionPct: number;
+    dctoDisponibleConComisionUF: number;
     politicaComercial?: string | null;
   };
 }
@@ -115,6 +116,10 @@ const LiquidacionComisionPDF: React.FC<LiquidacionComisionPDFProps> = ({ datos }
         <View style={styles.row}>
           <Text style={styles.label}>COMISIÓN</Text>
           <Text style={styles.value}>{formatPct(datos.comisionPct)}</Text>
+        </View>
+        <View style={styles.row}>
+          <Text style={styles.label}>DCTO. DISPONIBLE CON COMISIÓN</Text>
+          <Text style={styles.value}>{formatUF(datos.dctoDisponibleConComisionUF)}</Text>
         </View>
       </View>
       {datos.politicaComercial && (

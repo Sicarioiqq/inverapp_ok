@@ -199,6 +199,14 @@ const CalculoComisionBroker: React.FC = () => {
   const ufDisponibleDcto = precioListaDepto * descuentoUnidadDisponible;
   const ufDisponibleBroker = ufDisponibleDcto - (comisionUF ?? 0);
 
+  // Cálculo Dcto. Disponible con Comisión según fórmula proporcionada
+  // =IF(D27="SI";(D23+V29)*D31;D23*D31)
+  // D27: incluyeSecundarios, D23: precioMinimo, V29: totalSecundariosValor, D31: comisión (decimal)
+  const comisionPct = commissionObj?.commission_rate ? commissionObj.commission_rate / 100 : 0;
+  const dctoDisponibleConComisionUF = incluyeSecundarios
+    ? (precioMinimo + totalSecundariosValor) * comisionPct
+    : precioMinimo * comisionPct;
+
   const handleGuardarYGenerarPDF = async () => {
     setSaving(true);
     // Guardar en Supabase
@@ -237,6 +245,7 @@ const CalculoComisionBroker: React.FC = () => {
       comisionIVAIncluido: comisionUF ?? 0,
       comisionPct: (commissionObj?.commission_rate ?? 0) / 100,
       politicaComercial: observacionesPolitica,
+      dctoDisponibleConComisionUF,
     }} />;
     const asPdf = pdf();
     asPdf.updateContainer(pdfDoc);
@@ -456,7 +465,7 @@ const CalculoComisionBroker: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="font-medium">Dcto. Disponible con Comisión:</span>
-                      <span className="font-bold text-green-600">{descuentoDisponibleConComisionPct.toFixed(2)}%</span>
+                      <span className="font-bold text-green-600">{dctoDisponibleConComisionUF.toFixed(2)} UF</span>
                     </div>
                   </div>
                   <div className="bg-white shadow rounded-lg p-4 mb-4">
