@@ -177,7 +177,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         .from('clients')
         .select('id, first_name, last_name, rut')
         .is('deleted_at', null)
-        .limit(100);
+        .limit(10000);
       if (clientsError) throw clientsError;
       for (const client of clients || []) {
         const fullName = `${client.first_name} ${client.last_name} ${client.rut}`.toLowerCase();
@@ -217,7 +217,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       const { data: reservations, error: reservationsError } = await supabase
         .from('reservations')
         .select('id, reservation_number, is_rescinded, client:clients(first_name, last_name), project:projects(name, stage), apartment_number')
-        .limit(100);
+        .limit(10000);
       if (reservationsError) throw reservationsError;
       for (const reservation of reservations || []) {
         const clientObj = Array.isArray(reservation.client) ? reservation.client[0] : reservation.client;
@@ -246,7 +246,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       const { data: apartments, error: apartmentsError } = await supabase
         .from('reservations')
         .select('id, reservation_number, is_rescinded, client:clients(first_name, last_name), project:projects(name, stage), apartment_number')
-        .limit(100);
+        .limit(10000);
       if (apartmentsError) throw apartmentsError;
       for (const apartment of apartments || []) {
         const clientObj = Array.isArray(apartment.client) ? apartment.client[0] : apartment.client;
