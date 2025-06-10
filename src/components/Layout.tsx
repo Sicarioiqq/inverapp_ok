@@ -167,135 +167,112 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
-    
     setIsSearching(true);
     setShowResults(true);
-    
     try {
       const results: SearchResult[] = [];
-      
-      // Search clients
+      const palabras = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
+      // Search clients (traer más resultados y filtrar en frontend)
       const { data: clients, error: clientsError } = await supabase
         .from('clients')
         .select('id, first_name, last_name, rut')
-        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,rut.ilike.%${searchTerm}%`)
         .is('deleted_at', null)
-        .limit(5);
-        
+        .limit(100);
       if (clientsError) throw clientsError;
-      
-      // For each client, find their reservations and reservation flows
       for (const client of clients || []) {
-        // Get reservations for this client
-        const { data: reservations } = await supabase
-          .from('reservations')
-          .select(`
-            id,
-            project:projects(name, stage)
-          `)
-          .eq('client_id', client.id)
-          .limit(1);
-          
-        if (reservations && reservations.length > 0) {
-          // Get reservation flow for this reservation
+        const fullName = `${client.first_name} ${client.last_name} ${client.rut}`.toLowerCase();
+        if (palabras.every(p => fullName.includes(p))) {
+          // Get reservations for this client
+          const { data: reservations } = await supabase
+            .from('reservations')
+            .select('id, project:projects(name, stage)')
+            .eq('client_id', client.id)
+            .limit(1);
+          let flowData = null;
+          let projectName = '';
+          let projectStage = '';
+          if (reservations && reservations.length > 0) {
+            const { data } = await supabase
+              .from('reservation_flows')
+              .select('id')
+              .eq('reservation_id', reservations[0].id)
+              .maybeSingle();
+            flowData = data;
+            const project = Array.isArray(reservations[0].project) ? reservations[0].project[0] : reservations[0].project;
+            if (project) {
+              projectName = project.name || '';
+              projectStage = project.stage || '';
+            }
+          }
+          results.push({
+            id: client.id,
+            type: 'client',
+            title: `${client.first_name} ${client.last_name}`,
+            subtitle: `RUT: ${client.rut}${projectName ? ` - ${projectName} ${projectStage}` : ''}`,
+            reservationFlowId: flowData?.id
+          });
+        }
+      }
+      // Search reservations (traer más resultados y filtrar en frontend)
+      const { data: reservations, error: reservationsError } = await supabase
+        .from('reservations')
+        .select('id, reservation_number, is_rescinded, client:clients(first_name, last_name), project:projects(name, stage), apartment_number')
+        .limit(100);
+      if (reservationsError) throw reservationsError;
+      for (const reservation of reservations || []) {
+        const clientObj = Array.isArray(reservation.client) ? reservation.client[0] : reservation.client;
+        const clientName = clientObj ? `${clientObj.first_name || ''} ${clientObj.last_name || ''}` : '';
+        const projectObj = Array.isArray(reservation.project) ? reservation.project[0] : reservation.project;
+        const projectName = projectObj ? projectObj.name || '' : '';
+        const projectStage = projectObj ? projectObj.stage || '' : '';
+        const combined = `${reservation.reservation_number} ${clientName} ${projectName} ${projectStage}`.toLowerCase();
+        if (palabras.every(p => combined.includes(p))) {
           const { data: flowData } = await supabase
             .from('reservation_flows')
             .select('id')
-            .eq('reservation_id', reservations[0].id)
+            .eq('reservation_id', reservation.id)
             .maybeSingle();
-            
           results.push({
-            id: client.id,
-            type: 'client',
-            title: `${client.first_name} ${client.last_name}`,
-            subtitle: `RUT: ${client.rut}${reservations[0].project ? ` - ${reservations[0].project.name} ${reservations[0].project.stage}` : ''}`,
-            reservationFlowId: flowData?.id
-          });
-        } else {
-          // Client without reservations
-          results.push({
-            id: client.id,
-            type: 'client',
-            title: `${client.first_name} ${client.last_name}`,
-            subtitle: `RUT: ${client.rut}`
+            id: reservation.id,
+            type: 'reservation',
+            title: `Reserva ${reservation.reservation_number}`,
+            subtitle: `${clientName} - ${projectName} ${projectStage}`,
+            reservationFlowId: flowData?.id,
+            is_rescinded: reservation.is_rescinded
           });
         }
       }
-      
-      // Search reservations by number
-      const { data: reservations, error: reservationsError } = await supabase
-        .from('reservations')
-        .select(`
-          id, 
-          reservation_number,
-          is_rescinded,
-          client:clients(first_name, last_name),
-          project:projects(name, stage),
-          apartment_number
-        `)
-        .ilike('reservation_number', `%${searchTerm}%`)
-        .limit(5);
-        
-      if (reservationsError) throw reservationsError;
-      
-      // For each reservation, get the reservation flow ID
-      for (const reservation of reservations || []) {
-        const { data: flowData } = await supabase
-          .from('reservation_flows')
-          .select('id')
-          .eq('reservation_id', reservation.id)
-          .maybeSingle();
-          
-        results.push({
-          id: reservation.id,
-          type: 'reservation',
-          title: `Reserva ${reservation.reservation_number}`,
-          subtitle: `${reservation.client.first_name} ${reservation.client.last_name} - ${reservation.project.name} ${reservation.project.stage}`,
-          reservationFlowId: flowData?.id,
-          is_rescinded: reservation.is_rescinded
-        });
-      }
-      
-      // Search by apartment number
+      // Search by apartment number (traer más resultados y filtrar en frontend)
       const { data: apartments, error: apartmentsError } = await supabase
         .from('reservations')
-        .select(`
-          id, 
-          reservation_number,
-          is_rescinded,
-          client:clients(first_name, last_name),
-          project:projects(name, stage),
-          apartment_number
-        `)
-        .ilike('apartment_number', `%${searchTerm}%`)
-        .limit(5);
-        
+        .select('id, reservation_number, is_rescinded, client:clients(first_name, last_name), project:projects(name, stage), apartment_number')
+        .limit(100);
       if (apartmentsError) throw apartmentsError;
-      
-      // For each apartment, get the reservation flow ID
       for (const apartment of apartments || []) {
-        const { data: flowData } = await supabase
-          .from('reservation_flows')
-          .select('id')
-          .eq('reservation_id', apartment.id)
-          .maybeSingle();
-          
-        // Only add if not already in results
-        if (!results.some(r => 
-          r.id === apartment.id && 
-          r.type === 'reservation'
-        )) {
-          results.push({
-            id: apartment.id,
-            type: 'apartment',
-            title: `Depto. ${apartment.apartment_number}`,
-            subtitle: `${apartment.project.name} ${apartment.project.stage} - ${apartment.client.first_name} ${apartment.client.last_name}`,
-            reservationFlowId: flowData?.id,
-            is_rescinded: apartment.is_rescinded
-          });
+        const clientObj = Array.isArray(apartment.client) ? apartment.client[0] : apartment.client;
+        const clientName = clientObj ? `${clientObj.first_name || ''} ${clientObj.last_name || ''}` : '';
+        const projectObj = Array.isArray(apartment.project) ? apartment.project[0] : apartment.project;
+        const projectName = projectObj ? projectObj.name || '' : '';
+        const projectStage = projectObj ? projectObj.stage || '' : '';
+        const combined = `${apartment.apartment_number} ${projectName} ${projectStage} ${clientName}`.toLowerCase();
+        if (palabras.every(p => combined.includes(p))) {
+          const { data: flowData } = await supabase
+            .from('reservation_flows')
+            .select('id')
+            .eq('reservation_id', apartment.id)
+            .maybeSingle();
+          if (!results.some(r => r.id === apartment.id && r.type === 'reservation')) {
+            results.push({
+              id: apartment.id,
+              type: 'apartment',
+              title: `Depto. ${apartment.apartment_number}`,
+              subtitle: `${projectName} ${projectStage} - ${clientName}`,
+              reservationFlowId: flowData?.id,
+              is_rescinded: apartment.is_rescinded
+            });
+          }
         }
       }
-      
       setSearchResults(results);
     } catch (error) {
       console.error('Search error:', error);
