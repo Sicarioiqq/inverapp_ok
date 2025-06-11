@@ -34,6 +34,7 @@ import BrokerQuotePage from './pages/public/BrokerQuotePage';
 import CotizadorSettings from './pages/settings/CotizadorSettings';
 import CotizadorAdmin from './pages/CotizadorAdmin';
 import CalculoComisionBroker from './pages/CalculoComisionBroker';
+import TareasAsignadas from './pages/TareasAsignadas';
 
 function App() {
   const { session, initialize } = useAuthStore();
@@ -62,6 +63,11 @@ function App() {
           <Route path="/notificaciones" element={
             <ProtectedRoute>
               <Notifications />
+            </ProtectedRoute>
+          } />
+          <Route path="/tareas-asignadas" element={
+            <ProtectedRoute>
+              <TareasAsignadas />
             </ProtectedRoute>
           } />
           <Route path="/clientes" element={
