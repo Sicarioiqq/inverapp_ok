@@ -28,7 +28,8 @@ import {
 } from 'lucide-react';
 import { Dialog } from '@headlessui/react';
 import FormularioONUPDF from '../../components/pdf/FormularioONUPDF';
-import { PDFDownloadLink } from '@react-pdf/renderer';
+import { PDFDownloadLink, pdf } from '@react-pdf/renderer';
+import DevolucionReservaPDF from '../../components/pdf/DevolucionReservaPDF';
 
 interface Task {
   id: string;
@@ -67,6 +68,7 @@ interface ReservationFlow {
       rut: string;
       direccion: string;
       comuna: string;
+      email?: string;
     };
     project: {
       name: string;
@@ -90,6 +92,8 @@ interface ReservationFlow {
     is_rescinded?: boolean;
     rescinded_at?: string;
     rescinded_reason?: string;
+    total_payment?: number;
+    seller_id?: string;
   };
   current_stage: {
     id: string;
@@ -202,7 +206,23 @@ const ReservationFlowDetail = () => {
   const [selectedVendedor, setSelectedVendedor] = useState<any>(null);
   const [onuPDFReady, setOnuPDFReady] = useState(false);
   const [showDocumentOptions, setShowDocumentOptions] = useState(false);
+  const [showDevolucionDialog, setShowDevolucionDialog] = useState(false);
   const comunaProyecto = flow?.reservation?.project?.commune;
+  const [devolucionForm, setDevolucionForm] = useState({
+    monto_pagado_uf: '',
+    monto_pagado_pesos: '',
+    monto_devolucion_pesos: '',
+    banco: '',
+    tipo_cuenta: '',
+    numero_cuenta: '',
+    correo_cliente: '',
+    causa_motivo: '',
+    comentarios: ''
+  });
+  const [vendedorNombre, setVendedorNombre] = useState('');
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  // 1. Estado para saber si ya existe devolución
+  const [devolucionExistente, setDevolucionExistente] = useState<any>(null);
 
   useEffect(() => {
     console.log('ReservationFlowDetail id:', id);
@@ -339,8 +359,7 @@ const ReservationFlowDetail = () => {
   const fetchFlow = async () => {
     try {
       setLoading(true);
-      
-      // First, fetch the basic reservation data
+      // Traer total_payment y seller_id
       const { data: reservationData, error: reservationError } = await supabase
         .from('reservation_flows')
         .select(`
@@ -353,7 +372,7 @@ const ReservationFlowDetail = () => {
             id,
             reservation_number,
             reservation_date,
-            client:clients(id, first_name, last_name, rut, direccion, comuna),
+            client:clients(id, first_name, last_name, rut, direccion, comuna, email),
             project:projects(name, stage, deadline, commune),
             apartment_number,
             broker:brokers(id, name),
@@ -367,7 +386,9 @@ const ReservationFlowDetail = () => {
             commission_projection_month,
             is_rescinded,
             rescinded_at,
-            rescinded_reason
+            rescinded_reason,
+            total_payment,
+            seller_id
           )
         `)
         .eq('id', id)
@@ -538,9 +559,9 @@ const ReservationFlowDetail = () => {
         reservation: reservationObj,
         stages
       });
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
+      setLoading(false);
+    } catch (err) {
+      setError('Ocurrió un error al cargar el flujo de reserva.');
       setLoading(false);
     }
   };
@@ -1168,6 +1189,24 @@ const ReservationFlowDetail = () => {
               <span className="font-medium">Formulario ONU</span>
               <ChevronRight className="h-5 w-5 text-blue-600" />
             </button>
+            <button
+              onClick={() => {
+                setShowDocumentOptions(false);
+                setShowDevolucionDialog(true);
+              }}
+              className="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg flex items-center justify-between"
+            >
+              <span className="font-medium flex items-center gap-2">
+                Devolución de Reserva
+                {devolucionExistente && (
+                  <>
+                    <Edit2 className="h-4 w-4 text-gray-400 ml-1" />
+                    <span className="text-xs text-gray-500">(creada)</span>
+                  </>
+                )}
+              </span>
+              <ChevronRight className="h-5 w-5 text-green-600" />
+            </button>
             {/* Aquí se pueden agregar más opciones de documentos en el futuro */}
           </div>
           <div className="mt-6 flex justify-end">
@@ -1182,6 +1221,55 @@ const ReservationFlowDetail = () => {
       </div>
     </Dialog>
   );
+
+  // 2. Al cargar el flujo, consultar si existe devolución y traer nombre del vendedor
+  useEffect(() => {
+    const fetchDevolucionYVendedor = async () => {
+      if (flow?.reservation?.id) {
+        // Consultar devolución existente
+        const { data: devolucion, error } = await supabase
+          .from('devolucion_reserva')
+          .select('*')
+          .eq('reservation_id', flow.reservation.id)
+          .maybeSingle();
+        if (!error && devolucion) {
+          setDevolucionExistente(devolucion);
+          setDevolucionForm({
+            monto_pagado_uf: devolucion.monto_pagado_uf || '',
+            monto_pagado_pesos: devolucion.monto_pagado_pesos || '',
+            monto_devolucion_pesos: devolucion.monto_devolucion_pesos || '',
+            banco: devolucion.banco || '',
+            tipo_cuenta: devolucion.tipo_cuenta || '',
+            numero_cuenta: devolucion.numero_cuenta || '',
+            causa_motivo: devolucion.causa_motivo || '',
+            comentarios: devolucion.comentarios || '',
+          });
+        } else {
+          setDevolucionExistente(null);
+          setDevolucionForm({
+            monto_pagado_uf: '',
+            monto_pagado_pesos: '',
+            monto_devolucion_pesos: '',
+            banco: '',
+            tipo_cuenta: '',
+            numero_cuenta: '',
+            causa_motivo: '',
+            comentarios: '',
+          });
+        }
+        // Traer nombre del vendedor
+        if (flow.reservation.seller_id) {
+          const { data: vendedor } = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', flow.reservation.seller_id)
+            .maybeSingle();
+          setVendedorNombre(vendedor ? `${vendedor.first_name} ${vendedor.last_name}` : '');
+        }
+      }
+    };
+    fetchDevolucionYVendedor();
+  }, [flow?.reservation?.id, flow?.reservation?.seller_id]);
 
   if (loading) {
     return (
@@ -1854,6 +1942,127 @@ const ReservationFlowDetail = () => {
 
         {/* Modal de opciones de documentos */}
         {renderDocumentOptionsModal()}
+
+        {showDevolucionDialog && (
+          <Dialog open={showDevolucionDialog} onClose={() => setShowDevolucionDialog(false)} className="fixed z-50 inset-0 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4">
+              <div className="fixed inset-0 bg-black opacity-30 z-0"></div>
+              <Dialog.Panel className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-auto p-6 z-10">
+                <Dialog.Title className="text-xl font-bold mb-4 text-green-700">Devolución de Reserva</Dialog.Title>
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!flow) return;
+                    const correo_cliente = flow.reservation.client.email;
+                    const devolucionPayload = {
+                      reservation_id: flow.reservation.id,
+                      cliente_nombre: `${flow.reservation.client.first_name} ${flow.reservation.client.last_name}`,
+                      cliente_rut: flow.reservation.client.rut,
+                      proyecto: flow.reservation.project.name,
+                      fecha_reserva: flow.reservation.reservation_date,
+                      numero_departamento: flow.reservation.apartment_number,
+                      valor_total: flow.reservation.total_payment,
+                      fecha_desistimiento: new Date().toISOString().slice(0,10),
+                      monto_pagado_uf: devolucionForm.monto_pagado_uf,
+                      monto_pagado_pesos: devolucionForm.monto_pagado_pesos,
+                      monto_cancelado: devolucionForm.monto_pagado_pesos,
+                      monto_devolucion_pesos: devolucionForm.monto_devolucion_pesos,
+                      ejecutivo_ventas_id: flow.reservation.seller_id,
+                      ejecutivo_ventas_nombre: vendedorNombre,
+                      causa_motivo: devolucionForm.causa_motivo,
+                      banco: devolucionForm.banco,
+                      tipo_cuenta: devolucionForm.tipo_cuenta,
+                      numero_cuenta: devolucionForm.numero_cuenta,
+                      correo_cliente,
+                      comentarios: devolucionForm.comentarios || null
+                    };
+                    if (devolucionExistente) {
+                      await supabase.from('devolucion_reserva').update(devolucionPayload).eq('id', devolucionExistente.id);
+                    } else {
+                      await supabase.from('devolucion_reserva').insert(devolucionPayload);
+                    }
+                    // Generar PDF y descargar automáticamente
+                    const doc = (
+                      <DevolucionReservaPDF
+                        cliente_nombre={`${flow.reservation.client.first_name} ${flow.reservation.client.last_name}`}
+                        cliente_rut={flow.reservation.client.rut}
+                        proyecto={flow.reservation.project.name}
+                        fecha_reserva={flow.reservation.reservation_date}
+                        numero_departamento={flow.reservation.apartment_number}
+                        valor_total={flow.reservation.total_payment}
+                        fecha_desistimiento={new Date().toISOString().slice(0,10)}
+                        monto_pagado_uf={devolucionForm.monto_pagado_uf}
+                        monto_pagado_pesos={devolucionForm.monto_pagado_pesos}
+                        monto_cancelado={devolucionForm.monto_pagado_pesos}
+                        monto_devolucion_pesos={devolucionForm.monto_devolucion_pesos}
+                        ejecutivo_ventas_nombre={vendedorNombre}
+                        causa_motivo={devolucionForm.causa_motivo}
+                        banco={devolucionForm.banco}
+                        tipo_cuenta={devolucionForm.tipo_cuenta}
+                        numero_cuenta={devolucionForm.numero_cuenta}
+                        correo_cliente={correo_cliente}
+                        comentarios={devolucionForm.comentarios}
+                        fecha_creacion={new Date().toLocaleDateString('es-CL')}
+                      />
+                    );
+                    const asPdf = pdf([]);
+                    asPdf.updateContainer(doc);
+                    const blob = await asPdf.toBlob();
+                    const url = URL.createObjectURL(blob);
+                    setPdfBlobUrl(url);
+                    setShowDevolucionDialog(false);
+                    // Descargar automáticamente
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Devolucion_Reserva_${flow.reservation.client.first_name}_${flow.reservation.client.last_name}.pdf`;
+                    a.click();
+                  }}
+                >
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium mb-1">Monto Pagado en UF</label>
+                    <input type="number" step="0.0001" className="w-full border rounded p-2" value={devolucionForm.monto_pagado_uf} onChange={e => setDevolucionForm(f => ({...f, monto_pagado_uf: e.target.value}))} required />
+                  </div>
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium mb-1">Monto Pagado en Pesos</label>
+                    <input type="number" step="0.01" className="w-full border rounded p-2" value={devolucionForm.monto_pagado_pesos} onChange={e => setDevolucionForm(f => ({...f, monto_pagado_pesos: e.target.value}))} required />
+                  </div>
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium mb-1">Causa o Motivos</label>
+                    <textarea className="w-full border rounded p-2" value={devolucionForm.causa_motivo} onChange={e => setDevolucionForm(f => ({...f, causa_motivo: e.target.value}))} required />
+                  </div>
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium mb-1">Monto Devolución en Pesos</label>
+                    <input type="number" step="0.01" className="w-full border rounded p-2" value={devolucionForm.monto_devolucion_pesos} onChange={e => setDevolucionForm(f => ({...f, monto_devolucion_pesos: e.target.value}))} required />
+                  </div>
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium mb-1">Banco</label>
+                    <input type="text" className="w-full border rounded p-2" value={devolucionForm.banco} onChange={e => setDevolucionForm(f => ({...f, banco: e.target.value}))} required />
+                  </div>
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium mb-1">Tipo Cuenta</label>
+                    <select className="w-full border rounded p-2" value={devolucionForm.tipo_cuenta} onChange={e => setDevolucionForm(f => ({...f, tipo_cuenta: e.target.value}))} required>
+                      <option value="">Seleccione</option>
+                      <option value="Vista">Vista</option>
+                      <option value="Cuenta Corriente">Cuenta Corriente</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium mb-1">N° Cuenta</label>
+                    <input type="text" className="w-full border rounded p-2" value={devolucionForm.numero_cuenta} onChange={e => setDevolucionForm(f => ({...f, numero_cuenta: e.target.value}))} required />
+                  </div>
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium mb-1">Comentarios (opcional)</label>
+                    <textarea className="w-full border rounded p-2" value={devolucionForm.comentarios} onChange={e => setDevolucionForm(f => ({...f, comentarios: e.target.value}))} />
+                  </div>
+                  <div className="flex justify-end gap-2 mt-6">
+                    <button type="button" className="px-4 py-2 bg-gray-200 rounded" onClick={() => setShowDevolucionDialog(false)}>Cancelar</button>
+                    <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Guardar y Generar PDF</button>
+                  </div>
+                </form>
+              </Dialog.Panel>
+            </div>
+          </Dialog>
+        )}
       </div>
     </Layout>
   );
