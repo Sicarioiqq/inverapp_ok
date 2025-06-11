@@ -10,6 +10,9 @@ const TareasAsignadas = () => {
   const [vista, setVista] = useState<'tabla' | 'kanban'>('tabla');
   const [userId, setUserId] = useState<string | null>(null);
   const [filtroAsignadoA, setFiltroAsignadoA] = useState<string>('');
+  const [mostrarHistorial, setMostrarHistorial] = useState(false);
+  const [sortBy, setSortBy] = useState<string>('assigned_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,36 +27,57 @@ const TareasAsignadas = () => {
     const fetchTareasYComentarios = async () => {
       if (!userId) return;
       setLoading(true);
-      // Paso 1: Traer tareas asignadas
-      const { data: tareasData, error: tareasError } = await supabase
-        .from('task_assignments')
-        .select(`*,
-          user:profiles!user_id(id, first_name, last_name),
-          task:sale_flow_tasks(id, name),
-          reservation_flow:reservation_flows(
-            reservation_id,
-            status,
-            reservations(
-              reservation_number,
-              apartment_number,
-              client:clients(first_name, last_name),
-              project:projects(name, stage)
-            )
-          )
-        `)
-        .eq('assigned_by', userId);
-      let tareasFiltradas = Array.isArray(tareasData) ? tareasData.filter((t: any) => t && t.user_id && t.user_id !== userId) : [];
-      // Paso 2: Traer comentarios de todas las tareas visibles
-      const pares = tareasFiltradas.map(t => ({ reservation_flow_id: t.reservation_flow_id, task_id: t.task_id }));
+      let tareasFiltradas: any[] = [];
       let comentarios: any[] = [];
       let rftasks: any[] = [];
+      if (!mostrarHistorial) {
+        // Tareas activas (asignadas)
+        const { data: tareasData } = await supabase
+          .from('task_assignments')
+          .select(`*,
+            user:profiles!user_id(id, first_name, last_name),
+            task:sale_flow_tasks(id, name),
+            reservation_flow:reservation_flows(
+              reservation_id,
+              status,
+              reservations(
+                reservation_number,
+                apartment_number,
+                client:clients(first_name, last_name),
+                project:projects(name, stage)
+              )
+            )
+          `)
+          .eq('assigned_by', userId);
+        tareasFiltradas = Array.isArray(tareasData) ? tareasData.filter((t: any) => t && t.user_id && t.user_id !== userId) : [];
+      } else {
+        // Historial de tareas completadas
+        const { data: tareasData } = await supabase
+          .from('task_assignment_history')
+          .select(`*,
+            user:profiles!user_id(id, first_name, last_name),
+            task:sale_flow_tasks(id, name),
+            reservation_flow:reservation_flows(
+              reservation_id,
+              status,
+              reservations(
+                reservation_number,
+                apartment_number,
+                client:clients(first_name, last_name),
+                project:projects(name, stage)
+              )
+            )
+          `)
+          .eq('assigned_by', userId);
+        tareasFiltradas = Array.isArray(tareasData) ? tareasData.filter((t: any) => t && t.user_id) : [];
+      }
+      // Paso 2: Traer comentarios de todas las tareas visibles
+      const pares = tareasFiltradas.map(t => ({ reservation_flow_id: t.reservation_flow_id, task_id: t.task_id }));
       if (pares.length > 0) {
-        // Traer todos los reservation_flow_tasks que correspondan
         const { data: rftasksData } = await supabase
           .from('reservation_flow_tasks')
           .select('id, reservation_flow_id, task_id');
         rftasks = rftasksData || [];
-        // Mapear los ids de reservation_flow_tasks que corresponden a los pares
         const idsRFT = rftasks
           ? rftasks.filter((rf: any) => pares.some(p => p.reservation_flow_id === rf.reservation_flow_id && p.task_id === rf.task_id)).map((rf: any) => rf.id)
           : [];
@@ -67,7 +91,6 @@ const TareasAsignadas = () => {
       }
       // Merge: agregar los comentarios a cada tarea
       const tareasConComentarios = tareasFiltradas.map(t => {
-        // Buscar el reservation_flow_task_id correspondiente
         const rft = rftasks?.find(rf => rf.reservation_flow_id === t.reservation_flow_id && rf.task_id === t.task_id);
         const comments = rft ? comentarios.filter(c => c.reservation_flow_task_id === rft.id) : [];
         return { ...t, comments };
@@ -76,7 +99,7 @@ const TareasAsignadas = () => {
       setLoading(false);
     };
     fetchTareasYComentarios();
-  }, [userId]);
+  }, [userId, mostrarHistorial]);
 
   const calcularDias = (fecha: string) => {
     const asignada = new Date(fecha);
@@ -99,6 +122,32 @@ const TareasAsignadas = () => {
   const usuariosAsignados = Array.from(new Set(tareas.map(t => t.user ? `${t.user.first_name} ${t.user.last_name}` : ''))).filter(Boolean);
   // Filtrar tareas según filtroAsignadoA
   const tareasFiltradasPorUsuario = filtroAsignadoA ? tareas.filter(t => t.user && `${t.user.first_name} ${t.user.last_name}` === filtroAsignadoA) : tareas;
+
+  // Agregar campo 'dias' a cada tarea para ordenamiento
+  const tareasConDias = tareasFiltradasPorUsuario.map((t) => {
+    const dias = t.assigned_at ? calcularDias(t.assigned_at) : -1;
+    return { ...t, dias };
+  });
+
+  const handleSort = (col: string) => {
+    if (sortBy === col) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(col);
+      setSortOrder('asc');
+    }
+  };
+
+  const tareasOrdenadas = [...tareasConDias].sort((a, b) => {
+    const valA = a[sortBy] ?? '';
+    const valB = b[sortBy] ?? '';
+    if (typeof valA === 'number' && typeof valB === 'number') {
+      return sortOrder === 'asc' ? valA - valB : valB - valA;
+    }
+    if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+    if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   return (
     <LayoutPage>
@@ -125,6 +174,12 @@ const TareasAsignadas = () => {
               {vista === 'tabla' ? <Layout className="h-5 w-5" /> : <List className="h-5 w-5" />}
               {vista === 'tabla' ? 'Vista Kanban' : 'Vista Tabla'}
             </button>
+            <button
+              onClick={() => setMostrarHistorial(v => !v)}
+              className={`flex items-center gap-2 px-3 py-2 rounded ${mostrarHistorial ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 hover:bg-gray-200'}`}
+            >
+              {mostrarHistorial ? 'Ver tareas activas' : 'Ver completadas'}
+            </button>
           </div>
         </div>
         {loading ? (
@@ -136,18 +191,18 @@ const TareasAsignadas = () => {
             <table className="min-w-full divide-y divide-gray-200 bg-white rounded shadow">
               <thead>
                 <tr>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Tarea</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Asignado a</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Estado</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Reserva</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Cliente</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Proyecto</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Fecha</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Días</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 cursor-pointer" onClick={() => handleSort('task_id')}>Tarea {sortBy === 'task_id' && (sortOrder === 'asc' ? '▲' : '▼')}</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 cursor-pointer" onClick={() => handleSort('user_id')}>Asignado a {sortBy === 'user_id' && (sortOrder === 'asc' ? '▲' : '▼')}</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 cursor-pointer" onClick={() => handleSort('estado')}>Estado {sortBy === 'estado' && (sortOrder === 'asc' ? '▲' : '▼')}</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 cursor-pointer" onClick={() => handleSort('reservation_number')}>Reserva {sortBy === 'reservation_number' && (sortOrder === 'asc' ? '▲' : '▼')}</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 cursor-pointer" onClick={() => handleSort('cliente')}>Cliente {sortBy === 'cliente' && (sortOrder === 'asc' ? '▲' : '▼')}</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 cursor-pointer" onClick={() => handleSort('proyectoUnidad')}>Proyecto {sortBy === 'proyectoUnidad' && (sortOrder === 'asc' ? '▲' : '▼')}</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 cursor-pointer" onClick={() => handleSort('assigned_at')}>Fecha {sortBy === 'assigned_at' && (sortOrder === 'asc' ? '▲' : '▼')}</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 cursor-pointer" onClick={() => handleSort('dias')}>Días {sortBy === 'dias' && (sortOrder === 'asc' ? '▲' : '▼')}</th>
                 </tr>
               </thead>
               <tbody>
-                {tareasFiltradasPorUsuario.map((t) => {
+                {tareasOrdenadas.map((t) => {
                   const reservationFlow = Array.isArray(t.reservation_flow) ? t.reservation_flow[0] : t.reservation_flow;
                   const reservation = reservationFlow && reservationFlow.reservations ? (Array.isArray(reservationFlow.reservations) ? reservationFlow.reservations[0] : reservationFlow.reservations) : null;
                   const client = reservation && reservation.client ? (Array.isArray(reservation.client) ? reservation.client[0] : reservation.client) : null;
@@ -158,6 +213,9 @@ const TareasAsignadas = () => {
                   const projectName = project ? project.name : '-';
                   const unitNumber = reservation?.apartment_number || '';
                   const proyectoUnidad = unitNumber ? `${projectName} - ${unitNumber}` : projectName;
+                  const dias = t.dias >= 0 ? t.dias : '-';
+                  const cliente = client ? `${client.first_name} ${client.last_name}` : '-';
+                  const reservation_number = reservation?.reservation_number || '-';
                   return (
                     <tr
                       key={t.id}
@@ -170,11 +228,11 @@ const TareasAsignadas = () => {
                       <td className="px-3 py-2">
                         <span className={`inline-block rounded px-2 py-1 text-xs font-semibold ${estadoVisual.color}`}>{estadoVisual.label}</span>
                       </td>
-                      <td className="px-3 py-2">{reservation?.reservation_number || '-'}</td>
-                      <td className="px-3 py-2">{client ? `${client.first_name} ${client.last_name}` : '-'}</td>
+                      <td className="px-3 py-2">{reservation_number}</td>
+                      <td className="px-3 py-2">{cliente}</td>
                       <td className="px-3 py-2">{proyectoUnidad}</td>
                       <td className="px-3 py-2">{t.assigned_at ? new Date(t.assigned_at).toLocaleDateString('es-CL', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-'}</td>
-                      <td className="px-3 py-2">{t.assigned_at ? calcularDias(t.assigned_at) : '-'}</td>
+                      <td className="px-3 py-2">{dias}</td>
                     </tr>
                   );
                 })}
@@ -215,7 +273,7 @@ const TareasAsignadas = () => {
                     <div className="text-xs text-gray-700"><b>Reserva:</b> {reservation?.reservation_number || '-'}</div>
                     <div className="text-xs text-gray-700"><b>Cliente:</b> {client ? `${client.first_name} ${client.last_name}` : '-'}</div>
                     <div className="text-xs text-gray-700"><b>Proyecto:</b> {proyectoUnidad}</div>
-                    <div className="text-xs text-gray-700"><b>Días:</b> {t.assigned_at ? calcularDias(t.assigned_at) : '-'}</div>
+                    <div className="text-xs text-gray-700"><b>Días:</b> {t.dias >= 0 ? t.dias : '-'}</div>
                   </div>
                   {comments.length > 0 && (
                     <div className="mt-2 text-xs text-gray-600 col-span-3">
