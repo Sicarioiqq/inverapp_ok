@@ -14,7 +14,8 @@ import {
   CreditCard,
   CheckSquare,
   ShieldCheck,
-  ShoppingBasket
+  ShoppingBasket,
+  ListChecks
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
@@ -154,6 +155,11 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, o
       icon: <PackageSearch className="h-5 w-5" />, // Ícono para Stock
       path: '/informes/stock', // Ruta que definiste en App.tsx
     },
+        {
+          title: 'Cotizaciones',
+          icon: <ListChecks className="h-5 w-5" />, // Ícono para Cotizaciones
+          path: '/informes/cotizaciones',
+        },
       ],
     },
     {

@@ -860,7 +860,7 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
   const tiposBienSecundarios = Array.from(new Set(secundarios.map(u => u.tipo_bien).filter(Boolean)));
 
   // Exportar a Excel
-  const exportarStockExcel = () => {
+  const exportarStockExcel = async () => {
     // Departamentos
     const deptosData = departamentosFiltrados.map(u => {
       const valorLista = u.valor_lista || 0;
@@ -886,6 +886,7 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
         'Valor con Descuento (UF)': valorConDescuentoBroker,
       };
     });
+
     // Secundarios
     const secundariosData = secundariosFiltrados.map(u => ({
       Proyecto: u.proyecto_nombre,
@@ -896,12 +897,42 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
       'Sup. total': u.sup_total,
       'Valor lista (UF)': u.valor_lista || 0,
     }));
+
+    // Obtener políticas comerciales
+    const { data: policiesData, error: policiesError } = await supabase
+      .from('project_commercial_policies')
+      .select('*');
+
+    if (policiesError) {
+      console.error('Error al obtener políticas comerciales:', policiesError);
+      return;
+    }
+
+    // Datos de políticas comerciales
+    const politicasData = policiesData.map(p => {
+      const fechaTope = p.fecha_tope ? new Date(p.fecha_tope) : null;
+      const hoy = new Date();
+      const cuotas = fechaTope ? Math.max(1, Math.ceil((fechaTope.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24 * 30))) : 0;
+
+      const row = {
+        PROYECTO: p.project_name,
+        'MONTO RESERVA': p.monto_reserva_pesos || 0,
+        CUOTAS: cuotas,
+        COMUNA: p.comuna || '',
+        OBSERVACIONES: p.observaciones || ''
+      };
+
+      return row;
+    });
+
     // Crear libro
     const wb = XLSX.utils.book_new();
     const wsDeptos = XLSX.utils.json_to_sheet(deptosData);
     XLSX.utils.book_append_sheet(wb, wsDeptos, 'Departamentos');
     const wsSecundarios = XLSX.utils.json_to_sheet(secundariosData);
     XLSX.utils.book_append_sheet(wb, wsSecundarios, 'Secundarios');
+    const wsPoliticas = XLSX.utils.json_to_sheet(politicasData);
+    XLSX.utils.book_append_sheet(wb, wsPoliticas, 'Política Comercial');
     XLSX.writeFile(wb, 'stock_completo.xlsx');
   };
   

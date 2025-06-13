@@ -35,6 +35,7 @@ import CotizadorSettings from './pages/settings/CotizadorSettings';
 import CotizadorAdmin from './pages/CotizadorAdmin';
 import CalculoComisionBroker from './pages/CalculoComisionBroker';
 import TareasAsignadas from './pages/TareasAsignadas';
+import QuotationsReport from './pages/reports/QuotationsReport';
 
 function App() {
   const { session, initialize } = useAuthStore();
@@ -178,6 +179,11 @@ function App() {
           <Route path="/informes/stock" element={
             <ProtectedRoute>
               <StockReportPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/informes/cotizaciones" element={
+            <ProtectedRoute>
+              <QuotationsReport />
             </ProtectedRoute>
           } />
           <Route path="/informes/consolidado-brokers" element={

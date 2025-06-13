@@ -6,7 +6,8 @@ import { usePopup } from '../../contexts/PopupContext';
 import Layout from '../../components/Layout';
 import PromotionPopup from '../../components/PromotionPopup';
 import BrokerCommissionPopup from '../../components/BrokerCommissionPopup';
-import { ArrowLeft, Save, Loader2, Search, UserPlus } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Search, UserPlus, X } from 'lucide-react';
+import QuotationsReport from '../reports/QuotationsReport';
 
 interface Client {
   id: string;
@@ -74,6 +75,8 @@ const ReservationForm = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [defaultSeller, setDefaultSeller] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [showQuotationsModal, setShowQuotationsModal] = useState(false);
+  const [selectedCommissionUF, setSelectedCommissionUF] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<ReservationFormData>({
     reservation_number: '',
@@ -148,9 +151,9 @@ const ReservationForm = () => {
       if (data) {
         setFormData(prev => ({
           ...prev,
-          seller_id: data.user_id
+          seller_id: data.user_id || ''
         }));
-        setDefaultSeller(data.user_id);
+        setDefaultSeller(data.user_id || '');
       }
     } catch (err: any) {
       setError(err.message);
@@ -587,6 +590,27 @@ const ReservationForm = () => {
     );
   };
 
+  // Función para copiar datos de cotización al formulario
+  const handleSelectCotizacion = (cotizacion: any) => {
+    // Buscar broker por nombre
+    const broker = brokers.find(b => b.name.toLowerCase() === (cotizacion.broker_name || '').toLowerCase());
+    // Buscar vendedor por nombre y apellido
+    const vendedor = sellers.find(s =>
+      `${s.first_name} ${s.last_name}`.toLowerCase() === (cotizacion.usuario_nombre || cotizacion.usuario_id || '').toLowerCase()
+    );
+    setFormData(prev => ({
+      ...prev,
+      apartment_number: cotizacion.unidad_seleccionada || '',
+      apartment_price: cotizacion.precio_lista_unidad || 0,
+      column_discount: cotizacion.descuento_disponible ? cotizacion.descuento_disponible * 100 : 0,
+      is_with_broker: !!broker,
+      broker_id: broker ? broker.id : null,
+      seller_id: vendedor ? vendedor.id : null
+    }));
+    setSelectedCommissionUF(cotizacion.comision_uf || null);
+    setShowQuotationsModal(false);
+  };
+
   if (!selectedClient) {
     return (
       <Layout>
@@ -665,18 +689,34 @@ const ReservationForm = () => {
 
   return (
     <Layout>
-      <div className="max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+      <div className="max-w-4xl mx-auto p-4">
+        {/* MODAL DE COTIZACIONES */}
+        {showQuotationsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white rounded-lg shadow-lg max-w-5xl w-full relative p-6">
+              <button
+                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+                onClick={() => setShowQuotationsModal(false)}
+              >
+                <X className="h-6 w-6" />
+              </button>
+              <h2 className="text-2xl font-bold mb-4">Cotizaciones</h2>
+              <div className="max-h-[70vh] overflow-y-auto">
+                <QuotationsReport noLayout onSelectCotizacion={handleSelectCotizacion} />
+              </div>
+            </div>
+          </div>
+        )}
+        {/* CABECERA SUPERIOR */}
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Nueva Reserva</h1>
           <button
-            onClick={() => navigate('/reservas')}
-            className="flex items-center text-gray-600 hover:text-gray-900"
+            type="button"
+            onClick={() => setShowQuotationsModal(true)}
+            className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-700 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
           >
-            <ArrowLeft className="h-5 w-5 mr-2" />
-            Volver
+            Ver Cotizaciones
           </button>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            {id ? 'Editar Reserva' : 'Nueva Reserva'}
-          </h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
