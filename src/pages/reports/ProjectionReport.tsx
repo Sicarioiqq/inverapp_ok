@@ -125,6 +125,7 @@ const ProjectionReport: React.FC = () => {
           LEFT JOIN broker_commissions bc ON r.id = bc.reservation_id
           WHERE r.commission_projection_month >= '${startDate}'::date
           AND r.commission_projection_month <= '${endDate}'::date
+          AND (r.is_rescinded = false OR r.is_rescinded IS NULL)
         `
       });
 
