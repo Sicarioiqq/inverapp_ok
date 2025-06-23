@@ -24,7 +24,8 @@ const USER_TYPES = [
   'KAM',
   'Gestor de Pagos',
   'Supervisor',
-  'Operaciones'
+  'Operaciones',
+  'Gestor de Crédito'
 ];
 
 const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
@@ -152,7 +153,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
             is_seller: formData.is_seller,
             user_type: formData.user_type,
             avatar_url: avatar_url,
-            Rut: formData.rut
+            rut: formData.rut
           })
           .eq('id', user.id);
 
@@ -182,7 +183,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
               position: formData.position,
               is_seller: formData.is_seller,
               user_type: formData.user_type,
-              Rut: formData.rut
+              rut: formData.rut
             }
           }
         });
@@ -209,7 +210,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
               is_seller: formData.is_seller,
               user_type: formData.user_type,
               avatar_url,
-              Rut: formData.rut
+              rut: formData.rut
             });
 
           if (profileError) throw profileError;

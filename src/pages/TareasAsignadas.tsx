@@ -34,7 +34,7 @@ const TareasAsignadas = () => {
         // Tareas activas (asignadas)
         const { data: tareasData } = await supabase
           .from('task_assignments')
-          .select(`*,
+          .select(`*, assigned_at,
             user:profiles!user_id(id, first_name, last_name),
             task:sale_flow_tasks(id, name),
             reservation_flow:reservation_flows(
@@ -54,7 +54,7 @@ const TareasAsignadas = () => {
         // Historial de tareas completadas
         const { data: tareasData } = await supabase
           .from('task_assignment_history')
-          .select(`*,
+          .select(`*, assigned_at,
             user:profiles!user_id(id, first_name, last_name),
             task:sale_flow_tasks(id, name),
             reservation_flow:reservation_flows(
@@ -68,15 +68,16 @@ const TareasAsignadas = () => {
               )
             )
           `)
-          .eq('assigned_by', userId);
+          // .eq('assigned_by', userId); // Descomentar si el filtro es necesario
         tareasFiltradas = Array.isArray(tareasData) ? tareasData.filter((t: any) => t && t.user_id) : [];
+          console.log('Tareas completadas (historial):', tareasFiltradas);
       }
       // Paso 2: Traer comentarios de todas las tareas visibles
       const pares = tareasFiltradas.map(t => ({ reservation_flow_id: t.reservation_flow_id, task_id: t.task_id }));
       if (pares.length > 0) {
         const { data: rftasksData } = await supabase
           .from('reservation_flow_tasks')
-          .select('id, reservation_flow_id, task_id');
+          .select('id, reservation_flow_id, task_id, status');
         rftasks = rftasksData || [];
         const idsRFT = rftasks
           ? rftasks.filter((rf: any) => pares.some(p => p.reservation_flow_id === rf.reservation_flow_id && p.task_id === rf.task_id)).map((rf: any) => rf.id)
@@ -89,11 +90,13 @@ const TareasAsignadas = () => {
           comentarios = commentsData || [];
         }
       }
-      // Merge: agregar los comentarios a cada tarea
+      // Merge: agregar los comentarios y el estado real a cada tarea
       const tareasConComentarios = tareasFiltradas.map(t => {
         const rft = rftasks?.find(rf => rf.reservation_flow_id === t.reservation_flow_id && rf.task_id === t.task_id);
         const comments = rft ? comentarios.filter(c => c.reservation_flow_task_id === rft.id) : [];
-        return { ...t, comments };
+        // Agregar estado real
+        const real_status = rft ? rft.status : undefined;
+        return { ...t, comments, real_status };
       });
       setTareas(tareasConComentarios);
       setLoading(false);
@@ -120,8 +123,31 @@ const TareasAsignadas = () => {
 
   // Obtener lista de usuarios únicos asignados
   const usuariosAsignados = Array.from(new Set(tareas.map(t => t.user ? `${t.user.first_name} ${t.user.last_name}` : ''))).filter(Boolean);
-  // Filtrar tareas según filtroAsignadoA
-  const tareasFiltradasPorUsuario = filtroAsignadoA ? tareas.filter(t => t.user && `${t.user.first_name} ${t.user.last_name}` === filtroAsignadoA) : tareas;
+  // Filtrar tareas según filtroAsignadoA y mostrarHistorial
+  let tareasFiltradasPorUsuario = filtroAsignadoA ? tareas.filter(t => t.user && `${t.user.first_name} ${t.user.last_name}` === filtroAsignadoA) : tareas;
+
+  const cincoDiasMs = 5 * 24 * 60 * 60 * 1000;
+  const ahora = new Date();
+
+  if (mostrarHistorial) {
+    // Solo completadas de los últimos 5 días
+    tareasFiltradasPorUsuario = tareasFiltradasPorUsuario.filter(t => {
+      if (!t.completed_at) return false;
+      const fechaCompleto = new Date(t.completed_at);
+      return (ahora.getTime() - fechaCompleto.getTime()) <= cincoDiasMs;
+    });
+  } else {
+    // Pendientes + completadas de los últimos 5 días
+    tareasFiltradasPorUsuario = tareasFiltradasPorUsuario.filter(t => {
+      if (t.real_status === 'completed') {
+        if (!t.completed_at) return false;
+        const fechaCompleto = new Date(t.completed_at);
+        return (ahora.getTime() - fechaCompleto.getTime()) <= cincoDiasMs;
+      }
+      // Mostrar todas las pendientes
+      return t.real_status !== 'blocked';
+    });
+  }
 
   // Agregar campo 'dias' a cada tarea para ordenamiento
   const tareasConDias = tareasFiltradasPorUsuario.map((t) => {
@@ -207,8 +233,8 @@ const TareasAsignadas = () => {
                   const reservation = reservationFlow && reservationFlow.reservations ? (Array.isArray(reservationFlow.reservations) ? reservationFlow.reservations[0] : reservationFlow.reservations) : null;
                   const client = reservation && reservation.client ? (Array.isArray(reservation.client) ? reservation.client[0] : reservation.client) : null;
                   const project = reservation && reservation.project ? (Array.isArray(reservation.project) ? reservation.project[0] : reservation.project) : null;
-                  const estado = reservationFlow?.status || '-';
-                  const estadoVisual = getEstadoVisual(estado);
+                  const estadoTarea = t.real_status || reservationFlow?.status || '-';
+                  const estadoVisual = getEstadoVisual(estadoTarea);
                   const comments = t.comments || [];
                   const projectName = project ? project.name : '-';
                   const unitNumber = reservation?.apartment_number || '';
@@ -246,12 +272,15 @@ const TareasAsignadas = () => {
               const reservation = reservationFlow && reservationFlow.reservations ? (Array.isArray(reservationFlow.reservations) ? reservationFlow.reservations[0] : reservationFlow.reservations) : null;
               const client = reservation && reservation.client ? (Array.isArray(reservation.client) ? reservation.client[0] : reservation.client) : null;
               const project = reservation && reservation.project ? (Array.isArray(reservation.project) ? reservation.project[0] : reservation.project) : null;
-              const estado = reservationFlow?.status || '-';
-              const estadoVisual = getEstadoVisual(estado);
+              const estadoTarea = t.real_status || reservationFlow?.status || '-';
+              const estadoVisual = getEstadoVisual(estadoTarea);
               const comments = t.comments || [];
               const projectName = project ? project.name : '-';
               const unitNumber = reservation?.apartment_number || '';
               const proyectoUnidad = unitNumber ? `${projectName} - ${unitNumber}` : projectName;
+              // Nuevo: fallback para días
+              const dias = t.assigned_at ? calcularDias(t.assigned_at) : (t.created_at ? calcularDias(t.created_at) : -1);
+              console.log('Tarea Kanban:', t); // Depuración
               return (
                 <div
                   key={t.id}
@@ -273,7 +302,7 @@ const TareasAsignadas = () => {
                     <div className="text-xs text-gray-700"><b>Reserva:</b> {reservation?.reservation_number || '-'}</div>
                     <div className="text-xs text-gray-700"><b>Cliente:</b> {client ? `${client.first_name} ${client.last_name}` : '-'}</div>
                     <div className="text-xs text-gray-700"><b>Proyecto:</b> {proyectoUnidad}</div>
-                    <div className="text-xs text-gray-700"><b>Días:</b> {t.dias >= 0 ? t.dias : '-'}</div>
+                    <div className="text-xs text-gray-700"><b>Días:</b> {dias >= 0 ? dias : '-'}</div>
                   </div>
                   {comments.length > 0 && (
                     <div className="mt-2 text-xs text-gray-600 col-span-3">

@@ -8,6 +8,7 @@ import FlowConfig from './FlowConfig';
 import PaymentFlowConfig from './PaymentFlowConfig';
 import CotizadorSettings from './CotizadorSettings';
 import BrokerTokenGenerator from './components/BrokerTokenGenerator';
+import PermissionsConfig from './components/PermissionsConfig';
 
 type Tab = 'projects' | 'agencies' | 'users' | 'permissions' | 'flow' | 'payment-flow' | 'cotizador' | 'broker-tokens';
 
@@ -88,7 +89,7 @@ const Settings = () => {
           {activeTab === 'users' && <UsersComponent />}
           {activeTab === 'flow' && <FlowConfig />}
           {activeTab === 'payment-flow' && <PaymentFlowConfig />}
-          {activeTab === 'permissions' && <div>Contenido de Permisos</div>}
+          {activeTab === 'permissions' && <PermissionsConfig />}
           {activeTab === 'cotizador' && <CotizadorSettings />}
           {activeTab === 'broker-tokens' && <BrokerTokenGenerator />}
         </div>

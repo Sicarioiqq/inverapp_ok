@@ -59,7 +59,7 @@ const Users = () => {
         is_seller: profile.is_seller || false,
         user_type: profile.user_type || '',
         avatar_url: profile.avatar_url,
-        rut: profile.Rut || ''
+        rut: profile.rut || ''
       }));
 
       setUsers(formattedUsers);
@@ -90,7 +90,7 @@ const Users = () => {
         is_seller: profile.is_seller || false,
         user_type: profile.user_type || '',
         avatar_url: profile.avatar_url,
-        rut: profile.Rut || ''
+        rut: profile.rut || ''
       }));
 
       setUsers(formattedUsers);
