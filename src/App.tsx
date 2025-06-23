@@ -36,6 +36,7 @@ import CotizadorAdmin from './pages/CotizadorAdmin';
 import CalculoComisionBroker from './pages/CalculoComisionBroker';
 import TareasAsignadas from './pages/TareasAsignadas';
 import QuotationsReport from './pages/reports/QuotationsReport';
+import Operaciones from './pages/Operaciones';
 
 function App() {
   const { session, initialize } = useAuthStore();
@@ -214,6 +215,11 @@ function App() {
           <Route path="/calculo-comision-broker/:unidadId" element={
             <ProtectedRoute>
               <CalculoComisionBroker />
+            </ProtectedRoute>
+          } />
+          <Route path="/operaciones" element={
+            <ProtectedRoute>
+              <Operaciones />
             </ProtectedRoute>
           } />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

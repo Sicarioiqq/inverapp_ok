@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import MiniSidebar from './MiniSidebar';
 import { useAuthStore } from '../stores/authStore';
 import { useUFStore } from '../stores/ufStore';
 import { supabase, checkSupabaseConnection } from '../lib/supabase';
-import { Bell, Search, Menu, UserCircle, ClipboardCheck } from 'lucide-react';
+import { Bell, Search, Menu, UserCircle, ClipboardCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import SearchResults from './SearchResults';
 
 interface LayoutProps {
@@ -301,11 +302,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setShowResults(false);
   };
 
+  // Sidebar toggle handler
+  const handleSidebarToggle = () => setSidebarOpen((open) => !open);
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       {/* Sidebar - Fixed position */}
-      <div className="fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:h-screen lg:overflow-y-auto">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className={`fixed inset-y-0 left-0 z-40 bg-white shadow-lg transform transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-64' : 'w-14'} lg:static lg:h-screen lg:overflow-y-auto`}>
+        {sidebarOpen ? <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} /> : <MiniSidebar />}
       </div>
 
       {/* Mobile sidebar overlay */}
@@ -321,21 +325,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Navbar */}
         <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-20">
           <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
+            <div className="flex justify-between h-16 items-center">
               <div className="flex items-center">
+                {/* Botón para colapsar/expandir sidebar (siempre visible) */}
                 <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="p-2 rounded-md text-gray-400 lg:hidden hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                  onClick={handleSidebarToggle}
+                  className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
                 >
-                  <Menu className="h-6 w-6" />
+                  {sidebarOpen ? <ChevronLeft className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
                 </button>
-
-                {/* Logo that links to dashboard */}
+                {/* Logo que lleva al dashboard */}
                 <button
                   onClick={() => navigate('/dashboard')}
                   className="flex items-center space-x-2 cursor-pointer ml-2 lg:ml-0"
                 >
-                  
+                  {/* Aquí podrías poner el logo si lo deseas */}
                 </button>
               </div>
 

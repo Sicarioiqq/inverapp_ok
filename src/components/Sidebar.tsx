@@ -31,11 +31,136 @@ interface MenuItem {
   isExpanded?: boolean;
 }
 
+export const menuItems: MenuItem[] = [
+  {
+    title: 'Clientes',
+    icon: <Users className="h-5 w-5" />,
+    path: '/clientes',
+  },
+  {
+    title: 'Reservas',
+    icon: <CalendarCheck className="h-5 w-5" />,
+    path: '/reservas',
+  },
+  {
+    title: 'Flujo Reservas',
+    icon: <ClipboardList className="h-5 w-5" />,
+    path: '/flujo-reservas',
+  },
+  {
+    title: 'Seguimiento',
+    icon: <ClipboardList className="h-5 w-5" />,
+    path: '/seguimiento',
+    adminOnly: true,
+  },
+  {
+    title: 'Aprobaciones',
+    icon: <ShieldCheck className="h-5 w-5" />,
+    path: '/aprobaciones',
+    adminOnly: true,
+    submenu: [
+      {
+        title: 'Liquidaciones',
+        icon: <CheckSquare className="h-5 w-5" />,
+        path: '/informes/aprobacion-liquidaciones',
+      },
+    ],
+  },
+  {
+    title: 'Operaciones',
+    icon: <ClipboardList className="h-5 w-5" />,
+    path: '/operaciones',
+  },
+  {
+    title: 'Brokers',
+    icon: <Building2 className="h-5 w-5" />,
+    path: '/brokers',
+  },
+  {
+    title: 'Pagos',
+    icon: <Wallet className="h-5 w-5" />,
+    path: '/pagos',
+  },
+  {
+    title: 'Cotizador',
+    icon: <ShoppingBasket className="h-5 w-5" />,
+    path: '/cotizador',
+  },
+  {
+    title: 'Informes',
+    icon: <BarChart3 className="h-5 w-5" />,
+    path: '/informes',
+    submenu: [
+      {
+        title: 'Comisiones',
+        icon: <Wallet className="h-5 w-5" />,
+        path: '/informes/comisiones',
+      },
+      {
+        title: 'Proyección Comisiones',
+        icon: <Wallet className="h-5 w-5" />,
+        path: '/informes/proyeccion-comisiones',
+      },
+      {
+        title: 'Ventas',
+        icon: <CalendarCheck className="h-5 w-5" />,
+        path: '/informes/ventas',
+      },
+      {
+        title: 'Brokers',
+        icon: <Building2 className="h-5 w-5" />,
+        path: '/informes/brokers',
+      },
+      {
+        title: 'Pagos Brokers',
+        icon: <CreditCard className="h-5 w-5" />,
+        path: '/informes/pagos-brokers',
+      },
+      {
+        title: 'Consolidado Brokers',
+        icon: <Building2 className="h-5 w-5" />,
+        path: '/informes/consolidado-brokers',
+      },
+      {
+        title: 'Stock',
+        icon: <PackageSearch className="h-5 w-5" />,
+        path: '/informes/stock',
+      },
+      {
+        title: 'Cotizaciones',
+        icon: <ListChecks className="h-5 w-5" />,
+        path: '/informes/cotizaciones',
+      },
+    ],
+  },
+  {
+    title: 'Configuración',
+    icon: <Settings className="h-5 w-5" />,
+    path: '/configuracion',
+    divider: true,
+  },
+  {
+    title: 'Cerrar Sesión',
+    icon: <LogOut className="h-5 w-5" />,
+    path: '/login'
+  },
+];
+
 const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const location = useLocation();
   const { signOut, session } = useAuthStore();
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [expandedMenus, setExpandedMenus] = React.useState<Record<string, boolean>>({});
+
+  if (!isOpen) {
+    return null;
+  }
+
+  // Detectar si es mobile (menos de 1024px)
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+  if (isMobile && !isOpen) {
+    return null;
+  }
 
   React.useEffect(() => {
     checkAdminStatus();
@@ -64,117 +189,6 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, o
       [title]: !prev[title]
     }));
   };
-
-  const menuItems: MenuItem[] = [
-    {
-      title: 'Clientes',
-      icon: <Users className="h-5 w-5" />,
-      path: '/clientes',
-    },
-    {
-      title: 'Reservas',
-      icon: <CalendarCheck className="h-5 w-5" />,
-      path: '/reservas',
-    },
-    {
-      title: 'Flujo Reservas',
-      icon: <ClipboardList className="h-5 w-5" />,
-      path: '/flujo-reservas',
-    },
-    {
-      title: 'Seguimiento',
-      icon: <ClipboardList className="h-5 w-5" />,
-      path: '/seguimiento',
-      adminOnly: true,
-    },
-    {
-      title: 'Aprobaciones',
-      icon: <ShieldCheck className="h-5 w-5" />,
-      path: '/aprobaciones',
-      adminOnly: true,
-      submenu: [
-        {
-          title: 'Liquidaciones',
-          icon: <CheckSquare className="h-5 w-5" />,
-          path: '/informes/aprobacion-liquidaciones',
-        },
-      ],
-    },
-    {
-      title: 'Brokers',
-      icon: <Building2 className="h-5 w-5" />,
-      path: '/brokers',
-    },
-    {
-      title: 'Pagos',
-      icon: <Wallet className="h-5 w-5" />,
-      path: '/pagos',
-    },
-    {
-      title: 'Cotizador',
-      icon: <ShoppingBasket className="h-5 w-5" />,
-      path: '/cotizador',
-    },
-    {
-      title: 'Informes',
-      icon: <BarChart3 className="h-5 w-5" />,
-      path: '/informes',
-      submenu: [
-        {
-          title: 'Comisiones',
-          icon: <Wallet className="h-5 w-5" />,
-          path: '/informes/comisiones',
-        },
-        {
-          title: 'Proyección Comisiones',
-          icon: <Wallet className="h-5 w-5" />,
-          path: '/informes/proyeccion-comisiones',
-        },
-        {
-          title: 'Ventas',
-          icon: <CalendarCheck className="h-5 w-5" />,
-          path: '/informes/ventas',
-        },
-        {
-          title: 'Brokers',
-          icon: <Building2 className="h-5 w-5" />,
-          path: '/informes/brokers',
-        },
-        {
-          title: 'Pagos Brokers',
-          icon: <CreditCard className="h-5 w-5" />,
-          path: '/informes/pagos-brokers',
-        },
-        {
-          title: 'Consolidado Brokers',
-          icon: <Building2 className="h-5 w-5" />,
-          path: '/informes/consolidado-brokers',
-        },
-        {
-      title: 'Stock',
-      icon: <PackageSearch className="h-5 w-5" />, // Ícono para Stock
-      path: '/informes/stock', // Ruta que definiste en App.tsx
-    },
-        {
-          title: 'Cotizaciones',
-          icon: <ListChecks className="h-5 w-5" />, // Ícono para Cotizaciones
-          path: '/informes/cotizaciones',
-        },
-      ],
-    },
-    {
-      title: 'Configuración',
-      icon: <Settings className="h-5 w-5" />,
-      path: '/configuracion',
-      divider: true,
-    },
-    {
-      title: 'Cerrar Sesión',
-      icon: <LogOut className="h-5 w-5" />,
-      path: '/login',
-      onClick: signOut,
-    },
-  ];
 
   const filteredMenuItems = menuItems.filter(item => !item.adminOnly || isAdmin);
 
@@ -247,7 +261,7 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, o
                 ) : (
                   <Link
                     to={item.path}
-                    onClick={item.onClick || onClose}
+                    onClick={item.title === 'Cerrar Sesión' ? signOut : (item.onClick || onClose)}
                     className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
                       location.pathname === item.path || location.pathname.startsWith(item.path)
                         ? 'bg-blue-50 text-blue-700'
