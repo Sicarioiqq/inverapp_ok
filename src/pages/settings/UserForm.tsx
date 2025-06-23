@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, Save, Loader2, Upload, X } from 'lucide-react';
+import { isAdmin } from '../../lib/permissions.tsx';
 
 interface User {
   id: string;
@@ -43,6 +44,14 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
     rut: user?.rut || '',
     password: '' // Solo para nuevos usuarios
   });
+  const [isAdminUser, setIsAdminUser] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      setIsAdminUser(await isAdmin());
+    };
+    checkAdmin();
+  }, []);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -381,6 +390,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
               value={formData.position}
               onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              disabled={!isAdminUser}
             />
           </div>
 
@@ -394,6 +404,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
               value={formData.user_type}
               onChange={(e) => setFormData(prev => ({ ...prev, user_type: e.target.value }))}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              disabled={!isAdminUser}
             >
               <option value="">Seleccione un tipo</option>
               {USER_TYPES.map(type => (

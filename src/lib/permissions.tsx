@@ -176,7 +176,7 @@ export const PermissionGuard: React.FC<{
   const [hasPermission, loading] = usePermission(permission);
 
   if (loading) {
-    return <div className="animate-pulse">Cargando...</div>;
+    return (<div className="animate-pulse">Cargando...</div>);
   }
 
   return hasPermission ? <>{children}</> : <>{fallback}</>;
@@ -192,7 +192,7 @@ export const AdminGuard: React.FC<{
   const [isAdminUser, loading] = useIsAdmin();
 
   if (loading) {
-    return <div className="animate-pulse">Cargando...</div>;
+    return (<div className="animate-pulse">Cargando...</div>);
   }
 
   return isAdminUser ? <>{children}</> : <>{fallback}</>;
