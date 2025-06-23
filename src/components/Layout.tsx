@@ -30,7 +30,7 @@ interface SearchResult {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [pendingTasksCount, setPendingTasksCount] = useState<number>(0);
   const [connectionError, setConnectionError] = useState<string | null>(null);
