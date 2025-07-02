@@ -307,34 +307,36 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
   // Calcular valores cuando cambia la unidad seleccionada o los parámetros
   useEffect(() => {
     if (selectedUnidad) {
-      // Precio base del departamento
       const precioBase = selectedUnidad.valor_lista || 0;
       setPrecioBaseDepartamento(precioBase);
-      
-      // Calcular descuento según el tipo de cotización
+
       let descuentoUF = 0;
       if (tipoCotizacionWizard === 'descuento') {
         descuentoUF = (precioBase * discountAmount) / 100;
+      } else if (tipoCotizacionWizard === 'bono') {
+        // Calcular descuento real SOLO aquí
+        const { descuentoAplicableUF } = calculateBonoPieYDescuento(
+          selectedUnidad,
+          totalEscrituraFinal,
+          projectPolicies
+        );
+        descuentoUF = descuentoAplicableUF;
       }
       setPrecioDescuentoDepartamento(descuentoUF);
-      
-      // Precio con descuento
+
       const precioConDescuento = precioBase - descuentoUF;
       setPrecioDepartamentoConDescuento(precioConDescuento);
-      
-      // Precio total de unidades secundarias
+
       const totalSecundarios = addedSecondaryUnits.reduce((sum, unit) => sum + (unit.valor_lista || 0), 0);
       setPrecioTotalSecundarios(totalSecundarios);
     }
-  }, [selectedUnidad, addedSecondaryUnits, discountAmount, tipoCotizacionWizard]);
+  }, [selectedUnidad, addedSecondaryUnits, discountAmount, tipoCotizacionWizard, totalEscrituraFinal, projectPolicies]);
   
   // Mover getCommissionRate aquí antes de calculateBonoPie
   const getCommissionRate = (proyecto: string) => {
     const commission = brokerCommissions.find(c => c.project_name === proyecto);
     return commission?.commission_rate ?? 0;
   };
-
-
 
   // Nueva función para calcular bono pie y descuento considerando la política comercial
   const calculateBonoPieYDescuento = (unidad: Unidad | null, totalEscritura: number, projectPolicies: Record<string, ProjectPolicy>) => {
@@ -382,8 +384,6 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
   // Usar la función en el flujo de bono pie
   const bonoPieYDescuento = calculateBonoPieYDescuento(selectedUnidad, totalEscrituraFinal, projectPolicies);
 
-
-  
   // useEffect para totalEscritura_2dec
   useEffect(() => {
     setTotalEscritura_2dec(Number(totalEscrituraFinal.toFixed(2)));
@@ -450,7 +450,6 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
     };
   }
 
-
   // 4. Handlers de inputs editables
   const handlePromesaUFChange = (val: number) => {
     setPromesaRaw(val);
@@ -493,6 +492,8 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
     } else {
       setRealEstateAgency(null);
     }
+    // ACTUALIZACIÓN: setear discountAmount automáticamente según la unidad seleccionada
+    setDiscountAmount(unidad.descuento ? unidad.descuento * 100 : 0);
   };
   
   // Agregar unidad secundaria
@@ -784,7 +785,8 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
     pieRaw,
     creditoRaw,
     discountAmount,
-    tipoCotizacionWizard
+    tipoCotizacionWizard,
+    bonoPieYDescuento.descuentoAplicableUF
   ]);
   
   // Actualizar bonoAmount cuando cambia el tipo de cotización

@@ -70,7 +70,7 @@ const baseStyles = {
 
   tableCol: {
 
-    borderStyle: 'solid',
+    borderStyle: 'solid' as const,
 
     borderColor: '#bfbfbf',
 
@@ -82,7 +82,7 @@ const baseStyles = {
 
   tableColHeader: {
 
-    borderStyle: 'solid',
+    borderStyle: 'solid' as const,
 
     borderColor: '#bfbfbf',
 
@@ -92,7 +92,7 @@ const baseStyles = {
 
     backgroundColor: '#f2f2f2',
 
-    textAlign: 'center',
+    textAlign: 'center' as const,
 
     padding: 5,
 
@@ -102,7 +102,7 @@ const baseStyles = {
 
   tableColRight: {
 
-    borderStyle: 'solid',
+    borderStyle: 'solid' as const,
 
     borderColor: '#bfbfbf',
 
@@ -110,13 +110,13 @@ const baseStyles = {
 
     padding: 5,
 
-    textAlign: 'right',
+    textAlign: 'right' as const,
 
   },
 
   tableColSmallRight: {
 
-    borderStyle: 'solid',
+    borderStyle: 'solid' as const,
 
     borderColor: '#bfbfbf',
 
@@ -124,7 +124,7 @@ const baseStyles = {
 
     padding: 5,
 
-    textAlign: 'right',
+    textAlign: 'right' as const,
 
   },
 
@@ -205,8 +205,6 @@ const styles = StyleSheet.create({
   },
 
   table: {
-
-    display: 'table',
 
     width: 'auto',
 
@@ -513,9 +511,67 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
     ? selectedUnidad.valor_lista * (1 - porcentajeRedondeado / 100)
     : 0;
 
+  // Detectar si se deben ocultar las columnas de descuento
+  const hideDiscountColumns = !(precioDescuentoDepartamento && precioDescuentoDepartamento > 0);
 
+  // Estilos de columnas dinámicos según si se ocultan columnas de descuento
+  const priceColStyles = hideDiscountColumns
+    ? {
+        item: { width: '30%', ...baseStyles.tableCol },
+        listPrice: { width: '23%', ...baseStyles.tableColRight },
+        netPriceUF: { width: '23%', ...baseStyles.tableColRight },
+        netPriceCLP: { width: '24%', ...baseStyles.tableColRight },
+      }
+    : {
+        item: Styles.pricesColItem,
+        listPrice: Styles.pricesColListPrice,
+        discountPct: Styles.pricesColDiscountPct,
+        discountUF: Styles.pricesColDiscountUF,
+        netPriceUF: Styles.pricesColNetPriceUF,
+        netPriceCLP: Styles.pricesColNetPriceCLP,
+      };
+  const priceHeaderStyles = hideDiscountColumns
+    ? {
+        item: { width: '30%', ...baseStyles.tableColHeader },
+        listPrice: { width: '23%', ...baseStyles.tableColHeader },
+        netPriceUF: { width: '23%', ...baseStyles.tableColHeader },
+        netPriceCLP: { width: '24%', ...baseStyles.tableColHeader },
+      }
+    : {
+        item: Styles.pricesHeaderItem,
+        listPrice: Styles.pricesHeaderListPrice,
+        discountPct: Styles.pricesHeaderDiscountPct,
+        discountUF: Styles.pricesHeaderDiscountUF,
+        netPriceUF: Styles.pricesHeaderNetPriceUF,
+        netPriceCLP: Styles.pricesHeaderNetPriceCLP,
+      };
 
-  return (
+  // Calcula el porcentaje real de descuento aplicado
+  const porcentajeDescuentoReal = precioDescuentoDepartamento > 0 && precioBaseDepartamento > 0
+    ? ((precioDescuentoDepartamento / precioBaseDepartamento) * 100)
+    : 0;
+
+  // Si es flujo bono pie, usar los props correctos para mostrar el descuento real aplicado
+  const descuentoAplicableUF = quotationType === 'bono' ? precioDescuentoDepartamento : precioDescuentoDepartamento;
+  const descuentoAplicablePct = quotationType === 'bono' ? porcentajeDescuentoReal : porcentajeDescuentoReal;
+  const precioVentaUF = quotationType === 'bono' ? (precioBaseDepartamento - descuentoAplicableUF) : (precioBaseDepartamento - precioDescuentoDepartamento);
+
+  // Helper para proxificar imágenes S3 si es necesario
+  const getVisualizableImageUrl = (url: string | null | undefined) => {
+    if (!url) return null;
+    try {
+      const s3Match = url.match(/^https?:\/\/(?:[a-zA-Z0-9.-]+\.)?s3\.amazonaws\.com\/(.+)$/);
+      if (s3Match) {
+        // Usar proxy de Weserv
+        return `https://images.weserv.nl/?url=s3.amazonaws.com/${encodeURIComponent(s3Match[1])}`;
+      }
+      return url;
+    } catch {
+      return url;
+    }
+  };
+
+  return (
 
     <Document>
 
@@ -609,29 +665,29 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
             {/* Encabezado de la tabla */}
             <View style={Styles.tableRow}>
-              <View style={Styles.pricesHeaderItem}><Text>ITEM</Text></View>
-              <View style={Styles.pricesHeaderListPrice}><Text>PRECIO LISTA</Text></View>
-              <View style={Styles.pricesHeaderDiscountPct}><Text>%</Text></View>
-              <View style={Styles.pricesHeaderDiscountUF}><Text>DESCUENTO</Text></View>
-              <View style={Styles.pricesHeaderNetPriceUF}><Text>PRECIO VENTA UF</Text></View>
-              <View style={Styles.pricesHeaderNetPriceCLP}><Text>PRECIO VENTA $</Text></View>
+              <View style={priceHeaderStyles.item}><Text>ITEM</Text></View>
+              <View style={priceHeaderStyles.listPrice}><Text>PRECIO LISTA</Text></View>
+              {!hideDiscountColumns && <View style={priceHeaderStyles.discountPct}><Text>%</Text></View>}
+              {!hideDiscountColumns && <View style={priceHeaderStyles.discountUF}><Text>DESCUENTO</Text></View>}
+              <View style={priceHeaderStyles.netPriceUF}><Text>PRECIO VENTA UF</Text></View>
+              <View style={priceHeaderStyles.netPriceCLP}><Text>PRECIO VENTA $</Text></View>
             </View>
 
             {quotationType === 'bono' && (
 
               <View style={Styles.tableRow}>
 
-                <View style={Styles.pricesColItem}><Text>Departamento {selectedUnidad.unidad}</Text></View>
+                <View style={priceColStyles.item}><Text>Departamento {selectedUnidad.unidad}</Text></View>
 
-                <View style={Styles.pricesColListPrice}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
+                <View style={priceColStyles.listPrice}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
 
-                <View style={Styles.pricesColDiscountPct}><Text>-</Text></View>
+                {!hideDiscountColumns && <View style={priceColStyles.discountPct}><Text>{descuentoAplicablePct > 0 ? `${descuentoAplicablePct.toFixed(2)}%` : '-'}</Text></View>}
 
-                <View style={Styles.pricesColDiscountUF}><Text>-</Text></View>
+                {!hideDiscountColumns && <View style={priceColStyles.discountUF}><Text>{descuentoAplicableUF > 0 ? formatCurrency(descuentoAplicableUF) : '-'}</Text></View>}
 
-                <View style={Styles.pricesColNetPriceUF}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
+                <View style={priceColStyles.netPriceUF}><Text>{formatCurrency(precioVentaUF)}</Text></View>
 
-                <View style={Styles.pricesColNetPriceCLP}><Text>{ufToPesos(precioBaseDepartamento, ufValue)}</Text></View>
+                <View style={priceColStyles.netPriceCLP}><Text>{ufToPesos(precioVentaUF, ufValue)}</Text></View>
 
               </View>
 
@@ -641,17 +697,17 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
               <View style={Styles.tableRow} key={unit.id}>
 
-                <View style={Styles.pricesColItem}><Text>{unit.tipo_bien} {unit.unidad}</Text></View>
+                <View style={priceColStyles.item}><Text>{unit.tipo_bien} {unit.unidad}</Text></View>
 
-                <View style={Styles.pricesColListPrice}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
+                <View style={priceColStyles.listPrice}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
 
-                <View style={Styles.pricesColDiscountPct}><Text>-</Text></View>
+                {!hideDiscountColumns && <View style={priceColStyles.discountPct}><Text>-</Text></View>}
 
-                <View style={Styles.pricesColDiscountUF}><Text>-</Text></View>
+                {!hideDiscountColumns && <View style={priceColStyles.discountUF}><Text>-</Text></View>}
 
-                <View style={Styles.pricesColNetPriceUF}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
+                <View style={priceColStyles.netPriceUF}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
 
-                <View style={Styles.pricesColNetPriceCLP}><Text>{ufToPesos(unit.valor_lista, ufValue)}</Text></View>
+                <View style={priceColStyles.netPriceCLP}><Text>{ufToPesos(unit.valor_lista, ufValue)}</Text></View>
 
               </View>
 
@@ -661,17 +717,17 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
               <View style={Styles.tableRow}>
 
-                <View style={Styles.pricesColItem}><Text style={Styles.boldText}>TOTAL ESCRITURA</Text></View>
+                <View style={priceColStyles.item}><Text style={Styles.boldText}>TOTAL ESCRITURA</Text></View>
 
-                <View style={Styles.pricesColListPrice}></View>
+                <View style={priceColStyles.listPrice}></View>
 
-                <View style={Styles.pricesColDiscountPct}></View>
+                {!hideDiscountColumns && <View style={priceColStyles.discountPct}></View>}
 
-                <View style={Styles.pricesColDiscountUF}></View>
+                {!hideDiscountColumns && <View style={priceColStyles.discountUF}></View>}
 
-                <View style={Styles.pricesColNetPriceUF}><Text style={Styles.boldText}>{formatCurrency(totalEscritura)}</Text></View>
+                <View style={priceColStyles.netPriceUF}><Text style={Styles.boldText}>{formatCurrency(totalEscritura)}</Text></View>
 
-                <View style={Styles.pricesColNetPriceCLP}><Text style={Styles.boldText}>{ufToPesos(totalEscritura, ufValue)}</Text></View>
+                <View style={priceColStyles.netPriceCLP}><Text style={Styles.boldText}>{ufToPesos(totalEscritura, ufValue)}</Text></View>
 
               </View>
 
@@ -679,39 +735,57 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
             {quotationType !== 'bono' && (
 
-              <View style={Styles.tableRow}>
+              hideDiscountColumns ? (
 
-                <View style={Styles.pricesColItem}><Text>Departamento {selectedUnidad.unidad}</Text></View>
+                <View style={Styles.tableRow}>
 
-                <View style={Styles.pricesColListPrice}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
+                  <View style={priceColStyles.item}><Text>Departamento {selectedUnidad.unidad}</Text></View>
 
-                <View style={Styles.pricesColDiscountPct}><Text>{selectedUnidad ? `${porcentajeRedondeado}%` : '0.0%'}</Text></View>
+                  <View style={priceColStyles.listPrice}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
 
-                <View style={Styles.pricesColDiscountUF}><Text>{selectedUnidad ? formatCurrency(montoDescuentoBroker) : '0.00'}</Text></View>
+                  <View style={priceColStyles.netPriceUF}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
 
-                <View style={Styles.pricesColNetPriceUF}><Text>{formatCurrency(precioConDescuentoBroker)}</Text></View>
+                  <View style={priceColStyles.netPriceCLP}><Text>{ufToPesos(precioBaseDepartamento, ufValue)}</Text></View>
 
-                <View style={Styles.pricesColNetPriceCLP}><Text>{ufToPesos(precioConDescuentoBroker, ufValue)}</Text></View>
+                </View>
 
-              </View>
+              ) : (
 
-            )}
+                <View style={Styles.tableRow}>
+
+                  <View style={priceColStyles.item}><Text>Departamento {selectedUnidad.unidad}</Text></View>
+
+                  <View style={priceColStyles.listPrice}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
+
+                  <View style={priceColStyles.discountPct}><Text>{descuentoAplicablePct > 0 ? `${descuentoAplicablePct.toFixed(2)}%` : '-'}</Text></View>
+
+                  <View style={priceColStyles.discountUF}><Text>{descuentoAplicableUF > 0 ? formatCurrency(descuentoAplicableUF) : '-'}</Text></View>
+
+                  <View style={priceColStyles.netPriceUF}><Text>{formatCurrency(precioVentaUF)}</Text></View>
+
+                  <View style={priceColStyles.netPriceCLP}><Text>{ufToPesos(precioVentaUF, ufValue)}</Text></View>
+
+                </View>
+
+              ))}
+
+            
 
             {quotationType !== 'bono' && addedSecondaryUnits.map(unit => (
 
               <View style={Styles.tableRow} key={unit.id}>
 
-                <View style={Styles.pricesColItem}><Text>{unit.tipo_bien} {unit.unidad}</Text></View>
+                <View style={priceColStyles.item}><Text>{unit.tipo_bien} {unit.unidad}</Text></View>
 
-                <View style={Styles.pricesColListPrice}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
+                <View style={priceColStyles.listPrice}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
 
-                <View style={Styles.pricesColDiscountPct}><Text>0.00%</Text></View>
+                {!hideDiscountColumns && <View style={priceColStyles.discountPct}><Text>0.00%</Text></View>}
 
-                <View style={Styles.pricesColDiscountUF}><Text>0.00</Text></View>
+                {!hideDiscountColumns && <View style={priceColStyles.discountUF}><Text>0.00</Text></View>}
 
-                <View style={Styles.pricesColNetPriceUF}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
+                <View style={priceColStyles.netPriceUF}><Text>{formatCurrency(unit.valor_lista)}</Text></View>
 
-                <View style={Styles.pricesColNetPriceCLP}><Text>{ufToPesos(unit.valor_lista, ufValue)}</Text></View>
+                <View style={priceColStyles.netPriceCLP}><Text>{ufToPesos(unit.valor_lista, ufValue)}</Text></View>
 
               </View>
 
@@ -721,17 +795,17 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
               <View style={Styles.tableRow}>
 
-                <View style={Styles.pricesColItem}><Text style={Styles.boldText}>TOTAL ESCRITURA</Text></View>
+                <View style={priceColStyles.item}><Text style={Styles.boldText}>TOTAL ESCRITURA</Text></View>
 
-                <View style={Styles.pricesColListPrice}></View>
+                <View style={priceColStyles.listPrice}></View>
 
-                <View style={Styles.pricesColDiscountPct}></View>
+                {!hideDiscountColumns && <View style={priceColStyles.discountPct}></View>}
 
-                <View style={Styles.pricesColDiscountUF}></View>
+                {!hideDiscountColumns && <View style={priceColStyles.discountUF}></View>}
 
-                <View style={Styles.pricesColNetPriceUF}><Text style={Styles.boldText}>{formatCurrency(totalEscritura)}</Text></View>
+                <View style={priceColStyles.netPriceUF}><Text style={Styles.boldText}>{formatCurrency(totalEscritura)}</Text></View>
 
-                <View style={Styles.pricesColNetPriceCLP}><Text style={Styles.boldText}>{ufToPesos(totalEscritura, ufValue)}</Text></View>
+                <View style={priceColStyles.netPriceCLP}><Text style={Styles.boldText}>{ufToPesos(totalEscritura, ufValue)}</Text></View>
 
               </View>
 
@@ -845,34 +919,51 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
 
 
-        <View style={Styles.section}>
-
-          <Text style={Styles.subHeader}>V. NOTAS</Text>
-
-          <Text style={Styles.text}>1.- Cotización provisoria, información debe ser validada con cotización formal emitida por la inmobiliaria.</Text>
-
-          <Text style={Styles.text}>2.- El valor cancelado por concepto Reserva, será abonado a Pie.</Text>
-
-          <Text style={Styles.text}>3.- Serán de cargo exclusivo del comprador, los gastos que genere esta operación, tales como: tasación; estudio de títulos; confección de escritura; gastos notariales y conservador de bienes raíces.</Text>
-
-          <Text style={Styles.text}>4.- Por no ser una cotización formal, los precios y condiciones pueden variar sin previo aviso.</Text>
-
-        </View>
-
-
-
-        <Text style={Styles.footer} fixed>
-
-          Generada por InverAPP - {currentDate}
-
-        </Text>
-
       </Page>
 
-    </Document>
-
-  );
-
+      {/* Segunda hoja: Galería de imágenes de unidades */}
+      <Page size="A4" style={Styles.page}>
+        <Text style={[Styles.header, { marginBottom: 10 }]}>Imágenes de Unidades Cotizadas</Text>
+        {/* Unidades principales y secundarias con imagen */}
+        {[
+          ...(selectedUnidad && selectedUnidad.imagen ? [{ ...selectedUnidad, isPrincipal: true }] : []),
+          ...addedSecondaryUnits.filter(u => u.imagen)
+        ].length === 0 ? (
+          <Text style={{ textAlign: 'center', marginTop: 40 }}>No hay imágenes asociadas a las unidades cotizadas.</Text>
+        ) : (
+          <View style={{ flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            {[
+              ...(selectedUnidad && selectedUnidad.imagen ? [{ ...selectedUnidad, isPrincipal: true }] : []),
+              ...addedSecondaryUnits.filter(u => u.imagen)
+            ].map((unit, idx) => {
+              const imgUrl = getVisualizableImageUrl(unit.imagen);
+              return (
+                <View key={unit.id || idx} style={{ width: '100%', alignItems: 'center', marginBottom: 30 }}>
+                  <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 12, marginBottom: 8, textAlign: 'center' }}>
+                    {unit.isPrincipal ? 'Departamento Principal' : `${unit.tipo_bien || 'Unidad'} ${unit.unidad || ''}`}
+                  </Text>
+                  {imgUrl && (
+                    <Image src={imgUrl} style={{ width: '90%', height: 260, objectFit: 'cover', borderRadius: 8, border: '1px solid #ccc', alignSelf: 'center' }} />
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
+        {/* Sección V. NOTAS al final de la segunda hoja */}
+        <View style={{ marginTop: 40 }}>
+          <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 11, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: '#000', paddingBottom: 2 }}>
+            V. NOTAS
+          </Text>
+          <Text style={{ fontSize: 9, marginBottom: 2 }}>1.- Cotización provisoria, información debe ser validada con cotización formal emitida por la inmobiliaria.</Text>
+          <Text style={{ fontSize: 9, marginBottom: 2 }}>2.- El valor cancelado por concepto Reserva, será abonado a Pie.</Text>
+          <Text style={{ fontSize: 9, marginBottom: 2 }}>3.- Serán de cargo exclusivo del comprador, los gastos que genere esta operación, tales como: tasación; estudio de títulos; confección de escritura; gastos notariales y conservador de bienes raíces.</Text>
+          <Text style={{ fontSize: 9, marginBottom: 2 }}>4.- Por no ser una cotización formal, los precios y condiciones pueden variar sin previo aviso.</Text>
+          <Text style={{ fontSize: 9, marginBottom: 2 }}>5.- Las imágenes son referenciales y pueden no corresponder exactamente a la unidad cotizada.</Text>
+        </View>
+      </Page>
+    </Document>
+  );
 };
 
 
