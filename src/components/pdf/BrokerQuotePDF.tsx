@@ -737,11 +737,11 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
               hideDiscountColumns ? (
 
-                <View style={Styles.tableRow}>
+              <View style={Styles.tableRow}>
 
-                  <View style={priceColStyles.item}><Text>Departamento {selectedUnidad.unidad}</Text></View>
+                <View style={priceColStyles.item}><Text>Departamento {selectedUnidad.unidad}</Text></View>
 
-                  <View style={priceColStyles.listPrice}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
+                <View style={priceColStyles.listPrice}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
 
                   <View style={priceColStyles.netPriceUF}><Text>{formatCurrency(precioBaseDepartamento)}</Text></View>
 
@@ -765,7 +765,7 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
                   <View style={priceColStyles.netPriceCLP}><Text>{ufToPesos(precioVentaUF, ufValue)}</Text></View>
 
-                </View>
+              </View>
 
               ))}
 

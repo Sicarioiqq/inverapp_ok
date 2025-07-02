@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import Layout from '../components/Layout';
-import { Clock, CheckCircle2, AlertCircle, Loader2, ArrowRight, UserCircle, Calendar } from 'lucide-react';
+import { Clock, CheckCircle2, AlertCircle, Loader2, ArrowRight, UserCircle, Calendar, EyeOff, Eye } from 'lucide-react';
 
 interface TaskNotification {
+  id: string;
   type: 'sale' | 'payment';
   reservation_flow_id?: string;
   commission_flow_id?: string;
@@ -29,6 +30,9 @@ const Notifications = () => {
   const [tasks, setTasks] = useState<TaskNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
+  const [collapsingTask, setCollapsingTask] = useState<string | null>(null);
+  const [showCollapsedModal, setShowCollapsedModal] = useState(false);
 
   useEffect(() => {
     if (session?.user.id) {
@@ -48,11 +52,32 @@ const Notifications = () => {
     }
   }, [session?.user.id]);
 
+  useEffect(() => {
+    if (!session?.user.id) return;
+    const fetchCollapsedTasks = async () => {
+      try {
+        const { data: collapsedData, error } = await supabase
+          .from('collapsed_tasks')
+          .select('task_assignment_id')
+          .eq('user_id', session.user.id)
+          .eq('scope', 'assigned_to_me')
+          .gte('expires_at', new Date().toISOString());
+        if (error) throw error;
+        const collapsedIds = new Set(collapsedData?.map(ct => ct.task_assignment_id) || []);
+        setCollapsedTasks(collapsedIds);
+      } catch (err) {
+        console.error('Error fetching collapsed tasks:', err);
+      }
+    };
+    fetchCollapsedTasks();
+  }, [session?.user.id]);
+
   const fetchSaleFlowTasks = async (): Promise<TaskNotification[]> => {
     try {
       const { data, error } = await supabase
         .from('task_assignments')
         .select(`
+          id,
           reservation_flow_id,
           task_id,
           created_at,
@@ -130,6 +155,7 @@ const Notifications = () => {
         );
 
         return {
+          id: assignment.id,
           type: 'sale' as const,
           reservation_flow_id: assignment.reservation_flow_id,
           reservation_number: assignment.reservation_flow.reservation.reservation_number,
@@ -223,6 +249,7 @@ const Notifications = () => {
 
       // Format tasks
       return transformedPayment.map(task => ({
+        id: task.id,
         type: 'payment' as const,
         commission_flow_id: task.commission_flow_id,
         reservation_number: task.commission_flow.broker_commission.reservation.reservation_number,
@@ -291,8 +318,52 @@ const Notifications = () => {
     }
   };
 
-  // Group tasks by stage
-  const tasksByStage = tasks.reduce((acc, task) => {
+  const handleCollapseTask = async (taskId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!session?.user.id) return;
+    setCollapsingTask(taskId);
+    try {
+      const { error } = await supabase
+        .from('collapsed_tasks')
+        .insert({
+          user_id: session.user.id,
+          task_assignment_id: taskId,
+          scope: 'assigned_to_me',
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        });
+      if (error) throw error;
+      setCollapsedTasks(prev => new Set([...prev, taskId]));
+    } catch (err) {
+      console.error('Error collapsing task:', err);
+    } finally {
+      setCollapsingTask(null);
+    }
+  };
+
+  const handleExpandTask = async (taskId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!session?.user.id) return;
+    try {
+      const { error } = await supabase
+        .from('collapsed_tasks')
+        .delete()
+        .eq('user_id', session.user.id)
+        .eq('task_assignment_id', taskId)
+        .eq('scope', 'assigned_to_me');
+      if (error) throw error;
+      setCollapsedTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
+    } catch (err) {
+      console.error('Error expanding task:', err);
+    }
+  };
+
+  // Filtrar tareas contraídas
+  const visibleTasks = tasks.filter(task => !collapsedTasks.has(task.id));
+  const tasksByStage = visibleTasks.reduce((acc, task) => {
     if (!acc[task.stage_name]) {
       acc[task.stage_name] = [];
     }
@@ -332,6 +403,16 @@ const Notifications = () => {
           </div>
         ) : (
           <div className="space-y-8">
+            {collapsedTasks.size > 0 && (
+              <button
+                onClick={() => setShowCollapsedModal(true)}
+                className="flex items-center gap-2 px-3 py-2 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors mb-4"
+                title={`${collapsedTasks.size} tarea(s) oculta(s) temporalmente`}
+              >
+                <EyeOff className="h-4 w-4" />
+                {collapsedTasks.size} oculta(s)
+              </button>
+            )}
             {Object.entries(tasksByStage).map(([stageName, stageTasks]) => (
               <div key={stageName} className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="bg-gray-50 px-6 py-3 border-b">
@@ -385,12 +466,76 @@ const Notifications = () => {
                           <span className="mr-2">Ver Flujo</span>
                           <ArrowRight className="h-5 w-5" />
                         </button>
+                        <button
+                          onClick={e => handleCollapseTask(task.id, e)}
+                          disabled={collapsingTask === task.id}
+                          className="ml-4 flex items-center gap-1 px-2 py-1 text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 rounded transition-colors disabled:opacity-50"
+                          title="Ocultar por 24 horas"
+                        >
+                          {collapsingTask === task.id ? (
+                            <Clock className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <EyeOff className="h-3 w-3" />
+                          )}
+                          Ocultar 24h
+                        </button>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             ))}
+          </div>
+        )}
+        {showCollapsedModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full p-6 relative">
+              <h2 className="text-lg font-bold mb-4 text-orange-700 flex items-center gap-2">
+                <EyeOff className="h-5 w-5" /> Tareas Ocultas Temporalmente
+              </h2>
+              <table className="w-full text-xs mb-4">
+                <thead>
+                  <tr className="bg-orange-100 text-orange-900">
+                    <th className="px-2 py-1 font-semibold">Tarea</th>
+                    <th className="px-2 py-1 font-semibold">Proyecto</th>
+                    <th className="px-2 py-1 font-semibold">Reserva</th>
+                    <th className="px-2 py-1 font-semibold">Cliente</th>
+                    <th className="px-2 py-1 font-semibold">Depto</th>
+                    <th className="px-2 py-1 font-semibold">Broker</th>
+                    <th className="px-2 py-1 font-semibold">Días</th>
+                    <th className="px-2 py-1 font-semibold"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...collapsedTasks].map(taskId => {
+                    const t = tasks.find(tar => tar.id === taskId);
+                    const diasModal = t?.created_at ? getDaysSinceAssigned(t.created_at) : '-';
+                    return (
+                      <tr key={taskId} className="bg-orange-50">
+                        <td className="px-2 py-1">{t?.task_name || '-'}</td>
+                        <td className="px-2 py-1">{t?.project_name || '-'}</td>
+                        <td className="px-2 py-1">{t?.reservation_number || '-'}</td>
+                        <td className="px-2 py-1">{t?.client_name || '-'}</td>
+                        <td className="px-2 py-1">{t?.apartment_number || '-'}</td>
+                        <td className="px-2 py-1">{t?.broker_name || '-'}</td>
+                        <td className="px-2 py-1">{diasModal}</td>
+                        <td className="px-2 py-1">
+                          <button
+                            onClick={e => handleExpandTask(taskId, e)}
+                            className="bg-blue-100 text-blue-700 rounded px-2 py-1 hover:bg-blue-200 transition"
+                          >
+                            Restaurar
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="flex justify-end">
+                <button onClick={() => setShowCollapsedModal(false)} className="bg-gray-400 text-white rounded px-4 py-2 mt-2">Cerrar</button>
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase, formatDateChile, formatDateTimeChile, formatCurrency } from '../../lib/supabase';
 
 import { usePopup } from '../../contexts/PopupContext';
+import { Dialog } from '@headlessui/react';
 
 import Layout from '../../components/Layout';
 
@@ -18,13 +19,13 @@ import LiquidacionPagoBrokerPDF from '../../components/pdf/LiquidacionPagoBroker
 
 import {
 
-  ArrowLeft, Clock, CheckCircle2, AlertCircle, UserCircle, UserPlus,
+  ArrowLeft, Clock, CheckCircle2, AlertCircle, UserCircle, UserPlus,
 
-  MessageSquare, Play, Loader2, Calendar, AlertTriangle, Timer, Edit,
+  MessageSquare, Play, Loader2, Calendar, AlertTriangle, Timer, Edit,
 
-  ChevronDown, ChevronRight, Edit2, Users, ListChecks, FileText,
+  ChevronDown, ChevronRight, Edit2, Users, ListChecks, FileText,
 
-  ClipboardList, DollarSign, Plus, Info
+  ClipboardList, DollarSign, Plus, Info, Airplay, Wallet
 
 } from 'lucide-react';
 
@@ -66,7 +67,7 @@ export interface AppliedPromotion {
 
   //recoveryPayment: number;
 
- // minimumPrice: number;
+//  minimumPrice: number;
 
  // difference: number;
 
@@ -621,6 +622,13 @@ const [tempDateValue, setTempDateValue] = useState('');
 
 
 const [markingAtRisk, setMarkingAtRisk] = useState(false);
+const [showMobySuiteModal, setShowMobySuiteModal] = useState(false);
+const [expandedSections, setExpandedSections] = useState({
+  reserva: true,
+  promesa: false,
+  escritura: false,
+  modificaciones: false
+});
 
 
 
@@ -665,10 +673,6 @@ navigate('/pagos');
 
 
 }
-
-
-
-  
 
 
 
@@ -2238,7 +2242,7 @@ assignUser(task.id, task.default_assignee);
 
 
 
-  // Determina qué etapa está “pendiente”:
+  // Determina qué etapa está "pendiente":
 
   // Podrías usar flow.current_stage.id, o buscar la primera stage.isCompleted === false.
 
@@ -3138,7 +3142,7 @@ const navigateToTaskTracking = () => {
 
 
 
-navigate('/seguimiento');
+setShowMobySuiteModal(true);
 
 
 
@@ -3644,198 +3648,57 @@ Volver
 
 
 
-
-
-{/* Navigation Icons */}
-
-
-
-<div className="flex space-x-3">
-
-
-
-<button
-
-
-
-onClick={navigateToEditClient}
-
-
-
-className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-
-
-
-title="Editar Cliente"
-
-
-
->
-
-
-
-<Users className="h-5 w-5" />
-
-
-
-</button>
-
-
-
-
-
-<button
-
-
-
-onClick={navigateToEditReservation}
-
-
-
-className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-
-
-
-title="Editar Reserva"
-
-
-
->
-
-
-
-<Edit2 className="h-5 w-5" />
-
-
-
-</button>
-
-
-
-
-
-<button
-
-
-
-onClick={navigateToEditCommission}
-
-
-
-className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-
-
-
-title="Editar Comisión"
-
-
-
->
-
-
-
-<DollarSign className="h-5 w-5" />
-
-
-
-</button>
-
-
-
-
-
-<button
-
-
-
-onClick={navigateToReservationFlow}
-
-
-
-className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-
-
-
-title="Flujo de Reserva"
-
-
-
->
-
-
-
-<ListChecks className="h-5 w-5" />
-
-
-
-</button>
-
-
-
-
-
-<button
-
-
-
-onClick={navigateToDocuments}
-
-
-
-className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-
-
-
-title="Documentos"
-
-
-
->
-
-
-
-<FileText className="h-5 w-5" />
-
-
-
-</button>
-
-
-
-
-
-<button
-
-
-
-onClick={navigateToTaskTracking}
-
-
-
-className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-
-
-
-title="Seguimiento de Tareas"
-
-
-
->
-
-
-
-<ClipboardList className="h-5 w-5" />
-
-
-
-</button>
-
-
-
-</div>
-
-
-
+<div className="flex space-x-3 mt-4 mb-8">
+  <button
+    onClick={navigateToEditClient}
+    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+    title="Editar Cliente"
+  >
+    <Users className="h-5 w-5" />
+  </button>
+  <button
+    onClick={navigateToEditReservation}
+    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+    title="Editar Reserva"
+  >
+    <Edit2 className="h-5 w-5" />
+  </button>
+  <button
+    onClick={navigateToEditCommission}
+    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+    title="Editar Comisión"
+  >
+    <DollarSign className="h-5 w-5" />
+  </button>
+  <button
+    onClick={navigateToReservationFlow}
+    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+    title="Flujo de Reserva"
+  >
+    <ListChecks className="h-5 w-5" />
+  </button>
+  <button
+    onClick={navigateToDocuments}
+    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+    title="Documentos"
+  >
+    <FileText className="h-5 w-5" />
+  </button>
+  <button
+    onClick={navigateToTaskTracking}
+    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+    title="Gestión MobySuite"
+  >
+    <Airplay className="h-5 w-5" />
+  </button>
+  <button
+    disabled
+    className="p-2 text-blue-600 bg-blue-50 rounded-full border border-blue-200 transition-colors cursor-default"
+    title="Flujo de Pago (actual)"
+  >
+    <Wallet className="h-5 w-5" />
+  </button>
+  </div>
 </div>
 
 
@@ -4320,11 +4183,11 @@ Procesando...
 
 
 
-<AlertCircle className="h-4 w-4 mr-2" />
+<Edit className="h-4 w-4 mr-2" />
 
 
 
-Marcar En Riesgo
+Editar Estado Riesgo
 
 
 
@@ -4474,13 +4337,7 @@ style={{ width: `${calculateProgress()}%` }}
 
 
 
-    
-
-
-
 </div>
-
-    
 
 
 
@@ -4740,1416 +4597,428 @@ title="Editar fecha"
 
 {flow.stages.map((stage, stageIndex) => (
 
-  <div
-
-id={`stage-${stage.id}`}
-
-key={stage.id}
-
-className="bg-white rounded-lg shadow-md overflow-hidden">
-
-
-
-<div
-
-
-
-className="bg-gray-50 px-6 py-3 border-b flex items-center justify-between cursor-pointer"
-
-
-
-onClick={() => toggleStage(stageIndex)}
-
-
-
->
-
-
-
-<div className="flex items-center">
-
-
-
-{stage.isExpanded ?
-
-
-
-<ChevronDown className="h-5 w-5 mr-2" /> :
-
-
-
-<ChevronRight className="h-5 w-5 mr-2" />
-
-
-
-}
-
-
-
-<h3 className="text-lg font-medium text-gray-900">{stage.name}</h3>
-
-
-
-</div>
-
-
-
-{stage.isCompleted && (
-
-
-
-<span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-
-
-
-Completada
-
-
-
-</span>
-
-
-
-)}
-
-
-
-</div>
-
-
-
-
-
-{stage.isExpanded && (
-
-
-
-<div className="divide-y divide-gray-200">
-
-
-
-{stage.tasks.map((task) => {
-
-
-
-const completionTime = task.completed_at && task.started_at ?
-
-
-
-getDaysElapsed(task.started_at, task.completed_at) : null;
-
-
-
-const daysOverdue = getDaysOverdue(task);
-
-
-
-const expectedDate = getExpectedDate(task);
-
-
-
-const hasComments = task.comments_count > 0;
-
-
-
-
-
-return (
-
-
-
-<div key={task.id} className="p-6 hover:bg-gray-50">
-
-
-
-<div className="flex items-center justify-between">
-
-
-
-<div className="flex-1">
-
-
-
-<div className="flex items-center justify-between mb-2">
-
-
-
-<h4 className="text-base font-medium text-gray-900">
-
-
-
-{task.name}
-
-
-
-</h4>
-
-
-
-<select
-
-
-
-value={task.status}
-
-
-
-onChange={(e) => handleStatusChange(task.id, e.target.value)}
-
-
-
-disabled={flow.status === 'pending'}
-
-
-
-className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-
-
-
-getStatusColor(task.status)
-
-
-
-} border-0 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed`}
-
-
-
->
-
-
-
-<option value="pending">Pendiente</option>
-
-
-
-<option value="in_progress">En Proceso</option>
-
-
-
-<option value="completed">Completada</option>
-
-
-
-<option value="blocked">Bloqueada</option>
-
-
-
-</select>
-
-
-
-</div>
-
-
-
-
-
-
-
-<div className="flex items-center space-x-4 text-sm text-gray-500">
-
-
-
-{task.assignee ? (
-
-
-
-<div className="flex items-center">
-
-
-
-{task.assignee.avatar_url ? (
-
-
-
-<img
-
-
-
-src={task.assignee.avatar_url}
-
-
-
-alt={`${task.assignee.first_name} ${task.assignee.last_name}`}
-
-
-
-className="h-8 w-8 rounded-full object-cover"
-
-
-
-/>
-
-
-
-) : (
-
-
-
-<UserCircle className="h-8 w-8 text-gray-400" />
-
-
-
-)}
-
-
-
-<span className="ml-2 text-sm text-gray-600">
-
-
-
-{task.assignee.first_name} {task.assignee.last_name}
-
-
-
-</span>
-
-
-
-</div>
-
-
-
-) : task.default_assignee ? (
-
-
-
-<button
-
-
-
-onClick={() => handleAssign(task.id, null, task.default_assignee)}
-
-
-
-className="flex items-center text-blue-600 hover:text-blue-800"
-
-
-
-disabled={flow.status === 'pending'}
-
-
-
->
-
-
-
-<UserPlus className="h-5 w-5 mr-1" />
-
-
-
-<span>Asignar a {task.default_assignee.first_name}</span>
-
-
-
-</button>
-
-
-
-) : (
-
-
-
-<button
-
-
-
-onClick={() => handleAssign(task.id, null, null)}
-
-
-
-className="flex items-center text-blue-600 hover:text-blue-800"
-
-
-
-disabled={flow.status === 'pending'}
-
-
-
->
-
-
-
-<UserPlus className="h-5 w-5 mr-1" />
-
-
-
-<span>Asignar</span>
-
-
-
-</button>
-
-
-
-)}
-
-
-
-
-
-
-
-<button
-
-
-
-onClick={() => handleAddComment(task.id)}
-
-
-
-className="flex items-center text-gray-500 hover:text-gray-700 relative"
-
-
-
-disabled={flow.status === 'pending'}
-
-
-
->
-
-
-
-<MessageSquare className="h-5 w-5 mr-1" />
-
-
-
-<span>Comentar</span>
-
-
-
-{task.comments_count > 0 && (
-
-
-
-<span className="absolute -top-1 -right-1 h-4 w-4 text-xs flex items-center justify-center bg-blue-600 text-white rounded-full">
-
-
-
-{task.comments_count}
-
-
-
-</span>
-
-
-
-)}
-
-
-
-</button>
-
-
-
-
-
-<button
-
-
-
-onClick={() => toggleTaskComments(task.id)}
-
-
-
-className="flex items-center text-gray-500 hover:text-gray-700"
-
-
-
-disabled={flow.status === 'pending' || task.comments_count === 0}
-
-
-
->
-
-
-
-<span>Ver comentarios</span>
-
-
-
-<ChevronDown className={`h-4 w-4 ml-1 transition-transform ${
-
-
-
-expandedTaskId === task.id ? 'rotate-180' : ''
-
-
-
-}`} />
-
-
-
-</button>
-
-
-
-</div>
-
-
-
-
-
-
-
-<div className="mt-2 text-sm text-gray-500">
-
-
-
-{task.started_at && (
-
-
-
-<div className="flex flex-col space-y-2">
-
-
-
-<div className="flex items-center">
-
-
-
-{editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'start' ? (
-
-
-
-<div className="flex items-center">
-
-
-
-<input
-
-
-
-type="datetime-local"
-
-
-
-value={tempDateValue}
-
-
-
-onChange={(e) => handleDateInputChange(e, task.id, 'start')}
-
-
-
-className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-
-
-
-/>
-
-
-
-</div>
-
-
-
-) : (
-
-
-
-<div className="flex items-center">
-
-
-
-<Calendar className="h-4 w-4 mr-1" />
-
-
-
-<span>
-
-
-
-Iniciada el {formatDateTime(task.started_at)}
-
-
-
-</span>
-
-
-
-{isAdmin && (
-
-
-
-<button
-
-
-
-onClick={() => {
-
-
-
-setEditingTaskDate({ taskId: task.id, type: 'start' });
-
-
-
-setTempDateValue(task.started_at.split('.')[0]);
-
-
-
-}}
-
-
-
-className="ml-2 text-blue-600 hover:text-blue-800"
-
-
-
-title="Editar fecha de inicio"
-
-
-
->
-
-
-
-<Edit className="h-4 w-4" />
-
-
-
-</button>
-
-
-
-)}
-
-
-
-</div>
-
-
-
-)}
-
-
-
-</div>
-
-
-
-
-
-
-
-{task.completed_at && (
-
-
-
-<div className="flex items-center">
-
-
-
-{editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'complete' ? (
-
-
-
-<div className="flex items-center">
-
-
-
-<input
-
-
-
-type="datetime-local"
-
-
-
-value={tempDateValue}
-
-
-
-onChange={(e) => handleDateInputChange(e, task.id, 'complete')}
-
-
-
-className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-
-
-
-/>
-
-
-
-</div>
-
-
-
-) : (
-
-
-
-<div className="flex items-center text-green-600">
-
-
-
-<CheckCircle2 className="h-4 w-4 mr-1" />
-
-
-
-<span>
-
-
-
-Completada el {formatDateTime(task.completed_at)}
-
-
-
-</span>
-
-
-
-{isAdmin && (
-
-
-
-<button
-
-
-
-onClick={() => {
-
-
-
-setEditingTaskDate({ taskId: task.id, type: 'complete' });
-
-
-
-setTempDateValue(task.completed_at.split('.')[0]);
-
-
-
-}}
-
-
-
-className="ml-2 text-blue-600 hover:text-blue-800"
-
-
-
-title="Editar fecha de completado"
-
-
-
->
-
-
-
-<Edit className="h-4 w-4" />
-
-
-
-</button>
-
-
-
-)}
-
-
-
-</div>
-
-
-
-)}
-
-
-
-</div>
-
-
-
-)}
-
-
-
-
-
-
-
-{completionTime !== null && (
-
-
-
-<div className="flex items-center text-green-600">
-
-
-
-<Timer className="h-4 w-4 mr-1" />
-
-
-
-<span>
-
-
-
-Gestionado en {completionTime} {completionTime === 1 ? 'día' : 'días'}
-
-
-
-</span>
-
-
-
-</div>
-
-
-
-)}
-
-
-
-
-
-
-
-{task.days_to_complete && (
-
-
-
-<div className="flex items-center">
-
-
-
-<span>Plazo: {task.days_to_complete} días</span>
-
-
-
-{daysOverdue > 0 && (
-
-
-
-<span className="ml-2 flex items-center text-red-600">
-
-
-
-<AlertTriangle className="h-4 w-4 mr-1" />
-
-
-
-{daysOverdue} días de retraso
-
-
-
-</span>
-
-
-
-)}
-
-
-
-</div>
-
-
-
-)}
-
-
-
-</div>
-
-
-
-)}
-
-
-
-</div>
-
-
-
-</div>
-
-
-
-</div>
-
-
-
-
-
-{/* Task Comments Section */}
-
-
-
-{expandedTaskId === task.id && task.comments_count > 0 && (
-
-
-
-<div className="mt-4 pt-4 border-t border-gray-200">
-
-
-
-<CommissionTaskCommentList
-
-
-
-taskId={task.id}
-
-
-
-commissionFlowId={flow.id}
-
-
-
-refreshTrigger={commentRefreshTrigger}
-
-
-
-/>
-
-
-
-</div>
-
-
-
-)}
-
-
-
-</div>
-
-
-
-);
-
-
-
-})}
-
-
-
-</div>
-
-
-
-)}
-
-
-
-</div>
-
-
-
+  <div
+    id={`stage-${stage.id}`}
+    key={stage.id}
+    className="bg-white rounded-lg shadow-md overflow-hidden"
+  >
+
+    <div
+      className="bg-gray-50 px-6 py-3 border-b flex items-center justify-between cursor-pointer"
+      onClick={() => toggleStage(stageIndex)}
+    >
+
+      <div className="flex items-center">
+
+        {stage.isExpanded ? (
+          <ChevronDown className="h-5 w-5 mr-2" />
+        ) : (
+          <ChevronRight className="h-5 w-5 mr-2" />
+        )}
+
+        <h3 className="text-lg font-medium text-gray-900">{stage.name}</h3>
+
+      </div>
+
+      {stage.isCompleted && (
+        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+          Completada
+        </span>
+      )}
+
+    </div>
+
+    {stage.isExpanded && (
+      <div className="divide-y divide-gray-200">
+        {stage.tasks.map((task) => {
+          const completionTime = task.completed_at && task.started_at ?
+            getDaysElapsed(task.started_at, task.completed_at) : null;
+          const daysOverdue = getDaysOverdue(task);
+          const expectedDate = getExpectedDate(task);
+          const hasComments = task.comments_count > 0;
+
+          return (
+            <div key={task.id} className="p-6 hover:bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-base font-medium text-gray-900">
+                      {task.name}
+                    </h4>
+                    <select
+                      value={task.status}
+                      onChange={(e) => handleStatusChange(task.id, e.target.value)}
+                      disabled={flow.status === 'pending'}
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                        getStatusColor(task.status)
+                      } border-0 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed`}
+                    >
+                      <option value="pending">Pendiente</option>
+                      <option value="in_progress">En Proceso</option>
+                      <option value="completed">Completada</option>
+                      <option value="blocked">Bloqueada</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                    {task.assignee ? (
+                      <div className="flex items-center">
+                        {task.assignee.avatar_url ? (
+                          <img
+                            src={task.assignee.avatar_url}
+                            alt={`${task.assignee.first_name} ${task.assignee.last_name}`}
+                            className="h-8 w-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <UserCircle className="h-8 w-8 text-gray-400" />
+                        )}
+                        <span className="ml-2 text-sm text-gray-600">
+                          {task.assignee.first_name} {task.assignee.last_name}
+                        </span>
+                      </div>
+                    ) : task.default_assignee ? (
+                      <button
+                        onClick={() => handleAssign(task.id, null, task.default_assignee)}
+                        className="flex items-center text-blue-600 hover:text-blue-800"
+                        disabled={flow.status === 'pending'}
+                      >
+                        <UserPlus className="h-5 w-5 mr-1" />
+                        <span>Asignar a {task.default_assignee.first_name}</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleAssign(task.id, null, null)}
+                        className="flex items-center text-blue-600 hover:text-blue-800"
+                        disabled={flow.status === 'pending'}
+                      >
+                        <UserPlus className="h-5 w-5 mr-1" />
+                        <span>Asignar</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => handleAddComment(task.id)}
+                      className="flex items-center text-gray-500 hover:text-gray-700 relative"
+                      disabled={flow.status === 'pending'}
+                    >
+                      <MessageSquare className="h-5 w-5 mr-1" />
+                      <span>Comentar</span>
+                      {task.comments_count > 0 && (
+                        <span className="absolute -top-1 -right-1 h-4 w-4 text-xs flex items-center justify-center bg-blue-600 text-white rounded-full">
+                          {task.comments_count}
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => toggleTaskComments(task.id)}
+                      className="flex items-center text-gray-500 hover:text-gray-700"
+                      disabled={flow.status === 'pending' || task.comments_count === 0}
+                    >
+                      <span>Ver comentarios</span>
+                      <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${
+                        expandedTaskId === task.id ? 'rotate-180' : ''
+                      }`} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-2 text-sm text-gray-500">
+                  {task.started_at && (
+                    <div className="flex flex-col space-y-2">
+                      <div className="flex items-center">
+                        {editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'start' ? (
+                          <div className="flex items-center">
+                            <input
+                              type="datetime-local"
+                              value={tempDateValue}
+                              onChange={(e) => handleDateInputChange(e, task.id, 'start')}
+                              className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center">
+                            <Calendar className="h-4 w-4 mr-1" />
+                            <span>
+                              Iniciada el {formatDateTime(task.started_at)}
+                            </span>
+                            {isAdmin && (
+                              <button
+                                onClick={() => {
+                                  setEditingTaskDate({ taskId: task.id, type: 'start' });
+                                  setTempDateValue(task.started_at.split('.')[0]);
+                                }}
+                                className="ml-2 text-blue-600 hover:text-blue-800"
+                                title="Editar fecha de inicio"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {task.completed_at && (
+                    <div className="flex items-center">
+                      {editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'complete' ? (
+                        <div className="flex items-center">
+                          <input
+                            type="datetime-local"
+                            value={tempDateValue}
+                            onChange={(e) => handleDateInputChange(e, task.id, 'complete')}
+                            className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-center text-green-600">
+                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          <span>
+                            Completada el {formatDateTime(task.completed_at)}
+                          </span>
+                          {isAdmin && (
+                            <button
+                              onClick={() => {
+                                setEditingTaskDate({ taskId: task.id, type: 'complete' });
+                                setTempDateValue(task.completed_at.split('.')[0]);
+                              }}
+                              className="ml-2 text-blue-600 hover:text-blue-800"
+                              title="Editar fecha de completado"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {completionTime !== null && (
+                  <div className="flex items-center text-green-600">
+                    <Timer className="h-4 w-4 mr-1" />
+                    <span>
+                      Gestionado en {completionTime} {completionTime === 1 ? 'día' : 'días'}
+                    </span>
+                  </div>
+                )}
+
+                {task.days_to_complete && (
+                  <div className="flex items-center">
+                    <span>Plazo: {task.days_to_complete} días</span>
+                    {daysOverdue > 0 && (
+                      <span className="ml-2 flex items-center text-red-600">
+                        <AlertTriangle className="h-4 w-4 mr-1" />
+                        {daysOverdue} días de retraso
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </div>
 ))}
 
-
+</div>
 
 </div>
 
+{/* Modal de Gestión MobySuite */}
+{showMobySuiteModal && (
+  <Dialog open={showMobySuiteModal} onClose={() => setShowMobySuiteModal(false)} className="fixed z-50 inset-0 overflow-y-auto">
+    <div className="flex items-center justify-center min-h-screen px-4">
+      <div className="fixed inset-0 bg-black opacity-30 z-0"></div>
+      <Dialog.Panel className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-auto p-6 z-10">
+        <Dialog.Title className="text-xl font-bold mb-4 text-blue-700">Gestión MobySuite</Dialog.Title>
+        <div className="space-y-4">
+          {/* Sección Reserva */}
+          <div className="border border-gray-200 rounded-lg">
+            <button
+              onClick={() => setExpandedSections(prev => ({ 
+                reserva: !prev.reserva, 
+                promesa: false, 
+                escritura: false, 
+                modificaciones: false 
+              }))}
+              className="w-full px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-t-lg flex items-center justify-between font-semibold text-blue-700"
+            >
+              <span>Reserva</span>
+              {expandedSections.reserva ? (
+                <ChevronDown className="h-5 w-5" />
+              ) : (
+                <ChevronRight className="h-5 w-5" />
+              )}
+            </button>
+            {expandedSections.reserva && (
+              <div className="p-4 space-y-2">
+                <a
+                  href={`https://ecasa.mobysuite.com/reservation/payment-plan-detail/${flow?.broker_commission?.reservation?.reservation_number}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center justify-between"
+                >
+                  <span className="font-medium">Detalle Plan de Pago</span>
+                  <ChevronRight className="h-5 w-5 text-blue-600" />
+                </a>
+                <a
+                  href={`https://ecasa.mobysuite.com/reserve/${flow?.broker_commission?.reservation?.reservation_number}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center justify-between"
+                >
+                  <span className="font-medium">Ver Reserva</span>
+                  <ChevronRight className="h-5 w-5 text-blue-600" />
+                </a>
+              </div>
+            )}
+          </div>
 
+          {/* Sección Promesa */}
+          <div className="border border-gray-200 rounded-lg">
+            <button
+              onClick={() => setExpandedSections(prev => ({ 
+                reserva: false, 
+                promesa: !prev.promesa, 
+                escritura: false, 
+                modificaciones: false 
+              }))}
+              className="w-full px-4 py-3 bg-green-50 hover:bg-green-100 rounded-t-lg flex items-center justify-between font-semibold text-green-700"
+            >
+              <span>Promesa</span>
+              {expandedSections.promesa ? (
+                <ChevronDown className="h-5 w-5" />
+              ) : (
+                <ChevronRight className="h-5 w-5" />
+              )}
+            </button>
+            {expandedSections.promesa && (
+              <div className="p-4 space-y-2">
+                <a
+                  href={`https://ecasa.mobysuite.com/promise/${flow?.broker_commission?.reservation?.reservation_number}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg flex items-center justify-between"
+                >
+                  <span className="font-medium">Promesar Unidad</span>
+                  <ChevronRight className="h-5 w-5 text-green-600" />
+                </a>
+                <a
+                  href={`https://ecasa.mobysuite.com/promise/${flow?.broker_commission?.reservation?.reservation_number}/tracking-signatures`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg flex items-center justify-between"
+                >
+                  <span className="font-medium">Seguimiento Firmas</span>
+                  <ChevronRight className="h-5 w-5 text-green-600" />
+                </a>
+                <a
+                  href={`https://ecasa.mobysuite.com/promise/${flow?.broker_commission?.reservation?.reservation_number}/tracking-signatures`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg flex items-center justify-between"
+                >
+                  <span className="font-medium">Gestión Documental</span>
+                  <ChevronRight className="h-5 w-5 text-green-600" />
+                </a>
+              </div>
+            )}
+          </div>
 
-</div>
+          {/* Sección Escritura */}
+          <div className="border border-gray-200 rounded-lg">
+            <button
+              onClick={() => setExpandedSections(prev => ({ 
+                reserva: false, 
+                promesa: false, 
+                escritura: !prev.escritura, 
+                modificaciones: false 
+              }))}
+              className="w-full px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-t-lg flex items-center justify-between font-semibold text-purple-700"
+            >
+              <span>Escritura</span>
+              {expandedSections.escritura ? (
+                <ChevronDown className="h-5 w-5" />
+              ) : (
+                <ChevronRight className="h-5 w-5" />
+              )}
+            </button>
+            {expandedSections.escritura && (
+              <div className="p-4 space-y-2">
+                <a
+                  href={`https://ecasa.mobysuite.com/deed/6940/milestone-tracking/3417`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-lg flex items-center justify-between"
+                >
+                  <span className="font-medium">Seguimiento</span>
+                  <ChevronRight className="h-5 w-5 text-purple-600" />
+                </a>
+              </div>
+            )}
+          </div>
 
-
+          {/* Sección Modificaciones */}
+          <div className="border border-gray-200 rounded-lg">
+            <button
+              onClick={() => setExpandedSections(prev => ({ 
+                reserva: false, 
+                promesa: false, 
+                escritura: false, 
+                modificaciones: !prev.modificaciones 
+              }))}
+              className="w-full px-4 py-3 bg-orange-50 hover:bg-orange-100 rounded-t-lg flex items-center justify-between font-semibold text-orange-700"
+            >
+              <span>Modificaciones</span>
+              {expandedSections.modificaciones ? (
+                <ChevronDown className="h-5 w-5" />
+              ) : (
+                <ChevronRight className="h-5 w-5" />
+              )}
+            </button>
+            {expandedSections.modificaciones && (
+              <div className="p-4 space-y-2">
+                <a
+                  href={`https://ecasa.mobysuite.com/accounting/payment-plan-detail/${flow?.broker_commission?.reservation?.reservation_number}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-left px-4 py-3 bg-orange-50 hover:bg-orange-100 rounded-lg flex items-center justify-between"
+                >
+                  <span className="font-medium">Plan de Pago</span>
+                  <ChevronRight className="h-5 w-5 text-orange-600" />
+                </a>
+                <a
+                  href={`https://ecasa.mobysuite.com/modification/edit/${flow?.broker_commission?.reservation?.reservation_number}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-left px-4 py-3 bg-orange-50 hover:bg-orange-100 rounded-lg flex items-center justify-between"
+                >
+                  <span className="font-medium">Modificar Negocio</span>
+                  <ChevronRight className="h-5 w-5 text-orange-600" />
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex justify-end mt-6">
+          <button
+            onClick={() => setShowMobySuiteModal(false)}
+            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+          >
+            Cerrar
+          </button>
+        </div>
+      </Dialog.Panel>
+    </div>
+  </Dialog>
+)}
 
 </Layout>
-
-
-
 );
-
-
-
-};
-
-
-
-
-
-
-
-// Componente para el popup de marcar/editar en riesgo
-
-
-
-interface AtRiskPopupProps {
-
-
-
-commissionId: string;
-
-
-
-isAtRisk: boolean;
-
-
-
-reason: string;
-
-
-
-onSave: () => void;
-
-
-
-onClose: () => void;
-
-
-
 }
-
-
-
-
-
-
-
-const AtRiskPopup: React.FC<AtRiskPopupProps> = ({
-
-
-
-commissionId,
-
-
-
-isAtRisk,
-
-
-
-reason,
-
-
-
-onSave,
-
-
-
-onClose
-
-
-
-}) => {
-
-
-
-const { hidePopup } = usePopup();
-
-
-
-const [loading, setLoading] = useState(false);
-
-
-
-const [error, setError] = useState<string | null>(null);
-
-
-
-const [atRisk, setAtRisk] = useState(isAtRisk);
-
-
-
-const [atRiskReason, setAtRiskReason] = useState(reason);
-
-
-
-
-
-
-
-const handleSubmit = async (e: React.FormEvent) => {
-
-
-
-e.preventDefault();
-
-
-
-
-
-if (loading) return;
-
-
-
-
-
-
-
-try {
-
-
-
-setLoading(true);
-
-
-
-setError(null);
-
-
-
-
-
-
-
-// Actualizar el estado de riesgo
-
-
-
-const { error: updateError } = await supabase
-
-
-
-.from('broker_commissions')
-
-
-
-.update({
-
-
-
-at_risk: atRisk,
-
-
-
-at_risk_reason: atRisk ? atRiskReason : null
-
-
-
-})
-
-
-
-.eq('id', commissionId);
-
-
-
-
-
-
-
-if (updateError) throw updateError;
-
-
-
-
-
-
-
-hidePopup();
-
-
-
-onSave();
-
-
-
-} catch (err: any) {
-
-
-
-setError(err.message);
-
-
-
-} finally {
-
-
-
-setLoading(false);
-
-
-
-}
-
-
-
-};
-
-
-
-
-
-
-
-return (
-
-
-
-<form onSubmit={handleSubmit} className="space-y-6">
-
-
-
-{error && (
-
-
-
-<div className="bg-red-50 text-red-600 p-4 rounded-lg">
-
-
-
-{error}
-
-
-
-</div>
-
-
-
-)}
-
-
-
-
-
-
-
-<div className="space-y-4">
-
-
-
-<div className="flex items-center">
-
-
-
-<input
-
-
-
-type="checkbox"
-
-
-
-id="at_risk"
-
-
-
-checked={atRisk}
-
-
-
-onChange={(e) => setAtRisk(e.target.checked)}
-
-
-
-className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-
-
-
-/>
-
-
-
-<label htmlFor="at_risk" className="ml-2 block text-sm text-gray-700">
-
-
-
-Marcar como En Riesgo
-
-
-
-</label>
-
-
-
-</div>
-
-
-
-
-
-
-
-{atRisk && (
-
-
-
-<div>
-
-
-
-<label htmlFor="at_risk_reason" className="block text-sm font-medium text-gray-700">
-
-
-
-Motivo del Riesgo *
-
-
-
-</label>
-
-
-
-<textarea
-
-
-
-id="at_risk_reason"
-
-
-
-name="at_risk_reason"
-
-
-
-rows={4}
-
-
-
-required={atRisk}
-
-
-
-value={atRiskReason}
-
-
-
-onChange={(e) => setAtRiskReason(e.target.value)}
-
-
-
-className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-
-
-
-placeholder="Describa el motivo por el que esta operación está en riesgo..."
-
-
-
-/>
-
-
-
-</div>
-
-
-
-)}
-
-
-
-</div>
-
-
-
-
-
-
-
-<div className="flex justify-end space-x-3 pt-4 border-t">
-
-
-
-<button
-
-
-
-type="button"
-
-
-
-onClick={() => {
-
-
-
-hidePopup();
-
-
-
-onClose();
-
-
-
-}}
-
-
-
-disabled={loading}
-
-
-
-className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-
-
-
->
-
-
-
-Cancelar
-
-
-
-</button>
-
-
-
-<button
-
-
-
-type="submit"
-
-
-
-disabled={loading}
-
-
-
-className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-
-
-
->
-
-
-
-{loading ? (
-
-
-
-<>
-
-
-
-<Loader2 className="animate-spin h-5 w-5 mr-2" />
-
-
-
-Guardando...
-
-
-
-</>
-
-
-
-) : (
-
-
-
-'Guardar'
-
-
-
-)}
-
-
-
-</button>
-
-
-
-</div>
-
-
-
-</form>
-
-
-
-);
-
-
-
-};
-
-
-
-
-
-
 
 export default PaymentFlow;

@@ -130,7 +130,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const fetchPendingTasksCount = async () => {
     try {
-      // Count pending sale flow tasks assigned to the user
+      // Get collapsed task IDs for the current user
+      const { data: collapsedTasksData, error: collapsedError } = await supabase
+        .from('collapsed_tasks')
+        .select('task_assignment_id')
+        .eq('user_id', session!.user.id)
+        .gte('expires_at', new Date().toISOString());
+
+      if (collapsedError) throw collapsedError;
+
+      const collapsedTaskIds = new Set(collapsedTasksData?.map(ct => ct.task_assignment_id) || []);
+
+      // Count pending sale flow tasks assigned to the user (excluding collapsed ones)
       const { data: saleTasksData, error: saleError } = await supabase
         .from('task_assignments')
         .select(`
@@ -141,6 +152,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         .neq('reservation_flow.status', 'pending');
 
       if (saleError) throw saleError;
+
+      // Filter out collapsed tasks
+      const visibleSaleTasks = saleTasksData?.filter(task => !collapsedTaskIds.has(task.id)) || [];
 
       // Count pending payment flow tasks assigned to the user
       const { data: paymentTasksData, error: paymentError } = await supabase
@@ -156,9 +170,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       if (paymentError) throw paymentError;
 
-      // Set the total count
+      // Set the total count (excluding collapsed tasks)
       setPendingTasksCount(
-        (saleTasksData?.length || 0) + 
+        visibleSaleTasks.length + 
         (paymentTasksData?.length || 0)
       );
     } catch (err) {
