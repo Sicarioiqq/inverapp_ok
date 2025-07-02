@@ -67,6 +67,7 @@ const CotizadorSettings: React.FC = () => {
                 const sup_logia       = toNumber(row['Sup. logia']);
                 const rawBloq         = getSafeString(row['Bloqueado']);
                 const estado_unidad   = normalizeEstado(rawBloq);
+                const imagen          = getSafeString(row['imagen']);
 
                 if (!proyecto_nombre || !unidad || !tipo_bien) {
                     console.warn('Fila incompleta (Proyecto, Unidad o Tipo Bien faltante):', row);
@@ -76,6 +77,7 @@ const CotizadorSettings: React.FC = () => {
                     proyecto_nombre, unidad, tipo_bien, tipologia, etapa, piso, orientacion,
                     valor_lista, descuento, sup_interior, sup_util, sup_terraza, sup_ponderada,
                     sup_terreno, sup_jardin, sup_total, sup_logia, estado_unidad,
+                    imagen,
                 };
             })
             .filter((x): x is NonNullable<typeof x> =>
