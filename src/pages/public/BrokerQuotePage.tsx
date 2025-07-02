@@ -645,6 +645,37 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
         const bVal = getBonoPieUF(b);
         return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
       }
+      if (sortColumn === 'descuentoDisponibleBroker') {
+        const getDescuentoDisponibleBroker = (unidad: Unidad) => {
+          const valorLista = unidad.valor_lista || 0;
+          const descuentoUnidad = unidad.descuento || 0;
+          const commissionRate = getCommissionRate(unidad.proyecto_nombre);
+          const valorConDescuento = valorLista * (1 - descuentoUnidad);
+          const comisionBroker = valorConDescuento * (commissionRate / 100);
+          const montoDescuento = valorLista * descuentoUnidad;
+          const descuentoDisponibleBroker = ((montoDescuento - comisionBroker) / valorLista) * 100;
+          return Math.floor(descuentoDisponibleBroker * 10) / 10;
+        };
+        const aVal = getDescuentoDisponibleBroker(a);
+        const bVal = getDescuentoDisponibleBroker(b);
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      if (sortColumn === 'valorConDescuentoUF') {
+        const getValorConDescuentoUF = (unidad: Unidad) => {
+          const valorLista = unidad.valor_lista || 0;
+          const descuentoUnidad = unidad.descuento || 0;
+          const commissionRate = getCommissionRate(unidad.proyecto_nombre);
+          const valorConDescuento = valorLista * (1 - descuentoUnidad);
+          const comisionBroker = valorConDescuento * (commissionRate / 100);
+          const montoDescuento = valorLista * descuentoUnidad;
+          const descuentoDisponibleBroker = ((montoDescuento - comisionBroker) / valorLista) * 100;
+          const porcentajeRedondeado = Math.floor(descuentoDisponibleBroker * 10) / 10;
+          return valorLista - (valorLista * (porcentajeRedondeado / 100));
+        };
+        const aVal = getValorConDescuentoUF(a);
+        const bVal = getValorConDescuentoUF(b);
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
       let aValue = a[sortColumn as keyof Unidad];
       let bValue = b[sortColumn as keyof Unidad];
       if (typeof aValue === 'string' && typeof bValue === 'string') {
@@ -1258,8 +1289,18 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
                           </th>
                           {tipoCotizacionWizard === 'descuento' && (
                             <>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Descuento</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Valor con Descuento (UF)</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none" onClick={() => handleSort('descuentoDisponibleBroker')}>
+                                Descuento
+                                {sortColumn === 'descuentoDisponibleBroker' && (
+                                  sortDirection === 'asc' ? <ChevronUp className="inline h-4 w-4 ml-1" /> : <ChevronDown className="inline h-4 w-4 ml-1" />
+                                )}
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none" onClick={() => handleSort('valorConDescuentoUF')}>
+                                Valor con Descuento (UF)
+                                {sortColumn === 'valorConDescuentoUF' && (
+                                  sortDirection === 'asc' ? <ChevronUp className="inline h-4 w-4 ml-1" /> : <ChevronDown className="inline h-4 w-4 ml-1" />
+                                )}
+                              </th>
                             </>
                           )}
                           {tipoCotizacionWizard === 'bono' && (
