@@ -24,7 +24,9 @@ import {
   Check,
   X,
   AlertCircle,
-  ChevronRight
+  ChevronRight,
+  Airplay,
+  ChevronDown
 } from 'lucide-react';
 import { Dialog } from '@headlessui/react';
 import FormularioONUPDF from '../../components/pdf/FormularioONUPDF';
@@ -223,6 +225,13 @@ const ReservationFlowDetail = () => {
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   // 1. Estado para saber si ya existe devolución
   const [devolucionExistente, setDevolucionExistente] = useState<any>(null);
+  const [showMobySuiteModal, setShowMobySuiteModal] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    reserva: true,
+    promesa: false,
+    escritura: false,
+    modificaciones: false
+  });
 
   useEffect(() => {
     console.log('ReservationFlowDetail id:', id);
@@ -1037,7 +1046,7 @@ const ReservationFlowDetail = () => {
   };
 
   const navigateToTaskTracking = () => {
-    navigate('/seguimiento');
+    setShowMobySuiteModal(true);
   };
 
   const handleRescind = () => {
@@ -1414,9 +1423,9 @@ const ReservationFlowDetail = () => {
               <button
                 onClick={navigateToTaskTracking}
                 className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                title="Seguimiento de Tareas"
+                title="Gestión MobySuite"
               >
-                <ClipboardList className="h-5 w-5" />
+                <Airplay className="h-5 w-5" />
               </button>
 
               {isAdmin && !flow.reservation.is_rescinded && (
@@ -2059,6 +2068,179 @@ const ReservationFlowDetail = () => {
                     <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Guardar y Generar PDF</button>
                   </div>
                 </form>
+              </Dialog.Panel>
+            </div>
+          </Dialog>
+        )}
+
+        {/* Modal de Gestión MobySuite */}
+        {showMobySuiteModal && (
+          <Dialog open={showMobySuiteModal} onClose={() => setShowMobySuiteModal(false)} className="fixed z-50 inset-0 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4">
+              <div className="fixed inset-0 bg-black opacity-30 z-0"></div>
+              <Dialog.Panel className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-auto p-6 z-10">
+                <Dialog.Title className="text-xl font-bold mb-4 text-blue-700">Gestión MobySuite</Dialog.Title>
+                <div className="space-y-4">
+                  {/* Sección Reserva */}
+                  <div className="border border-gray-200 rounded-lg">
+                    <button
+                      onClick={() => setExpandedSections(prev => ({ 
+                        reserva: !prev.reserva, 
+                        promesa: false, 
+                        escritura: false, 
+                        modificaciones: false 
+                      }))}
+                      className="w-full px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-t-lg flex items-center justify-between font-semibold text-blue-700"
+                    >
+                      <span>Reserva</span>
+                      {expandedSections.reserva ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                    </button>
+                    {expandedSections.reserva && (
+                      <div className="p-4 space-y-2">
+                        <a
+                          href={`https://ecasa.mobysuite.com/reservation/payment-plan-detail/${flow?.reservation?.reservation_number}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center justify-between"
+                        >
+                          <span className="font-medium">Detalle Plan de Pago</span>
+                          <ChevronRight className="h-5 w-5 text-blue-600" />
+                        </a>
+                        <a
+                          href={`https://ecasa.mobysuite.com/reserve/${flow?.reservation?.reservation_number}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center justify-between"
+                        >
+                          <span className="font-medium">Ver Reserva</span>
+                          <ChevronRight className="h-5 w-5 text-blue-600" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sección Promesa */}
+                  <div className="border border-gray-200 rounded-lg">
+                    <button
+                      onClick={() => setExpandedSections(prev => ({ 
+                        reserva: false, 
+                        promesa: !prev.promesa, 
+                        escritura: false, 
+                        modificaciones: false 
+                      }))}
+                      className="w-full px-4 py-3 bg-green-50 hover:bg-green-100 rounded-t-lg flex items-center justify-between font-semibold text-green-700"
+                    >
+                      <span>Promesa</span>
+                      {expandedSections.promesa ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                    </button>
+                    {expandedSections.promesa && (
+                      <div className="p-4 space-y-2">
+                        <a
+                          href={`https://ecasa.mobysuite.com/promise/${flow?.reservation?.reservation_number}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg flex items-center justify-between"
+                        >
+                          <span className="font-medium">Promesar Unidad</span>
+                          <ChevronRight className="h-5 w-5 text-green-600" />
+                        </a>
+                        <a
+                          href={`https://ecasa.mobysuite.com/promise/${flow?.reservation?.reservation_number}/tracking-signatures`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg flex items-center justify-between"
+                        >
+                          <span className="font-medium">Seguimiento Firmas</span>
+                          <ChevronRight className="h-5 w-5 text-green-600" />
+                        </a>
+                        <a
+                          href={`https://ecasa.mobysuite.com/promise/${flow?.reservation?.reservation_number}/tracking-signatures`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg flex items-center justify-between"
+                        >
+                          <span className="font-medium">Gestión Documental</span>
+                          <ChevronRight className="h-5 w-5 text-green-600" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sección Escritura */}
+                  <div className="border border-gray-200 rounded-lg">
+                    <button
+                      onClick={() => setExpandedSections(prev => ({ 
+                        reserva: false, 
+                        promesa: false, 
+                        escritura: !prev.escritura, 
+                        modificaciones: false 
+                      }))}
+                      className="w-full px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-t-lg flex items-center justify-between font-semibold text-purple-700"
+                    >
+                      <span>Escritura</span>
+                      {expandedSections.escritura ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                    </button>
+                    {expandedSections.escritura && (
+                      <div className="p-4 space-y-2">
+                        <a
+                          href={`https://ecasa.mobysuite.com/deed/6940/milestone-tracking/3417`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-lg flex items-center justify-between"
+                        >
+                          <span className="font-medium">Seguimiento</span>
+                          <ChevronRight className="h-5 w-5 text-purple-600" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sección Modificaciones */}
+                  <div className="border border-gray-200 rounded-lg">
+                    <button
+                      onClick={() => setExpandedSections(prev => ({ 
+                        reserva: false, 
+                        promesa: false, 
+                        escritura: false, 
+                        modificaciones: !prev.modificaciones 
+                      }))}
+                      className="w-full px-4 py-3 bg-orange-50 hover:bg-orange-100 rounded-t-lg flex items-center justify-between font-semibold text-orange-700"
+                    >
+                      <span>Modificaciones</span>
+                      {expandedSections.modificaciones ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                    </button>
+                    {expandedSections.modificaciones && (
+                      <div className="p-4 space-y-2">
+                        <a
+                          href={`https://ecasa.mobysuite.com/accounting/payment-plan-detail/${flow?.reservation?.reservation_number}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full text-left px-4 py-3 bg-orange-50 hover:bg-orange-100 rounded-lg flex items-center justify-between"
+                        >
+                          <span className="font-medium">Plan de Pago</span>
+                          <ChevronRight className="h-5 w-5 text-orange-600" />
+                        </a>
+                        <a
+                          href={`https://ecasa.mobysuite.com/modification/edit/${flow?.reservation?.reservation_number}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full text-left px-4 py-3 bg-orange-50 hover:bg-orange-100 rounded-lg flex items-center justify-between"
+                        >
+                          <span className="font-medium">Modificar Negocio</span>
+                          <ChevronRight className="h-5 w-5 text-orange-600" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={() => setShowMobySuiteModal(false)}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold"
+                  >
+                    Cerrar
+                  </button>
+                </div>
               </Dialog.Panel>
             </div>
           </Dialog>
