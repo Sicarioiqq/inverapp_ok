@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronRight, CheckCircle2, Clock, AlertCircle, UserPlus, MessageSquare, Loader2, UserCircle, Calendar, Lock } from 'lucide-react';
+import { ChevronDown, ChevronRight, CheckCircle2, Clock, AlertCircle, UserPlus, MessageSquare, Loader2, UserCircle, Calendar, Lock, CalendarPlus } from 'lucide-react';
 import { usePopup } from '../contexts/PopupContext';
 import TaskCommentList from './TaskCommentList';
+import CalendarEventModal from './CalendarEventModal';
 
 interface Task {
   id: string;
@@ -26,6 +27,8 @@ interface StageCardProps {
   onStatusChange: (taskId: string, status: string, completedAt?: string) => void;
   reservationFlowId: string;
   isAdmin?: boolean;
+  projectName: string;
+  apartmentNumber: string;
 }
 
 const StageCard: React.FC<StageCardProps> = ({
@@ -36,7 +39,9 @@ const StageCard: React.FC<StageCardProps> = ({
   onComment,
   onStatusChange,
   reservationFlowId,
-  isAdmin = false
+  isAdmin = false,
+  projectName,
+  apartmentNumber
 }) => {
   const [isExpanded, setIsExpanded] = useState(!isCompleted);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
@@ -44,6 +49,10 @@ const StageCard: React.FC<StageCardProps> = ({
   const [editingDate, setEditingDate] = useState<{[key: string]: boolean}>({});
   const { showPopup } = usePopup();
   const [refreshTrigger, setRefreshTrigger] = useState(0); // Add a refresh trigger state
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [calendarModalTask, setCalendarModalTask] = useState<Task | null>(null);
+  const [calendarModalDefaultDate, setCalendarModalDefaultDate] = useState<string>('');
+  const [calendarModalTitle, setCalendarModalTitle] = useState<string>('');
 
   useEffect(() => {
     const activeTasks = tasks.filter(task => 
@@ -164,6 +173,14 @@ const StageCard: React.FC<StageCardProps> = ({
     }
   };
 
+  const handleAgendarGestion = (task: Task) => {
+    const title = `${projectName} - ${apartmentNumber} - ${task.name}`;
+    setCalendarModalTitle(title);
+    setCalendarModalDefaultDate(new Date().toISOString().split('T')[0]);
+    setCalendarModalTask(task);
+    setShowCalendarModal(true);
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
       <div 
@@ -268,6 +285,13 @@ const StageCard: React.FC<StageCardProps> = ({
 
                     <div className="flex items-center space-x-2">
                       <button
+                        onClick={() => handleAgendarGestion(task)}
+                        className="p-1 text-blue-500 hover:text-blue-700"
+                        title="Agendar gestión en calendario"
+                      >
+                        <CalendarPlus className="h-5 w-5" />
+                      </button>
+                      <button
                         onClick={() => onAssign(task.id)}
                         className={`p-1 text-gray-400 hover:text-gray-600 ${task.status === 'completed' && !isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title="Asignar responsables"
@@ -310,6 +334,16 @@ const StageCard: React.FC<StageCardProps> = ({
             </div>
           ))}
         </div>
+      )}
+      {/* Modal de agendar gestión */}
+      {showCalendarModal && calendarModalTask && (
+        <CalendarEventModal
+          open={showCalendarModal}
+          onClose={() => setShowCalendarModal(false)}
+          defaultTitle={calendarModalTitle}
+          defaultDate={calendarModalDefaultDate}
+          onEventCreated={() => setShowCalendarModal(false)}
+        />
       )}
     </div>
   );

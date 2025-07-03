@@ -1896,6 +1896,8 @@ const ReservationFlowDetail = () => {
                 onStatusChange={handleStatusChange}
                 reservationFlowId={flow.id}
                 isAdmin={isAdmin}
+                projectName={flow.reservation.project.name}
+                apartmentNumber={flow.reservation.apartment_number}
               />
             ))}
           </div>
