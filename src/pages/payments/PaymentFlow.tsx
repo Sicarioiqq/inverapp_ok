@@ -1262,6 +1262,22 @@ comments_count: taskCommentCount
 
 
 
+// Determinar si la etapa debería estar expandida inicialmente
+
+const allTasksCompleted = stageTasks.every(task => task.status === 'completed');
+
+const hasActiveTasks = stageTasks.some(task => 
+
+  task.status === 'pending' || task.status === 'in_progress' || task.status === 'blocked'
+
+);
+
+const shouldBeExpanded = hasActiveTasks;
+
+
+
+
+
 return {
 
 
@@ -1278,11 +1294,11 @@ tasks: stageTasks,
 
 
 
-isCompleted: stageTasks.every(task => task.status === 'completed'),
+isCompleted: allTasksCompleted,
 
 
 
-isExpanded: true // Default to expanded
+isExpanded: shouldBeExpanded // Expandir solo si hay tareas activas
 
 
 
@@ -1293,6 +1309,12 @@ isExpanded: true // Default to expanded
 }) || [];
 
 
+
+
+
+
+
+console.log('📥 Estado inicial de etapas:', stages.map(s => ({ name: s.name, isExpanded: s.isExpanded, tasks: s.tasks.map(t => ({ name: t.name, status: t.status })) })));
 
 
 
@@ -1314,17 +1336,9 @@ stages
 
 
 
-// Después de cargar el flujo, aplicar la contracción automática
+// La contracción automática ya se aplica en la inicialización de las etapas
 
-setTimeout(() => {
-
-
-
-handleAutoCollapseStages();
-
-
-
-}, 100);
+console.log('✅ Flujo cargado con contracción automática aplicada');
 
 
 
@@ -2332,6 +2346,8 @@ const handleStatusChange = async (taskId: string, newStatus: string) => {
 
 
 
+console.log(`🔄 Cambiando estado de tarea ${taskId} a ${newStatus}`);
+
 if (!flow || flow.status === 'pending') return;
 
 
@@ -2706,6 +2722,12 @@ if (!flow) return;
 
 
 
+console.log('🔍 Ejecutando handleAutoCollapseStages');
+
+
+
+
+
 const updatedStages = flow.stages.map(stage => {
 
 
@@ -2716,9 +2738,9 @@ const allTasksCompleted = stage.tasks.every(task => task.status === 'completed')
 
 
 
-// Verificar si hay al menos una tarea pendiente o en proceso
+// Verificar si hay al menos una tarea pendiente, en proceso o bloqueada
 
-const hasPendingTasks = stage.tasks.some(task => 
+const hasActiveTasks = stage.tasks.some(task => 
 
 
 
@@ -2730,11 +2752,31 @@ task.status === 'pending' || task.status === 'in_progress' || task.status === 'b
 
 
 
+console.log(`📋 Etapa: ${stage.name}`);
+
+console.log(`   - Todas completadas: ${allTasksCompleted}`);
+
+console.log(`   - Tiene tareas activas: ${hasActiveTasks}`);
+
+console.log(`   - Estado actual: ${stage.isExpanded ? 'Expandida' : 'Contraída'}`);
+
+console.log(`   - Tareas:`, stage.tasks.map(t => ({ name: t.name, status: t.status })));
+
+
+
+
+
 // Si todas las tareas están completadas, contraer la etapa
 
-// Si hay tareas pendientes, mantener expandida
+// Si hay tareas activas (pendientes, en proceso o bloqueadas), mantener expandida
 
-const shouldBeExpanded = hasPendingTasks || !allTasksCompleted;
+const shouldBeExpanded = hasActiveTasks;
+
+
+
+
+
+console.log(`   - Debería estar: ${shouldBeExpanded ? 'Expandida' : 'Contraída'}`);
 
 
 
@@ -2762,6 +2804,12 @@ isExpanded: shouldBeExpanded
 
 
 
+console.log('🔄 Actualizando flow con etapas:', updatedStages.map(s => ({ name: s.name, isExpanded: s.isExpanded })));
+
+
+
+
+
 setFlow({
 
 
@@ -2775,6 +2823,10 @@ stages: updatedStages
 
 
 });
+
+
+
+console.log('✅ Flow actualizado con nuevas etapas');
 
 
 
