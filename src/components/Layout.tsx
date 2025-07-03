@@ -5,7 +5,7 @@ import MiniSidebar from './MiniSidebar';
 import { useAuthStore } from '../stores/authStore';
 import { useUFStore } from '../stores/ufStore';
 import { supabase, checkSupabaseConnection } from '../lib/supabase';
-import { Bell, Search, Menu, UserCircle, ClipboardCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bell, Search, Menu, UserCircle, ClipboardCheck, ChevronLeft, ChevronRight, CalendarCheck } from 'lucide-react';
 import SearchResults from './SearchResults';
 
 interface LayoutProps {
@@ -419,6 +419,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   title="Tareas asignadas por mí"
                 >
                   <ClipboardCheck className="h-6 w-6" />
+                </button>
+                {/* Calendario */}
+                <button
+                  onClick={() => navigate('/calendario')}
+                  className="ml-2 p-2 text-gray-400 hover:text-blue-600 focus:outline-none relative"
+                  title="Calendario de tareas"
+                >
+                  <CalendarCheck className="h-6 w-6" />
                 </button>
 
                 {/* User Menu */}

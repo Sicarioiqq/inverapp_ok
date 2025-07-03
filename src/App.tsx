@@ -37,6 +37,7 @@ import CalculoComisionBroker from './pages/CalculoComisionBroker';
 import TareasAsignadas from './pages/TareasAsignadas';
 import QuotationsReport from './pages/reports/QuotationsReport';
 import Operaciones from './pages/Operaciones';
+import CalendarPage from './pages/Calendar';
 
 function App() {
   const { session, initialize } = useAuthStore();
@@ -150,6 +151,11 @@ function App() {
           <Route path="/pagos/flujo/:id" element={
             <ProtectedRoute>
               <PaymentFlow />
+            </ProtectedRoute>
+          } />
+          <Route path="/calendario" element={
+            <ProtectedRoute>
+              <CalendarPage />
             </ProtectedRoute>
           } />
           <Route path="/informes/comisiones" element={

@@ -110,6 +110,11 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, o
       path: '/pagos',
     },
     {
+      title: 'Calendario',
+      icon: <CalendarCheck className="h-5 w-5" />,
+      path: '/calendario',
+    },
+    {
       title: 'Informes',
       icon: <BarChart3 className="h-5 w-5" />,
       path: '/informes',

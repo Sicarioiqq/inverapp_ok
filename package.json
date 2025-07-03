@@ -11,6 +11,11 @@
     "apply-migration": "node scripts/apply-migration.js"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.18",
+    "@fullcalendar/daygrid": "^6.1.18",
+    "@fullcalendar/interaction": "^6.1.18",
+    "@fullcalendar/react": "^6.1.18",
+    "@fullcalendar/timegrid": "^6.1.18",
     "@headlessui/react": "^2.2.4",
     "@react-pdf/renderer": "^3.3.8",
     "@supabase/supabase-js": "^2.39.7",

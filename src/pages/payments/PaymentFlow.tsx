@@ -1314,6 +1314,20 @@ stages
 
 
 
+// Después de cargar el flujo, aplicar la contracción automática
+
+setTimeout(() => {
+
+
+
+handleAutoCollapseStages();
+
+
+
+}, 100);
+
+
+
 } catch (err: any) {
 
 
@@ -1410,7 +1424,17 @@ if (updateError) throw updateError;
 
 
 
-await fetchFlow();
+await fetchFlow().then(() => {
+
+
+
+// Después de actualizar el flujo, manejar la contracción automática
+
+handleAutoCollapseStages();
+
+
+
+});
 
 
 
@@ -1490,7 +1514,17 @@ if (error) throw error;
 
 
 
-await fetchFlow();
+await fetchFlow().then(() => {
+
+
+
+// Después de actualizar el flujo, manejar la contracción automática
+
+handleAutoCollapseStages();
+
+
+
+});
 
 
 
@@ -1642,7 +1676,17 @@ if (updateError) throw updateError;
 
 
 
-await fetchFlow();
+await fetchFlow().then(() => {
+
+
+
+// Después de actualizar el flujo, manejar la contracción automática
+
+handleAutoCollapseStages();
+
+
+
+});
 
 
 
@@ -2190,7 +2234,17 @@ if (createError) throw createError;
 
 
 
-fetchFlow();
+fetchFlow().then(() => {
+
+
+
+// Después de actualizar el flujo, manejar la contracción automática
+
+handleAutoCollapseStages();
+
+
+
+});
 
 
 
@@ -2438,7 +2492,17 @@ if (createError) throw createError;
 
 
 
-fetchFlow();
+fetchFlow().then(() => {
+
+
+
+// Después de actualizar el flujo, manejar la contracción automática
+
+handleAutoCollapseStages();
+
+
+
+});
 
 
 
@@ -2603,6 +2667,96 @@ const updatedStages = [...flow.stages];
 
 
 updatedStages[stageIndex].isExpanded = !updatedStages[stageIndex].isExpanded;
+
+
+
+
+
+setFlow({
+
+
+
+...flow,
+
+
+
+stages: updatedStages
+
+
+
+});
+
+
+
+};
+
+
+
+
+
+// Función para manejar la contracción automática de etapas completadas
+
+const handleAutoCollapseStages = () => {
+
+
+
+if (!flow) return;
+
+
+
+
+
+const updatedStages = flow.stages.map(stage => {
+
+
+
+// Verificar si todas las tareas de la etapa están completadas
+
+const allTasksCompleted = stage.tasks.every(task => task.status === 'completed');
+
+
+
+// Verificar si hay al menos una tarea pendiente o en proceso
+
+const hasPendingTasks = stage.tasks.some(task => 
+
+
+
+task.status === 'pending' || task.status === 'in_progress' || task.status === 'blocked'
+
+);
+
+
+
+
+
+// Si todas las tareas están completadas, contraer la etapa
+
+// Si hay tareas pendientes, mantener expandida
+
+const shouldBeExpanded = hasPendingTasks || !allTasksCompleted;
+
+
+
+
+
+return {
+
+
+
+...stage,
+
+
+
+isExpanded: shouldBeExpanded
+
+
+
+};
+
+
+
+});
 
 
 
@@ -4639,28 +4793,17 @@ title="Editar fecha"
 
           return (
             <div key={task.id} className="p-6 hover:bg-gray-50">
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center justify-between mb-2">
+                  {/* Nombre de la tarea */}
+                  <div className="mb-3">
                     <h4 className="text-base font-medium text-gray-900">
                       {task.name}
                     </h4>
-                    <select
-                      value={task.status}
-                      onChange={(e) => handleStatusChange(task.id, e.target.value)}
-                      disabled={flow.status === 'pending'}
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                        getStatusColor(task.status)
-                      } border-0 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed`}
-                    >
-                      <option value="pending">Pendiente</option>
-                      <option value="in_progress">En Proceso</option>
-                      <option value="completed">Completada</option>
-                      <option value="blocked">Bloqueada</option>
-                    </select>
                   </div>
 
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                  {/* Usuario asignado */}
+                  <div className="mb-3">
                     {task.assignee ? (
                       <div className="flex items-center">
                         {task.assignee.avatar_url ? (
@@ -4695,38 +4838,12 @@ title="Editar fecha"
                         <span>Asignar</span>
                       </button>
                     )}
-
-                    <button
-                      onClick={() => handleAddComment(task.id)}
-                      className="flex items-center text-gray-500 hover:text-gray-700 relative"
-                      disabled={flow.status === 'pending'}
-                    >
-                      <MessageSquare className="h-5 w-5 mr-1" />
-                      <span>Comentar</span>
-                      {task.comments_count > 0 && (
-                        <span className="absolute -top-1 -right-1 h-4 w-4 text-xs flex items-center justify-center bg-blue-600 text-white rounded-full">
-                          {task.comments_count}
-                        </span>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => toggleTaskComments(task.id)}
-                      className="flex items-center text-gray-500 hover:text-gray-700"
-                      disabled={flow.status === 'pending' || task.comments_count === 0}
-                    >
-                      <span>Ver comentarios</span>
-                      <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${
-                        expandedTaskId === task.id ? 'rotate-180' : ''
-                      }`} />
-                    </button>
                   </div>
-                </div>
 
-                <div className="mt-2 text-sm text-gray-500">
-                  {task.started_at && (
-                    <div className="flex flex-col space-y-2">
-                      <div className="flex items-center">
+                  {/* Fechas de inicio y completado debajo del usuario */}
+                  <div className="space-y-2 mb-3">
+                    {task.started_at && (
+                      <div className="flex items-center text-sm text-gray-500">
                         {editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'start' ? (
                           <div className="flex items-center">
                             <input
@@ -4757,64 +4874,112 @@ title="Editar fecha"
                           </div>
                         )}
                       </div>
+                    )}
+
+                    {task.completed_at && (
+                      <div className="flex items-center text-sm text-green-600">
+                        {editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'complete' ? (
+                          <div className="flex items-center">
+                            <input
+                              type="datetime-local"
+                              value={tempDateValue}
+                              onChange={(e) => handleDateInputChange(e, task.id, 'complete')}
+                              className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center">
+                            <CheckCircle2 className="h-4 w-4 mr-1" />
+                            <span>
+                              Completada el {formatDateTime(task.completed_at)}
+                            </span>
+                            {isAdmin && (
+                              <button
+                                onClick={() => {
+                                  setEditingTaskDate({ taskId: task.id, type: 'complete' });
+                                  setTempDateValue(task.completed_at?.split('.')[0] || '');
+                                }}
+                                className="ml-2 text-blue-600 hover:text-blue-800"
+                                title="Editar fecha de completado"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Botones de comentarios */}
+                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                    <button
+                      onClick={() => handleAddComment(task.id)}
+                      className="flex items-center text-gray-500 hover:text-gray-700 relative"
+                      disabled={flow.status === 'pending'}
+                    >
+                      <MessageSquare className="h-5 w-5 mr-1" />
+                      <span>Comentar</span>
+                      {task.comments_count > 0 && (
+                        <span className="absolute -top-1 -right-1 h-4 w-4 text-xs flex items-center justify-center bg-blue-600 text-white rounded-full">
+                          {task.comments_count}
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => toggleTaskComments(task.id)}
+                      className="flex items-center text-gray-500 hover:text-gray-700"
+                      disabled={flow.status === 'pending' || task.comments_count === 0}
+                    >
+                      <span>Ver comentarios</span>
+                      <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${
+                        expandedTaskId === task.id ? 'rotate-180' : ''
+                      }`} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Selector de estado y información de gestión a la derecha */}
+                <div className="flex flex-col items-end space-y-3 text-sm text-gray-500 ml-4">
+                  {/* Selector de estado en la esquina superior derecha */}
+                  <select
+                    value={task.status}
+                    onChange={(e) => handleStatusChange(task.id, e.target.value)}
+                    disabled={flow.status === 'pending'}
+                    className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                      getStatusColor(task.status)
+                    } border-0 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed`}
+                  >
+                    <option value="pending">Pendiente</option>
+                    <option value="in_progress">En Proceso</option>
+                    <option value="completed">Completada</option>
+                    <option value="blocked">Bloqueada</option>
+                  </select>
+
+                  {/* Gestionado en */}
+                  {completionTime !== null && (
+                    <div className="flex items-center text-green-600">
+                      <Timer className="h-4 w-4 mr-1" />
+                      <span>
+                        Gestionado en {completionTime} {completionTime === 1 ? 'día' : 'días'}
+                      </span>
                     </div>
                   )}
 
-                  {task.completed_at && (
-                    <div className="flex items-center">
-                      {editingTaskDate && editingTaskDate.taskId === task.id && editingTaskDate.type === 'complete' ? (
-                        <div className="flex items-center">
-                          <input
-                            type="datetime-local"
-                            value={tempDateValue}
-                            onChange={(e) => handleDateInputChange(e, task.id, 'complete')}
-                            className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex items-center text-green-600">
-                          <CheckCircle2 className="h-4 w-4 mr-1" />
-                          <span>
-                            Completada el {formatDateTime(task.completed_at)}
-                          </span>
-                          {isAdmin && (
-                            <button
-                              onClick={() => {
-                                setEditingTaskDate({ taskId: task.id, type: 'complete' });
-                                setTempDateValue(task.completed_at.split('.')[0]);
-                              }}
-                              className="ml-2 text-blue-600 hover:text-blue-800"
-                              title="Editar fecha de completado"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
+                  {/* Plazo */}
+                  {task.days_to_complete && (
+                    <div className="flex flex-col items-end">
+                      <span>Plazo: {task.days_to_complete} días</span>
+                      {daysOverdue > 0 && (
+                        <span className="flex items-center text-red-600 mt-1">
+                          <AlertTriangle className="h-4 w-4 mr-1" />
+                          {daysOverdue} días de retraso
+                        </span>
                       )}
                     </div>
                   )}
                 </div>
-
-                {completionTime !== null && (
-                  <div className="flex items-center text-green-600">
-                    <Timer className="h-4 w-4 mr-1" />
-                    <span>
-                      Gestionado en {completionTime} {completionTime === 1 ? 'día' : 'días'}
-                    </span>
-                  </div>
-                )}
-
-                {task.days_to_complete && (
-                  <div className="flex items-center">
-                    <span>Plazo: {task.days_to_complete} días</span>
-                    {daysOverdue > 0 && (
-                      <span className="ml-2 flex items-center text-red-600">
-                        <AlertTriangle className="h-4 w-4 mr-1" />
-                        {daysOverdue} días de retraso
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           );
