@@ -206,7 +206,7 @@ const StageCard: React.FC<StageCardProps> = ({
               id={`tarea-${task.id}`}
               className="border-b border-gray-200 last:border-b-0"
             >
-              <div className="p-4 hover:bg-gray-50">
+              <div className="p-4 hover:bg-gray-50 sticky top-12 z-10 bg-white shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-2">
