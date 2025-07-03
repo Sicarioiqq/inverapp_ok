@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useUFStore } from '../../stores/ufStore';
 import { PDFDownloadLink, BlobProvider } from '@react-pdf/renderer';
 import BrokerQuotePDF from '../../components/pdf/BrokerQuotePDF';
-import { Loader2, Calculator, Download, Plus, Minus, Building, Home, DollarSign, Save, Home as HomeIcon, ArrowLeft, ChevronUp, ChevronDown, Wrench, Check, X } from 'lucide-react';
+import { Loader2, Calculator, Download, Plus, Minus, Building, Home, DollarSign, Save, Home as HomeIcon, ArrowLeft, ChevronUp, ChevronDown, Wrench, Check, X, Folder } from 'lucide-react';
 import logoinversiones from './logoinversiones.png';
 import { Dialog, Tab } from '@headlessui/react';
 import * as XLSX from 'xlsx';
@@ -1080,13 +1080,24 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
           </div>
           <div className="flex items-center gap-4">
             {wizardStep === 1 && (
-              <button
-                className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-md font-semibold hover:bg-blue-200 transition-colors border border-blue-200"
-                onClick={() => setShowStockModal(true)}
-              >
-                <Building className="h-5 w-5" />
-                Ver el stock completo
-              </button>
+              <>
+                <button
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-md font-semibold hover:bg-blue-200 transition-colors border border-blue-200"
+                  onClick={() => setShowStockModal(true)}
+                >
+                  <Building className="h-5 w-5" />
+                  Ver el stock completo
+                </button>
+                <a
+                  href="https://ecasa365-my.sharepoint.com/:f:/g/personal/claudio_soto_ecasa_cl/Eta7KfuDM_VBpSd2uYMwVP8BiQNlLdPm9TfUcBjO3RScEQ?e=DbOfDK"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-md font-semibold hover:bg-green-200 transition-colors border border-green-200 ml-2"
+                >
+                  <Folder className="h-5 w-5" />
+                  Carpetas Proyectos
+                </a>
+              </>
             )}
             {wizardStep > 1 && (
               <>
@@ -1322,7 +1333,32 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {unidadesOrdenadas.map(unidad => {
+                        {unidadesOrdenadas.filter(unidad => {
+                          let mostrar = true;
+                          if (tipoCotizacionWizard === 'descuento') {
+                            // Calcula el descuentoDisponibleBroker como en el render
+                            const valorLista = unidad.valor_lista || 0;
+                            const descuentoUnidad = unidad.descuento || 0;
+                            const commissionRate = getCommissionRate(unidad.proyecto_nombre) / 100;
+                            const valorConDescuentoBase = valorLista * (1 - descuentoUnidad);
+                            const comisionBroker = valorConDescuentoBase * commissionRate;
+                            const valorConDescuentoYComision = valorConDescuentoBase + comisionBroker;
+                            const descuentoDisponibleBroker = ((valorLista - valorConDescuentoYComision) / valorLista) * 100;
+                            mostrar = descuentoDisponibleBroker > 0;
+                          } else if (tipoCotizacionWizard === 'bono') {
+                            // Calcula el bonoPiePctLocal como en el render
+                            const valorLista = unidad.valor_lista || 0;
+                            const descuentoUnidad = unidad.descuento || 0;
+                            const commissionRate = getCommissionRate(unidad.proyecto_nombre) / 100;
+                            const valorConDescuentoBase = valorLista * (1 - descuentoUnidad);
+                            const comisionBroker = valorConDescuentoBase * commissionRate;
+                            const valorConDescuentoYComision = valorConDescuentoBase + comisionBroker;
+                            const descuentoDisponibleBroker = ((valorLista - valorConDescuentoYComision) / valorLista) * 100;
+                            const porcentajeRedondeado = Math.floor(descuentoDisponibleBroker * 10) / 10;
+                            mostrar = porcentajeRedondeado > 0;
+                          }
+                          return mostrar;
+                        }).map(unidad => {
                           let descuento = 0;
                           let valorConDescuento = 0;
                           let descuentoDisponibleBroker = 0;
