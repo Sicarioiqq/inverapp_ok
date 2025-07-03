@@ -16,6 +16,8 @@ import CommissionTaskCommentList from '../../components/CommissionTaskCommentLis
 import { PDFDownloadLink } from '@react-pdf/renderer';
 
 import LiquidacionPagoBrokerPDF from '../../components/pdf/LiquidacionPagoBrokerPDF';
+import { LiquidacionGestionDocument } from '../../components/pdf/LiquidacionNegocioGestionPDF';
+import { getLiquidacionGestionData } from '../../lib/getLiquidacionGestionData';
 
 import {
 
@@ -25,7 +27,7 @@ import {
 
   ChevronDown, ChevronRight, Edit2, Users, ListChecks, FileText,
 
-  ClipboardList, DollarSign, Plus, Info, Airplay, Wallet
+  ClipboardList, DollarSign, Plus, Info, Airplay, Wallet, Download
 
 } from 'lucide-react';
 
@@ -537,7 +539,19 @@ delay *= 2;
 
 
 
-};
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -629,6 +643,8 @@ const [expandedSections, setExpandedSections] = useState({
   escritura: false,
   modificaciones: false
 });
+const [liquidacionGestionData, setLiquidacionGestionData] = useState<any>(null);
+const [taskStatusLoading, setTaskStatusLoading] = useState<{ [taskId: string]: boolean }>({});
 
 
 
@@ -1263,15 +1279,12 @@ comments_count: taskCommentCount
 
 
 // Determinar si la etapa debería estar expandida inicialmente
-
 const allTasksCompleted = stageTasks.every(task => task.status === 'completed');
-
 const hasActiveTasks = stageTasks.some(task => 
 
   task.status === 'pending' || task.status === 'in_progress' || task.status === 'blocked'
 
 );
-
 const shouldBeExpanded = hasActiveTasks;
 
 
@@ -1337,7 +1350,6 @@ stages
 
 
 // La contracción automática ya se aplica en la inicialización de las etapas
-
 console.log('✅ Flujo cargado con contracción automática aplicada');
 
 
@@ -1443,7 +1455,6 @@ await fetchFlow().then(() => {
 
 
 // Después de actualizar el flujo, manejar la contracción automática
-
 handleAutoCollapseStages();
 
 
@@ -1533,7 +1544,6 @@ await fetchFlow().then(() => {
 
 
 // Después de actualizar el flujo, manejar la contracción automática
-
 handleAutoCollapseStages();
 
 
@@ -1695,7 +1705,6 @@ await fetchFlow().then(() => {
 
 
 // Después de actualizar el flujo, manejar la contracción automática
-
 handleAutoCollapseStages();
 
 
@@ -1766,7 +1775,7 @@ if (!currentAssignee && defaultAssignee) {
 
 
 
-await assignUser(taskId, defaultAssignee);
+await assignUser(taskId, { ...defaultAssignee, position: 'Desconocido' });
 
 
 
@@ -2253,7 +2262,6 @@ fetchFlow().then(() => {
 
 
 // Después de actualizar el flujo, manejar la contracción automática
-
 handleAutoCollapseStages();
 
 
@@ -2278,62 +2286,39 @@ setError(err.message);
 
 
 
-  // Aquí, justo **después** de assignUser, pega esto UNA VEZ:
-
-  useEffect(() => {
-
-if (flow?.status === 'in_progress') {
-
-  flow.stages.forEach(stage =>
-
-stage.tasks.forEach(task => {
-
-  if (!task.assignee && task.default_assignee) {
-
-assignUser(task.id, task.default_assignee);
-
-  }
-
-})
-
-  );
-
-}
-
-  }, [flow?.status]);
 
 
 
-  useEffect(() => {
 
-  if (!flow) return;
-
-
-
-  // Determina qué etapa está "pendiente":
-
-  // Podrías usar flow.current_stage.id, o buscar la primera stage.isCompleted === false.
-
-  const pendingStageId =
-
-flow.current_stage?.id ||
-
-flow.stages.find(s => !s.isCompleted)?.id;
+useEffect(() => {
+  if (flow?.status === 'in_progress') {
+    flow.stages.forEach(stage =>
+      stage.tasks.forEach(task => {
+        if (!task.assignee && task.default_assignee) {
+          assignUser(task.id, { ...task.default_assignee, position: 'Desconocido' });
+        }
+      })
+    );
+  }
+}, [flow?.status]);
 
 
 
-  if (pendingStageId) {
+useEffect(() => {
+  if (!flow) return;
 
-const el = document.getElementById(`stage-${pendingStageId}`);
+  // Determina qué etapa está "pendiente":
+  // Podrías usar flow.current_stage.id, o buscar la primera stage.isCompleted === false.
+  const pendingStageId =
+    flow.current_stage?.id ||
+    flow.stages.find(s => !s.isCompleted)?.id;
 
-if (el) {
-
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-}
-
-  }
-
+  if (pendingStageId) {
+    const el = document.getElementById(`stage-${pendingStageId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
 }, [flow]);
 
 
@@ -2357,6 +2342,10 @@ if (!flow || flow.status === 'pending') return;
 
 
 try {
+
+
+
+setTaskStatusLoading(prev => ({ ...prev, [taskId]: true }));
 
 
 
@@ -2508,26 +2497,7 @@ if (createError) throw createError;
 
 
 
-fetchFlow().then(() => {
-
-
-
-// Después de actualizar el flujo, manejar la contracción automática
-
-handleAutoCollapseStages();
-
-
-
-});
-
-
-
-
-
-// Trigger a refresh of comments
-
-
-
+await fetchFlow(); // Espera a que el fetch termine antes de continuar
 setCommentRefreshTrigger(prev => prev + 1);
 
 
@@ -2537,6 +2507,14 @@ setCommentRefreshTrigger(prev => prev + 1);
 
 
 setError(err.message);
+
+
+
+} finally {
+
+
+
+setTaskStatusLoading(prev => ({ ...prev, [taskId]: false }));
 
 
 
@@ -2711,7 +2689,6 @@ stages: updatedStages
 
 
 // Función para manejar la contracción automática de etapas completadas
-
 const handleAutoCollapseStages = () => {
 
 
@@ -2733,13 +2710,11 @@ const updatedStages = flow.stages.map(stage => {
 
 
 // Verificar si todas las tareas de la etapa están completadas
-
 const allTasksCompleted = stage.tasks.every(task => task.status === 'completed');
 
 
 
 // Verificar si hay al menos una tarea pendiente, en proceso o bloqueada
-
 const hasActiveTasks = stage.tasks.some(task => 
 
 
@@ -2753,13 +2728,9 @@ task.status === 'pending' || task.status === 'in_progress' || task.status === 'b
 
 
 console.log(`📋 Etapa: ${stage.name}`);
-
 console.log(`   - Todas completadas: ${allTasksCompleted}`);
-
 console.log(`   - Tiene tareas activas: ${hasActiveTasks}`);
-
 console.log(`   - Estado actual: ${stage.isExpanded ? 'Expandida' : 'Contraída'}`);
-
 console.log(`   - Tareas:`, stage.tasks.map(t => ({ name: t.name, status: t.status })));
 
 
@@ -2767,9 +2738,7 @@ console.log(`   - Tareas:`, stage.tasks.map(t => ({ name: t.name, status: t.stat
 
 
 // Si todas las tareas están completadas, contraer la etapa
-
 // Si hay tareas activas (pendientes, en proceso o bloqueadas), mantener expandida
-
 const shouldBeExpanded = hasActiveTasks;
 
 
@@ -3691,6 +3660,20 @@ size: 'md'
 
 
 };
+
+
+
+
+
+
+
+useEffect(() => {
+  if (flow?.broker_commission?.reservation?.id) {
+    getLiquidacionGestionData(flow.broker_commission.reservation.id)
+      .then(setLiquidacionGestionData)
+      .catch(() => setLiquidacionGestionData(null));
+  }
+}, [flow?.broker_commission?.reservation?.id]);
 
 
 
@@ -4808,32 +4791,24 @@ title="Editar fecha"
     key={stage.id}
     className="bg-white rounded-lg shadow-md overflow-hidden"
   >
-
     <div
       className="bg-gray-50 px-6 py-3 border-b flex items-center justify-between cursor-pointer"
       onClick={() => toggleStage(stageIndex)}
     >
-
       <div className="flex items-center">
-
         {stage.isExpanded ? (
           <ChevronDown className="h-5 w-5 mr-2" />
         ) : (
           <ChevronRight className="h-5 w-5 mr-2" />
         )}
-
         <h3 className="text-lg font-medium text-gray-900">{stage.name}</h3>
-
       </div>
-
       {stage.isCompleted && (
         <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
           Completada
         </span>
       )}
-
     </div>
-
     {stage.isExpanded && (
       <div className="divide-y divide-gray-200">
         {stage.tasks.map((task) => {
@@ -4998,10 +4973,8 @@ title="Editar fecha"
                   <select
                     value={task.status}
                     onChange={(e) => handleStatusChange(task.id, e.target.value)}
-                    disabled={flow.status === 'pending'}
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      getStatusColor(task.status)
-                    } border-0 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed`}
+                    disabled={flow.status === 'pending' || !!taskStatusLoading[task.id]}
+                    className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(task.status)} border-0 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed`}
                   >
                     <option value="pending">Pendiente</option>
                     <option value="in_progress">En Proceso</option>
@@ -5021,13 +4994,25 @@ title="Editar fecha"
 
                   {/* Plazo */}
                   {task.days_to_complete && (
-                    <div className="flex flex-col items-end">
+                    <div className="flex flex-col items-end mb-2">
                       <span>Plazo: {task.days_to_complete} días</span>
                       {daysOverdue > 0 && (
                         <span className="flex items-center text-red-600 mt-1">
                           <AlertTriangle className="h-4 w-4 mr-1" />
                           {daysOverdue} días de retraso
                         </span>
+                      )}
+                      {/* Botón Generar Liquidación solo para Solicitud a Jefe Inversiones y completada */}
+                      {task.name === 'Solicitud a Jefe Inversiones' && task.status === 'completed' && liquidacionGestionData && (
+                        <PDFDownloadLink
+                          document={<LiquidacionGestionDocument {...liquidacionGestionData} />}
+                          fileName={`Liquidacion_Gestion_${flow.broker_commission?.reservation?.reservation_number}.pdf`}
+                          className="mt-3 inline-flex items-center px-3 py-1 rounded text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                          style={{ minWidth: 180 }}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Generar Liquidación
+                        </PDFDownloadLink>
                       )}
                     </div>
                   )}
