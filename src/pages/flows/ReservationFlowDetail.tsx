@@ -1365,7 +1365,7 @@ const ReservationFlowDetail = () => {
           </button>
         )}
         <div className="max-w-5xl mx-auto">
-          <div className="flex items-center justify-between mb-6 sticky top-0 z-30 bg-gray-50 py-4 shadow-sm">
+          <div className="flex items-center justify-between mb-6 sticky top-0 z-10 bg-gray-50 py-4 shadow-sm">
             <button
               onClick={() => navigate('/flujo-reservas')}
               className="flex items-center text-gray-600 hover:text-gray-900"
