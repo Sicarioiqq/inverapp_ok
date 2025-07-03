@@ -142,6 +142,11 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
   const [realEstateAgency, setRealEstateAgency] = useState<any>(null);
   const [montoReservaPesos, setMontoReservaPesos] = useState<number | null>(null);
 
+  // 1. Agrega un estado para el número de cotización y la carga de guardado
+  const [numeroCotizacion, setNumeroCotizacion] = useState<number | null>(null);
+  const [savingQuote, setSavingQuote] = useState(false);
+  const [saveQuoteError, setSaveQuoteError] = useState<string | null>(null);
+
   useEffect(() => { setPromesaPctInput(pagoPromesaPct.toFixed(2)); }, [pagoPromesaPct]);
   useEffect(() => { setPiePctInput(pagoPiePct.toFixed(2)); }, [pagoPiePct]);
   useEffect(() => { setCreditoPctInput(pagoCreditoHipotecarioPct.toFixed(2)); }, [pagoCreditoHipotecarioPct]);
@@ -1024,6 +1029,63 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
     }
     // eslint-disable-next-line
   }, [proyectosHabilitadosPolitica]);
+  
+  // 2. Nueva función para guardar la cotización y obtener el número
+  const guardarCotizacionYObtenerNumero = async () => {
+    if (!selectedUnidad || !broker) return null;
+    setSavingQuote(true);
+    setSaveQuoteError(null);
+    try {
+      // Construye el objeto según los campos de la tabla 'quotes'
+      const quoteData = {
+        broker_nombre: broker.name,
+        broker_slug: broker.slug,
+        broker_token: broker.public_access_token,
+        cliente_nombre: clientName,
+        cliente_rut: clientRut,
+        proyecto: selectedUnidad.proyecto_nombre,
+        unidad: selectedUnidad.unidad,
+        tipologia: selectedUnidad.tipologia,
+        monto_total: precioBaseDepartamento,
+        descuentos: precioDescuentoDepartamento,
+        precio_venta: precioDepartamentoConDescuento,
+        total_escritura: totalEscrituraFinal,
+        reserva: pagoReserva,
+        promesa: pagoPromesa,
+        pie: pagoPie,
+        credito_hipotecario: pagoCreditoHipotecarioCalculado,
+        bono_pie: bonoPieYDescuento.bonoPieAplicableUF,
+        total: totalFormaDePago,
+        detalle_json: {
+          ufValue,
+          addedSecondaryUnits,
+          quotationType: tipoCotizacionWizard || 'descuento',
+          discountAmount,
+          bonoAmount,
+          pagoPromesaPct,
+          pagoPiePct,
+          pagoBonoPieCotizacion: bonoPieYDescuento.bonoPieAplicableUF,
+          precioTotalSecundarios,
+          pagoCreditoHipotecarioCalculado,
+          realEstateAgency,
+          montoReservaPesos,
+        }
+      };
+      const { data, error } = await supabase
+        .from('quotes')
+        .insert([quoteData])
+        .select('numero_cotizacion')
+        .single();
+      if (error) throw error;
+      setNumeroCotizacion(data.numero_cotizacion);
+      return data.numero_cotizacion;
+    } catch (err: any) {
+      setSaveQuoteError('No se pudo guardar la cotización. Intenta nuevamente.');
+      return null;
+    } finally {
+      setSavingQuote(false);
+    }
+  };
   
   if (loading) {
     return (
@@ -1942,7 +2004,32 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
                   {/* Botones de acción */}
                   <div className="mt-6 flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3">
                     {/* PDF Download Link */}
-                    {selectedUnidad && (
+                    {selectedUnidad && !numeroCotizacion && (
+                      <button
+                        type="button"
+                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
+                        style={{ pointerEvents: savingQuote ? 'none' : 'auto', opacity: savingQuote ? 0.6 : 1 }}
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          const num = await guardarCotizacionYObtenerNumero();
+                          if (num) setNumeroCotizacion(num);
+                        }}
+                        disabled={savingQuote}
+                      >
+                        {savingQuote ? (
+                          <span className="flex items-center">
+                            <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                            Guardando y generando PDF...
+                          </span>
+                        ) : (
+                          <span className="flex items-center">
+                            <Download className="h-5 w-5 mr-2" />
+                            Descargar PDF
+                          </span>
+                        )}
+                      </button>
+                    )}
+                    {selectedUnidad && numeroCotizacion && (
                       <BlobProvider
                         document={
                           <BrokerQuotePDF
@@ -1967,29 +2054,24 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
                             totalEscritura={totalEscrituraFinal}
                             pagoCreditoHipotecarioCalculado={pagoCreditoHipotecarioCalculado}
                             totalFormaDePago={totalFormaDePago}
+                            numeroCotizacion={numeroCotizacion}
                           />
                         }
                       >
-                        {({ url, loading }) => (
-                          <a
-                            href={url || undefined}
-                            download={`Cotizacion_${selectedUnidad.proyecto_nombre}_${selectedUnidad.unidad}.pdf`}
-                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
-                            style={{ pointerEvents: loading ? 'none' : 'auto', opacity: loading ? 0.6 : 1 }}
-                      >
-                            {loading ? (
-                            <span className="flex items-center">
-                              <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                              Generando PDF...
-                              </span>
-                            ) : (
-                            <span className="flex items-center">
-                              <Download className="h-5 w-5 mr-2" />
-                              Descargar PDF
-                            </span>
-                        )}
-                          </a>
-                        )}
+                        {({ url, loading }) => {
+                          React.useEffect(() => {
+                            if (url && !loading) {
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `Cotizacion_${selectedUnidad.proyecto_nombre}_${selectedUnidad.unidad}.pdf`;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              setNumeroCotizacion(null); // Limpia para permitir nuevas descargas
+                            }
+                          }, [url, loading]);
+                          return null; // No muestra nada, solo dispara la descarga
+                        }}
                       </BlobProvider>
                     )}
                   </div>

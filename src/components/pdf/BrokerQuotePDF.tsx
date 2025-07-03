@@ -396,6 +396,8 @@ interface BrokerQuotePDFProps {
 
   totalFormaDePago: number;
 
+  numeroCotizacion?: number | null;
+
 }
 
 
@@ -443,6 +445,8 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
   pagoCreditoHipotecarioCalculado,
 
   totalFormaDePago,
+
+  numeroCotizacion,
 
 }) => {
 
@@ -585,7 +589,11 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
 
           <Text style={Styles.dateInfo}>Fecha: {currentDate}</Text>
 
-          <Text style={Styles.quotationNumber}>COTIZACIÓN Nº: [PENDIENTE]</Text>
+          <Text style={Styles.quotationNumber}>
+
+            COTIZACIÓN Nº: {numeroCotizacion ? numeroCotizacion : '[PENDIENTE]'}
+
+          </Text>
 
           <Text style={Styles.dateInfo}>UF: $ {ufValue ? ufValue.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}</Text>
 
