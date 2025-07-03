@@ -7,7 +7,11 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { session } = useAuthStore();
+  const { session, loading } = useAuthStore();
+
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen text-gray-500 text-lg">Cargando...</div>;
+  }
 
   if (!session) {
     return <Navigate to="/login" replace />;

@@ -18,6 +18,8 @@ interface CalendarEventModalProps {
   defaultDescription?: string;
   defaultLocation?: string;
   onEventCreated?: () => void;
+  reservationFlowId?: string;
+  reservationFlowTaskId?: string;
 }
 
 const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
@@ -27,7 +29,9 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
   defaultDate,
   defaultDescription = '',
   defaultLocation = '',
-  onEventCreated
+  onEventCreated,
+  reservationFlowId,
+  reservationFlowTaskId
 }) => {
   const [title, setTitle] = useState(defaultTitle);
   const [date, setDate] = useState(defaultDate);
@@ -89,7 +93,9 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
             type: 'gestion',
             start: date,
             created_by: currentUser.id,
-            assigned_to: user.id
+            assigned_to: user.id,
+            reservation_flow_id: reservationFlowId || null,
+            reservation_flow_task_id: reservationFlowTaskId || null
           });
         if (error) throw error;
       }
@@ -106,7 +112,7 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
     <Dialog open={open} onClose={onClose} className="fixed z-50 inset-0 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen px-4">
         <div className="fixed inset-0 bg-black opacity-30"></div>
-        <Dialog.Panel className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-auto p-6">
+        <Dialog.Panel className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-auto p-4 text-sm">
           <Dialog.Title className="text-xl font-bold mb-4">Agendar Gestión</Dialog.Title>
           <div className="space-y-4">
             <div>
@@ -115,7 +121,7 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
                 type="text"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
                 placeholder="Título de la gestión"
               />
             </div>
@@ -125,7 +131,7 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
                 type="date"
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
               />
             </div>
             <div>
@@ -153,7 +159,7 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
               <textarea
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
                 rows={2}
                 placeholder="Descripción de la gestión"
               />
@@ -164,7 +170,7 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
                 type="text"
                 value={location}
                 onChange={e => setLocation(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
                 placeholder="Ubicación"
               />
             </div>
@@ -172,7 +178,7 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
           <div className="flex justify-end space-x-3 mt-6">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              className="px-3 py-1 text-gray-600 hover:text-gray-800 transition-colors text-sm"
               disabled={loading}
             >
               Cancelar
@@ -180,7 +186,7 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
             <button
               onClick={handleSave}
               disabled={!title || !date || selectedUsers.length === 0 || loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
             >
               Agendar
             </button>

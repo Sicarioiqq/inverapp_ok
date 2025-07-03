@@ -203,6 +203,7 @@ const StageCard: React.FC<StageCardProps> = ({
           {tasks.map((task) => (
             <div 
               key={task.id}
+              id={`tarea-${task.id}`}
               className="border-b border-gray-200 last:border-b-0"
             >
               <div className="p-4 hover:bg-gray-50">
@@ -343,6 +344,8 @@ const StageCard: React.FC<StageCardProps> = ({
           defaultTitle={calendarModalTitle}
           defaultDate={calendarModalDefaultDate}
           onEventCreated={() => setShowCalendarModal(false)}
+          reservationFlowId={reservationFlowId}
+          reservationFlowTaskId={calendarModalTask.id}
         />
       )}
     </div>

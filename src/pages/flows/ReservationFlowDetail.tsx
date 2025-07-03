@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { supabase, formatDateChile, formatDateTimeChile, parseMonthYear, formatMonthYear } from '../../lib/supabase';
 import { usePopup } from '../../contexts/PopupContext';
 import Layout from '../../components/Layout';
@@ -162,6 +162,7 @@ interface ClientReservation {
 
 const ReservationFlowDetail = () => {
   const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { showPopup } = usePopup();
   const [flow, setFlow] = useState<ReservationFlow | null>(null);
@@ -312,6 +313,21 @@ const ReservationFlowDetail = () => {
   useEffect(() => {
     setShowReservationsPanel(false);
   }, [id]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tareaId = params.get('tarea');
+    if (tareaId) {
+      setTimeout(() => {
+        const el = document.getElementById(`tarea-${tareaId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-2', 'ring-blue-400');
+          setTimeout(() => el.classList.remove('ring-2', 'ring-blue-400'), 2000);
+        }
+      }, 800);
+    }
+  }, [location.search, flow]);
 
   const checkAdminStatus = async () => {
     try {

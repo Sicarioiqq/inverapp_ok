@@ -19,6 +19,8 @@ interface CalendarEvent {
   color?: string;
   created_by: string;
   created_at: string;
+  reservation_flow_id?: string;
+  reservation_flow_task_id?: string;
 }
 
 const CalendarPage = () => {
@@ -341,6 +343,21 @@ const CalendarPage = () => {
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
+                {selectedEvent && selectedEvent.reservation_flow_id && (
+                  <button
+                    type="button"
+                    className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm mr-2"
+                    onClick={() => {
+                      let url = `/flujo-reservas/${selectedEvent.reservation_flow_id}`;
+                      if (selectedEvent.reservation_flow_task_id) {
+                        url += `?tarea=${selectedEvent.reservation_flow_task_id}`;
+                      }
+                      window.location.href = url;
+                    }}
+                  >
+                    Flujo Reserva
+                  </button>
+                )}
                 {selectedEvent && (
                   <button
                     onClick={handleDeleteEvent}
