@@ -202,8 +202,10 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, o
   return (
     <div className="h-full flex flex-col overflow-y-auto">
       <div className="flex-shrink-0 px-4 py-4 flex items-center">
-        <img src="/inverapp-logo.png" alt="InverAPP" className="h-8 w-8" />
-        <span className="ml-2 text-xl font-semibold text-gray-900">InverAPP</span>
+        <Link to="/dashboard" className="flex items-center hover:opacity-80 transition-opacity cursor-pointer">
+          <img src="/inverapp-logo.png" alt="InverAPP" className="h-8 w-8" />
+          <span className="ml-2 text-xl font-semibold text-gray-900">InverAPP</span>
+        </Link>
       </div>
       
       <nav className="flex-1 px-2 pb-4">
