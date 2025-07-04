@@ -555,10 +555,10 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
     ? ((precioDescuentoDepartamento / precioBaseDepartamento) * 100)
     : 0;
 
-  // Si es flujo bono pie, usar los props correctos para mostrar el descuento real aplicado
-  const descuentoAplicableUF = quotationType === 'bono' ? precioDescuentoDepartamento : precioDescuentoDepartamento;
-  const descuentoAplicablePct = quotationType === 'bono' ? porcentajeDescuentoReal : porcentajeDescuentoReal;
-  const precioVentaUF = quotationType === 'bono' ? (precioBaseDepartamento - descuentoAplicableUF) : (precioBaseDepartamento - precioDescuentoDepartamento);
+  // Usar los valores correctos para mostrar el descuento real aplicado (ya ajustado con comisión del broker)
+  const descuentoAplicableUF = precioDescuentoDepartamento;
+  const descuentoAplicablePct = porcentajeDescuentoReal;
+  const precioVentaUF = precioBaseDepartamento - descuentoAplicableUF;
 
   // Helper para proxificar imágenes S3 si es necesario
   const getVisualizableImageUrl = (url: string | null | undefined) => {

@@ -317,7 +317,16 @@ const BrokerQuotePage: React.FC<BrokerQuotePageProps> = () => {
 
       let descuentoUF = 0;
       if (tipoCotizacionWizard === 'descuento') {
-        descuentoUF = (precioBase * discountAmount) / 100;
+        // Calcular descuento ajustado con comisión del broker
+        const valorLista = selectedUnidad.valor_lista || 0;
+        const descuentoUnidad = selectedUnidad.descuento || 0;
+        const commissionRate = getCommissionRate(selectedUnidad.proyecto_nombre);
+        const valorConDescuento = valorLista * (1 - descuentoUnidad);
+        const comisionBroker = valorConDescuento * (commissionRate / 100);
+        const montoDescuento = valorLista * descuentoUnidad;
+        const descuentoDisponibleBroker = ((montoDescuento - comisionBroker) / valorLista);
+        const porcentajeRedondeado = Math.floor(descuentoDisponibleBroker * 1000) / 10;
+        descuentoUF = valorLista * (porcentajeRedondeado / 100);
       } else if (tipoCotizacionWizard === 'bono') {
         // Calcular descuento real SOLO aquí
         const { descuentoAplicableUF } = calculateBonoPieYDescuento(
