@@ -18,6 +18,7 @@ interface CalendarEvent {
   type: 'gestion' | 'reunion' | 'visita' | 'otro';
   color?: string;
   created_by: string;
+  assigned_to?: string;
   created_at: string;
   reservation_flow_id?: string;
   reservation_flow_task_id?: string;
@@ -48,11 +49,11 @@ const CalendarPage = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Obtener eventos personalizados del calendario
+      // Obtener eventos del calendario (creados por el usuario o asignados al usuario)
       const { data: calendarEvents, error } = await supabase
         .from('calendar_events')
         .select('*')
-        .eq('created_by', user.id)
+        .or(`created_by.eq.${user.id},assigned_to.eq.${user.id}`)
         .order('start', { ascending: true });
 
       if (error) {
@@ -261,6 +262,16 @@ const CalendarPage = () => {
               </Dialog.Title>
               
               <div className="space-y-4">
+                {selectedEvent && selectedEvent.assigned_to && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                    <div className="flex items-center">
+                      <User className="h-4 w-4 text-blue-600 mr-2" />
+                      <span className="text-sm text-blue-800 font-medium">
+                        Tarea asignada automáticamente
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Título *
