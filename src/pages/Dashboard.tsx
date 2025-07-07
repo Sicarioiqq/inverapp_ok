@@ -218,19 +218,53 @@ const Dashboard: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [activeReport, setActiveReport] = useState('reservas');
   const [chartMode, setChartMode] = useState<'unidades' | 'uf'>('unidades');
+  const [reservationsGrowthText, setReservationsGrowthText] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboardStats();
   }, []);
 
+  useEffect(() => {
+    // Solo calcular si ya tenemos los datos
+    const current = Number(stats.monthlyStats.reservations) || 0;
+    const previous = Number(stats.monthlyStats.previousReservations) || 0;
+    let growthText: string;
+    if (previous === 0) {
+      if (current > 0) {
+        growthText = '¡Nuevo! (crecimiento ilimitado)';
+      } else {
+        growthText = '0% vs mes anterior';
+      }
+    } else {
+      const change = current - previous;
+      const percentageChange = (change / previous) * 100;
+      if (percentageChange > 0) {
+        growthText = `▲ +${percentageChange.toFixed(0)}% vs mes anterior`;
+      } else if (percentageChange < 0) {
+        growthText = `▼ ${percentageChange.toFixed(0)}% vs mes anterior`;
+      } else {
+        growthText = '→ 0% vs mes anterior';
+      }
+    }
+    console.log('Cálculo de growthText:', { current, previous, growthText });
+    setReservationsGrowthText(growthText);
+  }, [stats.monthlyStats.reservations, stats.monthlyStats.previousReservations]);
+
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
-      const currentDate = new Date();
-      const startOfCurrentMonth = startOfMonth(currentDate);
-      const endOfCurrentMonth = endOfMonth(currentDate);
-      const startOfPreviousMonth = startOfMonth(subMonths(currentDate, 1));
-      const endOfPreviousMonth = endOfMonth(subMonths(currentDate, 1));
+      const today = new Date();
+      const currentDayOfMonth = today.getDate();
+      const startOfCurrentMonth = startOfMonth(today);
+      const startOfPreviousMonth = startOfMonth(subMonths(today, 1));
+      const endOfCurrentRange = new Date(startOfCurrentMonth);
+      endOfCurrentRange.setDate(currentDayOfMonth);
+      let endOfPreviousRange = new Date(startOfPreviousMonth);
+      endOfPreviousRange.setDate(currentDayOfMonth);
+      // Ajuste para meses con menos días
+      if (endOfPreviousRange.getMonth() !== startOfPreviousMonth.getMonth()) {
+        endOfPreviousRange = endOfMonth(startOfPreviousMonth);
+      }
 
       // Get total counts
       const [
@@ -249,42 +283,56 @@ const Dashboard: React.FC = () => {
 
       // Get monthly stats
       const [
-        { data: currentMonthReservationsData, count: currentMonthReservationsCount },
-        { data: previousMonthReservationsData, count: previousMonthReservationsCount },
+        { count: currentMonthToDateReservations },
+        { count: previousMonthToDateReservations }
+      ] = await Promise.all([
+        supabase
+          .from('reservations')
+          .select('id', { count: 'exact', head: true })
+          .gte('reservation_date', startOfCurrentMonth.toISOString())
+          .lte('reservation_date', endOfCurrentRange.toISOString()),
+        supabase
+          .from('reservations')
+          .select('id', { count: 'exact', head: true })
+          .gte('reservation_date', startOfPreviousMonth.toISOString())
+          .lte('reservation_date', endOfPreviousRange.toISOString())
+      ]);
+
+      // *** POR FAVOR, VUELVE A PONER Y REVISA ESTOS console.log EN TU CONSOLA DEL NAVEGADOR ***
+      console.log('startOfCurrentMonth (ISO):', startOfCurrentMonth.toISOString());
+      console.log('endOfCurrentRange (ISO):', endOfCurrentRange.toISOString());
+      console.log('currentMonthToDateReservations (CONTEO REAL MES ACTUAL):', currentMonthToDateReservations);
+
+      console.log('startOfPreviousMonth (ISO):', startOfPreviousMonth.toISOString());
+      console.log('endOfPreviousRange (ISO):', endOfPreviousRange.toISOString());
+      console.log('previousMonthToDateReservations (CONTEO REAL MES ANTERIOR):', previousMonthToDateReservations);
+      // *************************************************************************************
+
+      // Calculate total commissions
+      const [
         { data: currentMonthCommissions },
         { data: previousMonthCommissions }
       ] = await Promise.all([
         supabase
-          .from('reservations')
-          .select('*', { count: 'exact', head: true })
-          .gte('reservation_date', startOfCurrentMonth.toISOString())
-          .lte('reservation_date', endOfCurrentMonth.toISOString()),
-        supabase
-          .from('reservations')
-          .select('*', { count: 'exact', head: true })
-          .gte('reservation_date', startOfPreviousMonth.toISOString())
-          .lte('reservation_date', endOfPreviousMonth.toISOString()),
-        supabase
           .from('broker_commissions')
           .select('commission_amount')
           .gte('created_at', startOfCurrentMonth.toISOString())
-          .lte('created_at', endOfCurrentMonth.toISOString()),
+          .lte('created_at', endOfCurrentRange.toISOString()),
         supabase
           .from('broker_commissions')
           .select('commission_amount')
           .gte('created_at', startOfPreviousMonth.toISOString())
-          .lte('created_at', endOfPreviousMonth.toISOString())
+          .lte('created_at', endOfPreviousRange.toISOString())
       ]);
 
-      // Calculate total commissions
       const currentMonthTotal = currentMonthCommissions?.reduce((sum, { commission_amount }) => sum + commission_amount, 0) || 0;
       const previousMonthTotal = previousMonthCommissions?.reduce((sum, { commission_amount }) => sum + commission_amount, 0) || 0;
 
       // Get monthly reservations for the last 6 months
       const monthlyReservations = await Promise.all(
         Array.from({ length: 6 }).map(async (_, index) => {
-          const monthStartDate = startOfMonth(subMonths(currentDate, 5 - index));
-          const monthEndDate = endOfMonth(subMonths(currentDate, 5 - index));
+          const monthStartDate = startOfMonth(subMonths(today, 5 - index));
+          const monthEndDate = endOfMonth(subMonths(today, 5 - index));
           // Formato local YYYY-MM-DD
           const monthStart = `${monthStartDate.getFullYear()}-${String(monthStartDate.getMonth() + 1).padStart(2, '0')}-${String(monthStartDate.getDate()).padStart(2, '0')}`;
           const monthEnd = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
@@ -343,8 +391,8 @@ const Dashboard: React.FC = () => {
       // Get monthly net commissions for the last 6 months
       const monthlyCommissions = await Promise.all(
         Array.from({ length: 6 }).map(async (_, index) => {
-          const monthStartDate = startOfMonth(subMonths(currentDate, 5 - index));
-          const monthEndDate = endOfMonth(subMonths(currentDate, 5 - index));
+          const monthStartDate = startOfMonth(subMonths(today, 5 - index));
+          const monthEndDate = endOfMonth(subMonths(today, 5 - index));
           // Formato local YYYY-MM-DD
           const monthStart = `${monthStartDate.getFullYear()}-${String(monthStartDate.getMonth() + 1).padStart(2, '0')}-${String(monthStartDate.getDate()).padStart(2, '0')}`;
           const monthEnd = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
@@ -401,19 +449,26 @@ const Dashboard: React.FC = () => {
         .limit(5);
 
       // Formatear las reservas recientes para el renderizado
-      const formattedReservations = (recentReservations || []).map(reservation => ({
-        id: reservation.id,
-        reservation_number: reservation.reservation_number,
-        reservation_date: reservation.reservation_date,
-        apartment_number: reservation.apartment_number,
-        total_price: reservation.total_price,
-        project_name: reservation.project?.name || '',
-        project_stage: reservation.project?.stage || '',
-        client_name: reservation.client ? `${reservation.client.first_name} ${reservation.client.last_name}` : '',
-        seller_name: reservation.seller ? `${reservation.seller.first_name} ${reservation.seller.last_name}` : '',
-        seller_avatar: reservation.seller?.avatar_url || '',
-        broker_name: reservation.broker?.name || ''
-      }));
+      const formattedReservations = (recentReservations || []).map((reservation: any) => {
+        // Si alguna propiedad es array, tomar el primer elemento
+        const project = Array.isArray(reservation.project) ? reservation.project[0] : reservation.project;
+        const client = Array.isArray(reservation.client) ? reservation.client[0] : reservation.client;
+        const seller = Array.isArray(reservation.seller) ? reservation.seller[0] : reservation.seller;
+        const broker = Array.isArray(reservation.broker) ? reservation.broker[0] : reservation.broker;
+        return {
+          id: reservation.id,
+          reservation_number: reservation.reservation_number,
+          reservation_date: reservation.reservation_date,
+          apartment_number: reservation.apartment_number,
+          total_price: reservation.total_price,
+          project_name: project?.name || '',
+          project_stage: project?.stage || '',
+          client_name: client ? `${client.first_name ?? ''} ${client.last_name ?? ''}`.trim() : '',
+          seller_name: seller ? `${seller.first_name ?? ''} ${seller.last_name ?? ''}`.trim() : '',
+          seller_avatar: seller?.avatar_url || '',
+          broker_name: broker?.name || ''
+        };
+      });
 
       // Get recent payments (commission flows that have started)
       const { data: recentPaymentsData } = await supabase
@@ -455,25 +510,26 @@ const Dashboard: React.FC = () => {
           .limit(1)
           .maybeSingle();
 
+        // Si los datos vienen como array, tomar el primer elemento
+        const brokerCommission = Array.isArray(payment.broker_commission) ? payment.broker_commission[0] : payment.broker_commission;
+        const currentStage = Array.isArray(payment.current_stage) ? payment.current_stage[0] : payment.current_stage;
+        const task = currentTask?.task && Array.isArray(currentTask.task) ? currentTask.task[0] : currentTask?.task;
+        const assignee = currentTask?.assignee && Array.isArray(currentTask.assignee) ? currentTask.assignee[0] : currentTask?.assignee;
+
         // Calculate days overdue
         let daysOverdue = 0;
-        if (currentTask?.started_at && currentTask?.task?.days_to_complete) {
+        if (currentTask?.started_at && task?.days_to_complete) {
           const startDate = new Date(currentTask.started_at);
           const daysElapsed = differenceInDays(new Date(), startDate);
-          daysOverdue = Math.max(0, daysElapsed - currentTask.task.days_to_complete);
+          daysOverdue = Math.max(0, daysElapsed - task.days_to_complete);
         }
-
-        const brokerCommission = payment.broker_commission as BrokerCommission;
-        const currentStage = payment.current_stage as PaymentFlowStage;
-        const task = currentTask?.task as Task;
-        const assignee = currentTask?.assignee as Profile;
 
         return {
           id: payment.id,
           commission_flow_id: payment.id,
-          reservation_number: brokerCommission.reservation.reservation_number,
-          broker_name: brokerCommission.broker.name,
-          commission_amount: brokerCommission.commission_amount,
+          reservation_number: brokerCommission?.reservation?.reservation_number,
+          broker_name: brokerCommission?.broker?.name,
+          commission_amount: brokerCommission?.commission_amount,
           payment_date: payment.started_at,
           status: payment.status,
           current_stage: currentStage?.name || 'No iniciado',
@@ -489,7 +545,7 @@ const Dashboard: React.FC = () => {
         .select('project:projects(name)');
 
       // 2. Obtener reservas de los últimos 3 meses con total_price
-      const threeMonthsAgo = subMonths(currentDate, 3);
+      const threeMonthsAgo = subMonths(today, 3);
       const { data: projectStats } = await supabase
         .from('reservations')
         .select(`
@@ -502,8 +558,9 @@ const Dashboard: React.FC = () => {
       const projectMap: { [key: string]: { name: string; recent_reservations: number; recent_total_price: number; total_reservations: number; } } = {};
 
       // Contar reservas históricas
-      (allReservations || []).forEach(r => {
-        const name = r.project?.name;
+      (allReservations || []).forEach((r: any) => {
+        const project = Array.isArray(r.project) ? r.project[0] : r.project;
+        const name = project?.name;
         if (!name) return;
         if (!projectMap[name]) {
           projectMap[name] = { name, recent_reservations: 0, recent_total_price: 0, total_reservations: 0 };
@@ -512,8 +569,9 @@ const Dashboard: React.FC = () => {
       });
 
       // Contar reservas y suma de UF de los últimos 3 meses
-      (projectStats || []).forEach(r => {
-        const name = r.project?.name;
+      (projectStats || []).forEach((r: any) => {
+        const project = Array.isArray(r.project) ? r.project[0] : r.project;
+        const name = project?.name;
         if (!name) return;
         if (!projectMap[name]) {
           projectMap[name] = { name, recent_reservations: 0, recent_total_price: 0, total_reservations: 0 };
@@ -556,8 +614,9 @@ const Dashboard: React.FC = () => {
       const brokerMap: { [key: string]: { name: string; recent_reservations: number; recent_total_price: number; total_reservations: number; } } = {};
 
       // Contar reservas históricas
-      (allBrokerReservations || []).forEach(r => {
-        const name = r.broker?.name;
+      (allBrokerReservations || []).forEach((r: any) => {
+        const broker = Array.isArray(r.broker) ? r.broker[0] : r.broker;
+        const name = broker?.name;
         if (!name) return;
         if (!brokerMap[name]) {
           brokerMap[name] = { name, recent_reservations: 0, recent_total_price: 0, total_reservations: 0 };
@@ -566,8 +625,9 @@ const Dashboard: React.FC = () => {
       });
 
       // Contar reservas y suma de UF de los últimos 3 meses
-      (brokerStats || []).forEach(r => {
-        const name = r.broker?.name;
+      (brokerStats || []).forEach((r: any) => {
+        const broker = Array.isArray(r.broker) ? r.broker[0] : r.broker;
+        const name = broker?.name;
         if (!name) return;
         if (!brokerMap[name]) {
           brokerMap[name] = { name, recent_reservations: 0, recent_total_price: 0, total_reservations: 0 };
@@ -593,10 +653,9 @@ const Dashboard: React.FC = () => {
         }));
 
       // Obtener estadísticas de cotizaciones
-      const today = new Date();
       const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
-      const startOfCurrentMonthForQuotes = startOfMonth(currentDate);
+      const startOfCurrentMonthForQuotes = startOfMonth(today);
 
       // Obtener cotizaciones por período
       const [
@@ -697,8 +756,8 @@ const Dashboard: React.FC = () => {
       // Obtener cotizaciones mensuales para el gráfico
       const monthlyQuotations = await Promise.all(
         Array.from({ length: 6 }).map(async (_, index) => {
-          const monthStartDate = startOfMonth(subMonths(currentDate, 5 - index));
-          const monthEndDate = endOfMonth(subMonths(currentDate, 5 - index));
+          const monthStartDate = startOfMonth(subMonths(today, 5 - index));
+          const monthEndDate = endOfMonth(subMonths(today, 5 - index));
           const { data: quotes, count } = await supabase
             .from('quotes')
             .select('total_escritura, monto_total, fecha', { count: 'exact', head: false })
@@ -719,9 +778,9 @@ const Dashboard: React.FC = () => {
         totalProjects: projectsCount || 0,
         totalBrokers: brokersCount || 0,
         monthlyStats: {
-          reservations: currentMonthReservationsCount || 0,
+          reservations: Number(currentMonthToDateReservations) || 0,
           commissions: currentMonthTotal,
-          previousReservations: previousMonthReservationsCount || 0,
+          previousReservations: Number(previousMonthToDateReservations) || 0,
           previousCommissions: previousMonthTotal
         },
         recentActivity: {
@@ -751,7 +810,12 @@ const Dashboard: React.FC = () => {
   };
 
   const calculateTrend = (current: number, previous: number) => {
-    if (previous === 0) return { value: 100, isPositive: true };
+    if (!previous || previous === 0) {
+      if (!current || current === 0) {
+        return { value: 0, isPositive: true }; // Sin variación
+      }
+      return { value: 100, isPositive: true }; // Crecimiento del 100% (o "Nuevo")
+    }
     const change = ((current - previous) / previous) * 100;
     return {
       value: Math.abs(Math.round(change)),
@@ -1081,31 +1145,25 @@ const Dashboard: React.FC = () => {
       {/* Tarjetas principales */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <DashboardCard
+          title="Reservas del Mes"
+          value={stats.monthlyStats.reservations}
+          icon={<ClipboardCheck className="h-6 w-6" />}
+          trend={reservationsGrowthText ? { value: reservationsGrowthText, isPositive: reservationsGrowthText.includes('▲') } : undefined}
+        />
+        <DashboardCard
+          title="Total Reservas del Mes en UF"
+          value={stats.monthlyReservations.length > 0 ? formatCurrency(stats.monthlyReservations[stats.monthlyReservations.length - 1].total_uf) : '0'}
+          icon={<Wallet className="h-6 w-6" />}
+        />
+        <DashboardCard
           title="Total Reservas"
           value={stats.totalReservations}
           icon={<ClipboardCheck className="h-6 w-6" />}
-          trend={{ value: calculateTrend(stats.monthlyStats.reservations, stats.monthlyStats.previousReservations), isPositive: stats.monthlyStats.reservations >= stats.monthlyStats.previousReservations }}
-        />
-        <DashboardCard
-          title="Total Clientes"
-          value={stats.totalClients}
-          icon={<Users className="h-6 w-6" />}
-        />
-        <DashboardCard
-          title="Total Proyectos"
-          value={stats.totalProjects}
-          icon={<Building2 className="h-6 w-6" />}
-        />
-        <DashboardCard
-          title="Total Brokers"
-          value={stats.totalBrokers}
-          icon={<Building className="h-6 w-6" />}
         />
         <DashboardCard
           title="Cotizaciones del Mes"
           value={stats.quotationStats.monthQuotations}
           icon={<FileText className="h-6 w-6" />}
-          trend={{ value: 0, isPositive: true }}
         />
       </div>
 

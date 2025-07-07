@@ -5,7 +5,7 @@ interface DashboardCardProps {
   value: string | number;
   icon: ReactNode;
   trend?: {
-    value: number;
+    value: string;
     isPositive: boolean;
   };
 }
@@ -21,8 +21,7 @@ const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, icon, trend
         <div className="text-2xl font-semibold">{value}</div>
         {trend && (
           <div className={`flex items-center mt-2 text-sm ${trend.isPositive ? 'text-green-600' : 'text-red-600'}`}>
-            <span>{trend.isPositive ? '↑' : '↓'}</span>
-            <span className="ml-1">{Math.abs(trend.value)}% vs mes anterior</span>
+            <span className="ml-1">{trend.value}</span>
           </div>
         )}
       </div>
