@@ -15,7 +15,8 @@ import {
   CheckSquare,
   ShieldCheck,
   ShoppingBasket,
-  ListChecks
+  ListChecks,
+  Monitor
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../lib/supabase';
@@ -70,6 +71,11 @@ export const menuItems: MenuItem[] = [
     title: 'Operaciones',
     icon: <ClipboardList className="h-5 w-5" />,
     path: '/operaciones',
+  },
+  {
+    title: 'Dashboard TV',
+    icon: <Monitor className="h-5 w-5" />,
+    path: '/dashboard-tv',
   },
   {
     title: 'Brokers',

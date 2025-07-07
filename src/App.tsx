@@ -38,6 +38,7 @@ import TareasAsignadas from './pages/TareasAsignadas';
 import QuotationsReport from './pages/reports/QuotationsReport';
 import Operaciones from './pages/Operaciones';
 import CalendarPage from './pages/Calendar';
+import DashboardTV from './pages/DashboardTV';
 
 function App() {
   const { session, initialize } = useAuthStore();
@@ -226,6 +227,11 @@ function App() {
           <Route path="/operaciones" element={
             <ProtectedRoute>
               <Operaciones />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard-tv" element={
+            <ProtectedRoute>
+              <DashboardTV />
             </ProtectedRoute>
           } />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
