@@ -15,10 +15,14 @@ import {
   CheckCircle2,
   Building,
   Home,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Tab } from '@headlessui/react';
+import DashboardCard from '../components/DashboardCard';
+import DashboardChart from '../components/DashboardChart';
 
 interface DashboardStats {
   totalReservations: number;
@@ -50,11 +54,25 @@ interface DashboardStats {
   monthlyReservations: {
     month: string;
     count: number;
-    total_price: number;
+    total_uf: number;
   }[];
   monthlyCommissions: {
     month: string;
     amount: number;
+  }[];
+  quotationStats: {
+    totalQuotations: number;
+    todayQuotations: number;
+    weekQuotations: number;
+    monthQuotations: number;
+  };
+  recentQuotations: RecentQuotation[];
+  brokerQuotationStats: BrokerQuotationStat[];
+  projectQuotationStats: ProjectQuotationStat[];
+  monthlyQuotations: {
+    month: string;
+    count: number;
+    total_uf: number;
   }[];
 }
 
@@ -135,6 +153,34 @@ interface CountResult {
   count: number;
 }
 
+interface RecentQuotation {
+  id: number;
+  broker_id: string;
+  broker_name: string;
+  client_name: string;
+  project_name: string;
+  unit_number: string;
+  quotation_type: string;
+  total_deed_price: number;
+  created_at: string;
+}
+
+interface BrokerQuotationStat {
+  broker_name: string;
+  total_quotations: number;
+  today_quotations: number;
+  week_quotations: number;
+  month_quotations: number;
+}
+
+interface ProjectQuotationStat {
+  project_name: string;
+  total_quotations: number;
+  today_quotations: number;
+  week_quotations: number;
+  month_quotations: number;
+}
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
@@ -155,11 +201,23 @@ const Dashboard: React.FC = () => {
     projectStats: [],
     brokerStats: [],
     monthlyReservations: [],
-    monthlyCommissions: []
+    monthlyCommissions: [],
+    quotationStats: {
+      totalQuotations: 0,
+      todayQuotations: 0,
+      weekQuotations: 0,
+      monthQuotations: 0
+    },
+    recentQuotations: [],
+    brokerQuotationStats: [],
+    projectQuotationStats: [],
+    monthlyQuotations: []
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [activeReport, setActiveReport] = useState('reservas');
+  const [chartMode, setChartMode] = useState<'unidades' | 'uf'>('unidades');
 
   useEffect(() => {
     fetchDashboardStats();
@@ -179,12 +237,14 @@ const Dashboard: React.FC = () => {
         { data: reservationsData, count: reservationsCount },
         { data: clientsData, count: clientsCount },
         { data: projectsData, count: projectsCount },
-        { data: brokersData, count: brokersCount }
+        { data: brokersData, count: brokersCount },
+        { data: quotesData, count: quotesCount }
       ] = await Promise.all([
         supabase.from('reservations').select('*', { count: 'exact', head: true }),
         supabase.from('clients').select('*', { count: 'exact', head: true }).is('deleted_at', null),
         supabase.from('projects').select('*', { count: 'exact', head: true }),
-        supabase.from('brokers').select('*', { count: 'exact', head: true })
+        supabase.from('brokers').select('*', { count: 'exact', head: true }),
+        supabase.from('quotes').select('*', { count: 'exact', head: true })
       ]);
 
       // Get monthly stats
@@ -228,19 +288,54 @@ const Dashboard: React.FC = () => {
           // Formato local YYYY-MM-DD
           const monthStart = `${monthStartDate.getFullYear()}-${String(monthStartDate.getMonth() + 1).padStart(2, '0')}-${String(monthStartDate.getDate()).padStart(2, '0')}`;
           const monthEnd = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
-          
-          const { count, data } = await supabase
+
+          // Traer reservas del mes con los campos necesarios
+          const { data: reservations, count } = await supabase
             .from('reservations')
-            .select('total_price', { count: 'exact' })
+            .select('id, minimum_price, total_payment, subsidy_payment')
             .gte('reservation_date', monthStart)
             .lte('reservation_date', monthEnd);
-          
-          const total_price = data?.reduce((sum, { total_price }) => sum + (total_price || 0), 0) || 0;
-          
+
+          if (!reservations || reservations.length === 0) {
+            return {
+              month: format(monthStartDate, 'MMMM', { locale: es }),
+              count: 0,
+              total_uf: 0
+            };
+          }
+
+          // Para cada reserva, obtener comisión y promociones contra descuento
+          let totalUF = 0;
+          for (const reservation of reservations) {
+            // Obtener comisión asociada
+            const { data: brokerCommission } = await supabase
+              .from('broker_commissions')
+              .select('commission_amount')
+              .eq('reservation_id', reservation.id)
+              .maybeSingle();
+            const commission_amount = brokerCommission?.commission_amount || 0;
+
+            // Obtener promociones contra descuento
+            const { data: promos } = await supabase
+              .from('promotions')
+              .select('amount, is_against_discount')
+              .eq('reservation_id', reservation.id);
+            const totalPromotionsAgainstDiscountVal = (promos || []).reduce((sum, p) => p.is_against_discount ? sum + (p.amount || 0) : sum, 0);
+
+            // Calcular valores
+            const minimum_price = reservation.minimum_price || 0;
+            const total_payment = reservation.total_payment || 0;
+            const subsidy_payment = reservation.subsidy_payment || 0;
+            const recoveryPaymentVal = total_payment - subsidy_payment;
+            const differenceVal = recoveryPaymentVal - minimum_price - commission_amount - totalPromotionsAgainstDiscountVal;
+            const ufValue = minimum_price + differenceVal;
+            totalUF += ufValue;
+          }
+
           return {
             month: format(monthStartDate, 'MMMM', { locale: es }),
-            count: count || 0,
-            total_price
+            count: count || reservations.length,
+            total_uf: totalUF
           };
         })
       );
@@ -497,6 +592,127 @@ const Dashboard: React.FC = () => {
           participation: totalRecentBrokerReservations > 0 ? (broker.recent_reservations / totalRecentBrokerReservations) * 100 : 0
         }));
 
+      // Obtener estadísticas de cotizaciones
+      const today = new Date();
+      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
+      const startOfCurrentMonthForQuotes = startOfMonth(currentDate);
+
+      // Obtener cotizaciones por período
+      const [
+        { count: todayQuotesCount },
+        { count: weekQuotesCount },
+        { count: monthQuotesCount }
+      ] = await Promise.all([
+        supabase
+          .from('quotes')
+          .select('id', { count: 'exact', head: true })
+          .gte('fecha', startOfToday.toISOString()),
+        supabase
+          .from('quotes')
+          .select('id', { count: 'exact', head: true })
+          .gte('fecha', startOfWeek.toISOString()),
+        supabase
+          .from('quotes')
+          .select('id', { count: 'exact', head: true })
+          .gte('fecha', startOfCurrentMonthForQuotes.toISOString())
+      ]);
+
+      // Obtener cotizaciones recientes
+      const { data: recentQuotesData } = await supabase
+        .from('quotes')
+        .select('id, fecha, broker_nombre, proyecto, unidad, tipologia, monto_total, total_escritura')
+        .order('fecha', { ascending: false })
+        .limit(5);
+
+      // Formatear cotizaciones recientes
+      const formattedRecentQuotations = (recentQuotesData || []).map(quote => ({
+        id: quote.id,
+        broker_name: quote.broker_nombre,
+        project_name: quote.proyecto,
+        unit_number: quote.unidad,
+        tipologia: quote.tipologia,
+        total_deed_price: quote.total_escritura || quote.monto_total || 0,
+        created_at: quote.fecha
+      }));
+
+      // Obtener estadísticas de cotizaciones por broker
+      const { data: brokerQuotesData } = await supabase
+        .from('quotes')
+        .select('broker_nombre, fecha');
+
+      // Agrupar cotizaciones por broker
+      const brokerQuotationMap: { [key: string]: BrokerQuotationStat } = {};
+      (brokerQuotesData || []).forEach(quote => {
+        const brokerName = quote.broker_nombre || 'Sin broker';
+        if (!brokerQuotationMap[brokerName]) {
+          brokerQuotationMap[brokerName] = {
+            broker_name: brokerName,
+            total_quotations: 0,
+            today_quotations: 0,
+            week_quotations: 0,
+            month_quotations: 0
+          };
+        }
+        const createdAt = new Date(quote.fecha);
+        brokerQuotationMap[brokerName].total_quotations += 1;
+        if (createdAt >= startOfToday) brokerQuotationMap[brokerName].today_quotations += 1;
+        if (createdAt >= startOfWeek) brokerQuotationMap[brokerName].week_quotations += 1;
+        if (createdAt >= startOfCurrentMonthForQuotes) brokerQuotationMap[brokerName].month_quotations += 1;
+      });
+
+      const formattedBrokerQuotationStats = Object.values(brokerQuotationMap)
+        .sort((a, b) => b.total_quotations - a.total_quotations)
+        .slice(0, 5);
+
+      // Obtener estadísticas de cotizaciones por proyecto
+      const { data: projectQuotesData } = await supabase
+        .from('quotes')
+        .select('proyecto, fecha');
+
+      // Agrupar cotizaciones por proyecto
+      const projectQuotationMap: { [key: string]: ProjectQuotationStat } = {};
+      (projectQuotesData || []).forEach(quote => {
+        const projectName = quote.proyecto || 'Sin proyecto';
+        if (!projectQuotationMap[projectName]) {
+          projectQuotationMap[projectName] = {
+            project_name: projectName,
+            total_quotations: 0,
+            today_quotations: 0,
+            week_quotations: 0,
+            month_quotations: 0
+          };
+        }
+        const createdAt = new Date(quote.fecha);
+        projectQuotationMap[projectName].total_quotations += 1;
+        if (createdAt >= startOfToday) projectQuotationMap[projectName].today_quotations += 1;
+        if (createdAt >= startOfWeek) projectQuotationMap[projectName].week_quotations += 1;
+        if (createdAt >= startOfCurrentMonthForQuotes) projectQuotationMap[projectName].month_quotations += 1;
+      });
+
+      const formattedProjectQuotationStats = Object.values(projectQuotationMap)
+        .sort((a, b) => b.total_quotations - a.total_quotations)
+        .slice(0, 5);
+
+      // Obtener cotizaciones mensuales para el gráfico
+      const monthlyQuotations = await Promise.all(
+        Array.from({ length: 6 }).map(async (_, index) => {
+          const monthStartDate = startOfMonth(subMonths(currentDate, 5 - index));
+          const monthEndDate = endOfMonth(subMonths(currentDate, 5 - index));
+          const { data: quotes, count } = await supabase
+            .from('quotes')
+            .select('total_escritura, monto_total, fecha', { count: 'exact', head: false })
+            .gte('fecha', monthStartDate.toISOString())
+            .lte('fecha', monthEndDate.toISOString());
+          const totalUF = (quotes || []).reduce((sum, q) => sum + (q.total_escritura || q.monto_total || 0), 0);
+          return {
+            month: format(monthStartDate, 'MMMM', { locale: es }),
+            count: count || 0,
+            total_uf: totalUF
+          };
+        })
+      );
+
       setStats({
         totalReservations: reservationsCount || 0,
         totalClients: clientsCount || 0,
@@ -515,7 +731,17 @@ const Dashboard: React.FC = () => {
         projectStats: formattedProjectStats,
         brokerStats: formattedBrokerStats,
         monthlyReservations: monthlyReservations,
-        monthlyCommissions: monthlyCommissions
+        monthlyCommissions: monthlyCommissions,
+        quotationStats: {
+          totalQuotations: quotesCount || 0,
+          todayQuotations: todayQuotesCount || 0,
+          weekQuotations: weekQuotesCount || 0,
+          monthQuotations: monthQuotesCount || 0
+        },
+        recentQuotations: formattedRecentQuotations,
+        brokerQuotationStats: formattedBrokerQuotationStats,
+        projectQuotationStats: formattedProjectQuotationStats,
+        monthlyQuotations: monthlyQuotations
       });
     } catch (err: any) {
       setError(err.message);
@@ -576,306 +802,16 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center h-64">
-          <Clock className="h-8 w-8 text-blue-600 animate-spin" />
-        </div>
-      </Layout>
-    );
-  }
+  // Datos para el gráfico según el modo
+  const barsData = chartMode === 'unidades'
+    ? stats.monthlyReservations.map(m => ({ value: m.count, label: m.month }))
+    : stats.monthlyReservations.map(m => ({ value: m.total_uf, label: m.month }));
 
-  if (error) {
-    return (
-      <Layout>
-        <div className="bg-red-50 text-red-600 p-4 rounded-lg">
-          {error}
-        </div>
-      </Layout>
-    );
-  }
-
-  return (
-    <Layout>
-      {/* Totales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Reservas</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.totalReservations}</p>
-            </div>
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <ClipboardCheck className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-          <div className="mt-4 flex items-center">
-            {calculateTrend(stats.monthlyStats.reservations, stats.monthlyStats.previousReservations).isPositive ? (
-              <ArrowUpRight className="h-4 w-4 text-green-500" />
-            ) : (
-              <ArrowDownRight className="h-4 w-4 text-red-500" />
-            )}
-            <p className={`text-sm ${
-              calculateTrend(stats.monthlyStats.reservations, stats.monthlyStats.previousReservations).isPositive
-                ? 'text-green-600'
-                : 'text-red-600'
-            }`}>
-              {calculateTrend(stats.monthlyStats.reservations, stats.monthlyStats.previousReservations).value}% vs mes anterior
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Clientes</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.totalClients}</p>
-            </div>
-            <div className="p-3 bg-green-50 rounded-lg">
-              <Users className="h-6 w-6 text-green-600" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <p className="text-sm text-gray-500">Clientes activos en el sistema</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Proyectos</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.totalProjects}</p>
-            </div>
-            <div className="p-3 bg-purple-50 rounded-lg">
-              <Building className="h-6 w-6 text-purple-600" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <p className="text-sm text-gray-500">Proyectos en comercialización</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Brokers</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.totalBrokers}</p>
-            </div>
-            <div className="p-3 bg-orange-50 rounded-lg">
-              <Building2 className="h-6 w-6 text-orange-600" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <p className="text-sm text-gray-500">Brokers registrados</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Estadísticas Mensuales */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Reservas del Mes</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Reservas</p>
-                <p className="text-2xl font-semibold text-gray-900">{stats.monthlyStats.reservations}</p>
-              </div>
-              <div className={`flex items-center ${
-                calculateTrend(stats.monthlyStats.reservations, stats.monthlyStats.previousReservations).isPositive
-                  ? 'text-green-600'
-                  : 'text-red-600'
-              }`}>
-                {calculateTrend(stats.monthlyStats.reservations, stats.monthlyStats.previousReservations).isPositive ? (
-                  <ArrowUpRight className="h-5 w-5" />
-                ) : (
-                  <ArrowDownRight className="h-5 w-5" />
-                )}
-                <span className="ml-1 text-sm font-medium">
-                  {calculateTrend(stats.monthlyStats.reservations, stats.monthlyStats.previousReservations).value}%
-                </span>
-              </div>
-            </div>
-
-            <div className="h-[200px] flex items-end justify-between space-x-2">
-              {stats.monthlyReservations.map((month, index) => (
-                <div key={index} className="flex-1 flex flex-col items-center relative group">
-                  <div className="w-full flex items-end justify-center h-[160px]">
-                    <div 
-                      className={`w-10 bg-blue-500 bg-opacity-70 rounded-t hover:bg-blue-600 transition-all duration-300 cursor-pointer ${
-                        selectedMonth === month.month ? 'bg-blue-700' : ''
-                      }`}
-                      style={{ height: `${(month.count / maxReservationCount) * 100}%` }}
-                      onClick={() => handleMonthClick(month.month)}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-center mt-2 text-gray-500">
-                    {month.month}
-                  </div>
-                  <div className="text-xs text-center font-medium text-gray-700">
-                    {month.count}
-                  </div>
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
-                    Total: {formatCurrency(month.total_price)} UF
-                  </div>
-                </div>
-              ))}
-            </div>
-            {/* Detalle del mes seleccionado */}
-            {selectedMonth && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">
-                  Detalle de {selectedMonth}
-                </h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-gray-500">Total Reservas</p>
-                    <p className="text-lg font-semibold text-gray-900">
-                      {stats.monthlyReservations.find(m => m.month === selectedMonth)?.count || 0}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Total Ventas</p>
-                    <p className="text-lg font-semibold text-gray-900">
-                      {formatCurrency(stats.monthlyReservations.find(m => m.month === selectedMonth)?.total_price || 0)} UF
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Comisiones del Mes</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Total Comisiones</p>
-                <p className="text-2xl font-semibold text-gray-900">{formatCurrency(stats.monthlyStats.commissions)} UF</p>
-              </div>
-              <div className={`flex items-center ${
-                calculateTrend(stats.monthlyStats.commissions, stats.monthlyStats.previousCommissions).isPositive
-                  ? 'text-green-600'
-                  : 'text-red-600'
-              }`}>
-                {calculateTrend(stats.monthlyStats.commissions, stats.monthlyStats.previousCommissions).isPositive ? (
-                  <ArrowUpRight className="h-5 w-5" />
-                ) : (
-                  <ArrowDownRight className="h-5 w-5" />
-                )}
-                <span className="ml-1 text-sm font-medium">
-                  {calculateTrend(stats.monthlyStats.commissions, stats.monthlyStats.previousCommissions).value}%
-                </span>
-              </div>
-            </div>
-
-            <div className="h-[200px] flex items-end justify-between space-x-2">
-              {stats.monthlyCommissions.map((month, index) => (
-                <div key={index} className="flex-1 flex flex-col items-center">
-                  <div className="w-full flex items-end justify-center h-[160px]">
-                    <div 
-                      className="w-10 bg-green-500 bg-opacity-70 rounded-t hover:bg-green-600 transition-all duration-300 cursor-pointer"
-                      style={{ height: `${(month.amount / maxCommissionAmount) * 100}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-center mt-2 text-gray-500">
-                    {month.month}
-                  </div>
-                  <div className="text-xs text-center font-medium text-gray-700">
-                    {formatCurrency(month.amount)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Estadísticas de Proyectos y Brokers */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Top 5 Proyectos (Últimos 3 meses)</h3>
-          <div className="space-y-6">
-            {stats.projectStats.map((project, index) => {
-              const maxReservations = Math.max(...stats.projectStats.map(p => p.recent_reservations));
-              const barWidth = (project.recent_reservations / maxReservations) * 100;
-              return (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-900">{project.name}</span>
-                    <span className="text-sm text-blue-600 font-medium">
-                      {project.recent_reservations} reservas
-                    </span>
-                  </div>
-                  <div className="relative h-6 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-500 ease-out"
-                      style={{ width: `${barWidth}%` }}
-                    >
-                      <div className="absolute inset-0 flex items-center px-3">
-                        <span className="text-xs text-white font-medium">
-                          {project.participation.toFixed(1)}% de participación
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>{project.total_reservations} ventas históricas</span>
-                    <span>{project.recent_total_price.toLocaleString('es-CL', { minimumFractionDigits: 2 })} UF (últ. 3 meses)</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Top 5 Brokers (Últimos 3 meses)</h3>
-          <div className="space-y-6">
-            {stats.brokerStats.map((broker, index) => {
-              const maxReservations = Math.max(...stats.brokerStats.map(b => b.recent_reservations));
-              const barWidth = (broker.recent_reservations / maxReservations) * 100;
-              return (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-900">{broker.name}</span>
-                    <span className="text-sm text-blue-600 font-medium">
-                      {broker.recent_reservations} reservas
-                    </span>
-                  </div>
-                  <div className="relative h-6 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-500 ease-out"
-                      style={{ width: `${barWidth}%` }}
-                    >
-                      <div className="absolute inset-0 flex items-center px-3">
-                        <span className="text-xs text-white font-medium">
-                          {broker.participation.toFixed(1)}% de participación
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>{broker.total_reservations} ventas históricas</span>
-                    <span>{broker.recent_total_price.toLocaleString('es-CL', { minimumFractionDigits: 2 })} UF (últ. 3 meses)</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Actividad Reciente */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Últimas Reservas */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Últimas Reservas</h3>
-          </div>
+  // Contenido de cada informe
+  const renderReportContent = () => {
+    switch (activeReport) {
+      case 'reservas':
+        return (
           <div className="divide-y divide-gray-200">
             {stats.recentActivity.reservations.map((reservation) => (
               <div 
@@ -928,13 +864,33 @@ const Dashboard: React.FC = () => {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Últimos Pagos */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Últimos Pagos</h3>
+        );
+      case 'comisiones':
+        return (
+          <div className="p-6 text-gray-700">
+            {/* Aquí puedes poner un gráfico o tabla de comisiones */}
+            <h3 className="text-lg font-semibold mb-4">Comisiones del mes</h3>
+            <ul>
+              {stats.monthlyCommissions.slice(-1).map((item, idx) => (
+                <li key={idx} className="mb-2">{item.month}: <span className="font-bold">{formatCurrency(item.amount)} UF</span></li>
+              ))}
+            </ul>
+            {/* Puedes expandir esto con más detalles */}
           </div>
+        );
+      case 'brokers':
+        return (
+          <div className="p-6 text-gray-700">
+            <h3 className="text-lg font-semibold mb-4">Top Brokers</h3>
+            <ul>
+              {stats.brokerStats.slice(0, 5).map((broker, idx) => (
+                <li key={idx} className="mb-2">{broker.name}: <span className="font-bold">{broker.reservations} reservas</span></li>
+              ))}
+            </ul>
+          </div>
+        );
+      case 'pagos':
+        return (
           <div className="divide-y divide-gray-200">
             {stats.recentActivity.payments.map((payment) => (
               <div 
@@ -970,7 +926,6 @@ const Dashboard: React.FC = () => {
                          payment.status === 'in_progress' ? payment.current_task : 
                          'Pendiente'}
                       </span>
-                      
                       {payment.days_overdue > 0 && (
                         <span className="ml-2 inline-flex items-center text-xs font-medium text-red-600">
                           <AlertCircle className="h-4 w-4 mr-1" />
@@ -978,7 +933,6 @@ const Dashboard: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    
                     {payment.assignee && (
                       <div className="mt-1 flex items-center text-xs text-gray-500">
                         <span className="flex items-center">
@@ -1008,6 +962,263 @@ const Dashboard: React.FC = () => {
               </div>
             ))}
           </div>
+        );
+      case 'cotizaciones':
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 p-3 items-stretch min-h-[400px]">
+            {/* Cotizaciones Recientes */}
+            <div className="h-full flex flex-col">
+              <div className="bg-white rounded-xl shadow-none overflow-hidden h-full flex flex-col">
+                <div className="border-b border-gray-200 pb-2 mb-2">
+                  <h3 className="text-base font-semibold text-gray-900">Cotizaciones Recientes</h3>
+                </div>
+                <div className="divide-y divide-gray-200 flex-1">
+                  {stats.recentQuotations.map((quotation) => (
+                    <div 
+                      key={quotation.id} 
+                      className="p-3 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <div className="flex items-start space-x-3">
+                        <div className="flex-shrink-0">
+                          <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                            <FileText className="h-5 w-5 text-blue-600" />
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-gray-900">
+                            {quotation.project_name} • {quotation.unit_number}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Broker: {quotation.broker_name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Tipo: {quotation.tipologia}
+                          </p>
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          <p className="text-xs font-medium text-gray-900">
+                            {formatCurrency(quotation.total_deed_price)} UF
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatDate(quotation.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {/* Cotizaciones del Mes (Gráfico) */}
+            <div className="h-full flex flex-col">
+              <div className="bg-white rounded-xl shadow-none overflow-hidden h-full flex flex-col justify-center items-center">
+                <div className="flex-1 w-full h-full flex items-center justify-center">
+                  <DashboardChart
+                    title="Cotizaciones del Mes"
+                    subtitle="Cotizaciones de los últimos 6 meses"
+                    barsData={stats.monthlyQuotations.map(m => ({ value: m.count, label: m.month }))}
+                    height="100%"
+                    mode="unidades"
+                    onModeChange={() => {}}
+                    className="w-full h-full"
+                  />
+                </div>
+              </div>
+            </div>
+            {/* Top Brokers */}
+            <div className="h-full flex flex-col">
+              <div className="bg-white rounded-xl shadow-none overflow-hidden h-full flex flex-col">
+                <div className="border-b border-gray-200 pb-2 mb-2">
+                  <h3 className="text-base font-semibold text-gray-900">Top Brokers</h3>
+                </div>
+                <div className="space-y-2 flex-1">
+                  {stats.brokerQuotationStats.map((broker, idx) => (
+                    <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-gray-900">{broker.broker_name}</p>
+                        <p className="text-xs text-gray-500">
+                          Hoy: {broker.today_quotations} • Semana: {broker.week_quotations} • Mes: {broker.month_quotations}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-bold text-blue-600">{broker.total_quotations}</p>
+                        <p className="text-xs text-gray-500">total</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <Clock className="h-8 w-8 text-blue-600 animate-spin" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="bg-red-50 text-red-600 p-4 rounded-lg">
+          {error}
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      {/* Tarjetas principales */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <DashboardCard
+          title="Total Reservas"
+          value={stats.totalReservations}
+          icon={<ClipboardCheck className="h-6 w-6" />}
+          trend={{ value: calculateTrend(stats.monthlyStats.reservations, stats.monthlyStats.previousReservations), isPositive: stats.monthlyStats.reservations >= stats.monthlyStats.previousReservations }}
+        />
+        <DashboardCard
+          title="Total Clientes"
+          value={stats.totalClients}
+          icon={<Users className="h-6 w-6" />}
+        />
+        <DashboardCard
+          title="Total Proyectos"
+          value={stats.totalProjects}
+          icon={<Building2 className="h-6 w-6" />}
+        />
+        <DashboardCard
+          title="Total Brokers"
+          value={stats.totalBrokers}
+          icon={<Building className="h-6 w-6" />}
+        />
+        <DashboardCard
+          title="Cotizaciones del Mes"
+          value={stats.quotationStats.monthQuotations}
+          icon={<FileText className="h-6 w-6" />}
+          trend={{ value: 0, isPositive: true }}
+        />
+      </div>
+
+      {/* Tabs de Informes */}
+      <div className="mt-4">
+        <div className="flex space-x-2 border-b border-gray-200 mb-3">
+          <button
+            className={`px-3 py-1.5 font-semibold text-xs border-b-2 transition-colors ${activeReport === 'reservas' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-blue-600'}`}
+            onClick={() => setActiveReport('reservas')}
+          >
+            Reservas del mes
+          </button>
+          <button
+            className={`px-3 py-1.5 font-semibold text-xs border-b-2 transition-colors ${activeReport === 'comisiones' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-blue-600'}`}
+            onClick={() => setActiveReport('comisiones')}
+          >
+            Comisiones
+          </button>
+          <button
+            className={`px-3 py-1.5 font-semibold text-xs border-b-2 transition-colors ${activeReport === 'brokers' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-blue-600'}`}
+            onClick={() => setActiveReport('brokers')}
+          >
+            Brokers
+          </button>
+          <button
+            className={`px-3 py-1.5 font-semibold text-xs border-b-2 transition-colors ${activeReport === 'pagos' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-blue-600'}`}
+            onClick={() => setActiveReport('pagos')}
+          >
+            Pagos
+          </button>
+          <button
+            className={`px-3 py-1.5 font-semibold text-xs border-b-2 transition-colors ${activeReport === 'cotizaciones' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-blue-600'}`}
+            onClick={() => setActiveReport('cotizaciones')}
+          >
+            Cotizaciones
+          </button>
+        </div>
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          {activeReport === 'reservas' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 p-3">
+              {/* 1/3: Listado de reservas del mes */}
+              <div className="col-span-1">
+                <div className="bg-white rounded-xl shadow-none overflow-hidden">
+                  <div className="border-b border-gray-200 pb-2 mb-2">
+                    <h3 className="text-base font-semibold text-gray-900">Reservas del Mes</h3>
+                  </div>
+                  <div className="divide-y divide-gray-200">
+                    {stats.recentActivity.reservations.map((reservation) => (
+                      <div 
+                        key={reservation.id} 
+                        className="p-3 hover:bg-gray-50 cursor-pointer"
+                        onClick={() => handleReservationClick(reservation.id)}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <div className="flex-shrink-0">
+                            {reservation.seller_avatar ? (
+                              <img
+                                src={reservation.seller_avatar}
+                                alt={reservation.seller_name || ''}
+                                className="h-8 w-8 rounded-full"
+                              />
+                            ) : (
+                              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                <UserCircle className="h-5 w-5 text-gray-400" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-900">
+                              Reserva {reservation.reservation_number}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {reservation.project_name} • Depto. {reservation.apartment_number}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Cliente: {reservation.client_name}
+                            </p>
+                            <div className="mt-1 text-xs text-gray-500">
+                              {reservation.seller_name && (
+                                <span>Vendedor: {reservation.seller_name}</span>
+                              )}
+                              {reservation.broker_name && (
+                                <span className="ml-2">• Broker: {reservation.broker_name}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0 text-right">
+                            <p className="text-xs font-medium text-gray-900">
+                              {formatCurrency(reservation.total_price)} UF
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {formatDate(reservation.reservation_date)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {/* 2/3: Gráfico de reservas del mes */}
+              <div className="col-span-1 lg:col-span-2">
+                <DashboardChart
+                  title="Reservas del Mes"
+                  subtitle="Reservas de los últimos 6 meses"
+                  barsData={barsData}
+                  height="100%"
+                  mode={chartMode}
+                  onModeChange={setChartMode}
+                />
+              </div>
+            </div>
+          ) : renderReportContent()}
         </div>
       </div>
     </Layout>
