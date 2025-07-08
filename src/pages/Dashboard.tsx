@@ -721,8 +721,7 @@ const Dashboard: React.FC = () => {
       });
 
       const formattedBrokerQuotationStats = Object.values(brokerQuotationMap)
-        .sort((a, b) => b.total_quotations - a.total_quotations)
-        .slice(0, 5);
+        .sort((a, b) => b.total_quotations - a.total_quotations);
 
       // Obtener estadísticas de cotizaciones por proyecto
       const { data: projectQuotesData } = await supabase
@@ -1095,7 +1094,7 @@ const Dashboard: React.FC = () => {
                 <div className="border-b border-gray-200 pb-2 mb-2">
                   <h3 className="text-base font-semibold text-gray-900">Top Brokers</h3>
                 </div>
-                <div className="space-y-2 flex-1">
+                <div className="space-y-2 flex-1 max-h-72 overflow-y-auto">
                   {stats.brokerQuotationStats.map((broker, idx) => (
                     <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
                       <div className="flex-1">
