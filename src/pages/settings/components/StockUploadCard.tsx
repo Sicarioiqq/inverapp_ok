@@ -74,7 +74,10 @@ const StockUploadCard: React.FC<StockUploadCardProps> = ({ onDataUpload }) => {
           const formattedData = rows.map((rowArray: any) => {
             const rowObject: any = {};
             headers.forEach((header, index) => {
-              rowObject[header] = rowArray[index];
+              // Normaliza el nombre de la columna
+              let key = header;
+              if (key.trim().toLowerCase() === 'imagen') key = 'imagen'; // mapeo explícito y robusto
+              rowObject[key] = rowArray[index];
             });
             return rowObject;
           }).filter(row => headers.some(header => row[header] !== '')); // Filtrar filas completamente vacías
