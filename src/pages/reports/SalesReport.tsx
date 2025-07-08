@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import Layout from '../../components/Layout';
 import { Download, Calendar, ArrowDown, ArrowUp, CalendarCheck, FileText, Home } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface SalesReportItem {
   id: string;
@@ -238,6 +239,43 @@ const SalesReport: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const handleExportExcel = () => {
+    if (reservations.length === 0) return;
+
+    const headers = [
+      'N° Reserva',
+      'Cliente',
+      'Proyecto',
+      'Depto.',
+      'Broker',
+      'Fecha Reserva',
+      'Fecha Promesa',
+      'Fecha Escritura',
+      'Precio Lista',
+      'Precio Mínimo',
+      'Total Escrituración'
+    ];
+
+    const data = reservations.map(item => [
+      item.reservation_number,
+      item.client_name,
+      `${item.project_name} ${item.project_stage}`,
+      item.apartment_number,
+      item.broker_name || '',
+      formatDate(item.reservation_date),
+      formatDate(item.promise_date),
+      formatDate(item.deed_date),
+      item.total_price,
+      item.minimum_price,
+      item.total_payment
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Informe de Ventas');
+    XLSX.writeFile(wb, `informe_ventas_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   const handleSort = (field: string) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -319,12 +357,12 @@ const SalesReport: React.FC = () => {
           
           <div className="flex space-x-4">
             <button
-              onClick={handleExportCSV}
+              onClick={handleExportExcel}
               disabled={reservations.length === 0}
               className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download className="h-5 w-5 mr-2" />
-              Exportar CSV
+              Exportar Excel
             </button>
           </div>
         </div>
