@@ -1321,7 +1321,7 @@ const ReservationFlowDetail = () => {
       <div className="max-w-7xl mx-auto relative">
         {/* Panel lateral de reservas del cliente */}
         {showReservationsPanel && (
-          <div className="fixed top-20 right-0 w-80 h-[calc(100vh-5rem)] bg-white border-l shadow-lg z-30 overflow-y-auto p-4">
+          <div className="fixed top-20 right-0 w-80 h-[calc(100vh-5rem)] bg-white border-l shadow-lg z-50 overflow-y-auto p-4">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-semibold text-blue-700">Reservas del Cliente</h3>
               <button onClick={() => setShowReservationsPanel(false)} className="text-gray-400 hover:text-gray-700"><X className="h-5 w-5" /></button>
