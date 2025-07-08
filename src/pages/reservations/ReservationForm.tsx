@@ -8,6 +8,7 @@ import PromotionPopup from '../../components/PromotionPopup';
 import BrokerCommissionPopup from '../../components/BrokerCommissionPopup';
 import { ArrowLeft, Save, Loader2, Search, UserPlus, X } from 'lucide-react';
 import QuotationsReport from '../reports/QuotationsReport';
+import ReservationActionIcons from '../../components/ReservationActionIcons';
 
 interface Client {
   id: string;
@@ -77,6 +78,8 @@ const ReservationForm = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [showQuotationsModal, setShowQuotationsModal] = useState(false);
   const [selectedCommissionUF, setSelectedCommissionUF] = useState<number | null>(null);
+  const [reservationFlowId, setReservationFlowId] = useState<string | null>(null);
+  const [commissionFlowId, setCommissionFlowId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<ReservationFormData>({
     reservation_number: '',
@@ -272,6 +275,30 @@ const ReservationForm = () => {
       });
       
       setSelectedClient(clientData);
+      // Buscar el reservationFlowId
+      const { data: flowData } = await supabase
+        .from('reservation_flows')
+        .select('id')
+        .eq('reservation_id', id)
+        .maybeSingle();
+      setReservationFlowId(flowData?.id || null);
+      // Buscar el commissionFlowId
+      const { data: commissionData } = await supabase
+        .from('broker_commissions')
+        .select('id')
+        .eq('reservation_id', id)
+        .maybeSingle();
+      if (commissionData?.id) {
+        const { data: commFlow } = await supabase
+          .from('commission_flows')
+          .select('id')
+          .eq('broker_commission_id', commissionData.id)
+          .eq('is_second_payment', false)
+          .maybeSingle();
+        setCommissionFlowId(commFlow?.id || null);
+      } else {
+        setCommissionFlowId(null);
+      }
     } catch (err: any) {
       console.error('Error in fetchReservation:', err);
       setError(err.message);
@@ -709,7 +736,7 @@ const ReservationForm = () => {
         )}
         {/* CABECERA SUPERIOR */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Nueva Reserva</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{id ? 'Editar Reserva' : 'Nueva Reserva'}</h1>
           <button
             type="button"
             onClick={() => setShowQuotationsModal(true)}
@@ -718,6 +745,19 @@ const ReservationForm = () => {
             Ver Cotizaciones
           </button>
         </div>
+        {/* Menú de íconos solo en modo edición */}
+        {id && (
+          <div className="flex justify-end mb-8">
+            <ReservationActionIcons
+              reservationId={id}
+              clientId={selectedClient?.id}
+              reservationFlowId={reservationFlowId || undefined}
+              commissionFlowId={commissionFlowId || undefined}
+              current="reservation"
+              navigateImpl={navigate}
+            />
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (

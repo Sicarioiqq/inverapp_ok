@@ -370,6 +370,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       onFocus={handleSearchInputFocus}
+                      ref={el => {
+                        // Asignar el ref al input para el portal
+                        (searchRef as any).currentInput = el;
+                      }}
                     />
                     {searchTerm && (
                       <button
@@ -386,6 +390,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         results={searchResults} 
                         onSelect={clearSearch} 
                         isLoading={isSearching}
+                        anchorRef={{ current: (searchRef as any).currentInput }}
+                        open={showResults}
                       />
                     )}
                   </div>

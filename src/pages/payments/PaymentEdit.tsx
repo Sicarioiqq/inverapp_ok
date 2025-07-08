@@ -3,9 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase, formatDateChile, formatCurrency } from '../../lib/supabase'; // formatCurrency ya está aquí
 import { useAuthStore } from '../../stores/authStore';
 import Layout from '../../components/Layout';
-import { ArrowLeft, Save, Loader2, TrendingUp, Wallet, DollarSign, TrendingDown, Minus, Gift, Info, Edit, FileText } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, TrendingUp, Wallet, DollarSign, TrendingDown, Minus, Gift, Info, Edit, FileText, Users, Edit2, ListChecks, Airplay } from 'lucide-react';
 import { usePopup } from '../../contexts/PopupContext';
 import PromotionPopup from '../../components/PromotionPopup';
+import { Dialog } from '@headlessui/react';
+import ReservationActionIcons from '../../components/ReservationActionIcons';
 
 // --- Definiciones de Tipos para Promociones ---
 export const PROMOTION_TYPES_ARRAY = [
@@ -77,6 +79,8 @@ const PaymentEdit = () => {
   const [error, setError] = useState<string | null>(null);
   const [reservation, setReservation] = useState<any | null>(null);
   const [existingCommissionId, setExistingCommissionId] = useState<string | null>(null);
+  const [reservationFlowId, setReservationFlowId] = useState<string | null>(null);
+  const [commissionFlowId, setCommissionFlowId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<CommissionFormData>({
     commission_amount: 0,
@@ -113,13 +117,17 @@ const PaymentEdit = () => {
   // 1. Estado para el comentario del jefe de inversiones
   const [comentarioJefe, setComentarioJefe] = useState<string>('');
   const [showComentarioModal, setShowComentarioModal] = useState(false);
+  const [showDocumentOptions, setShowDocumentOptions] = useState(false);
+  const [showMobySuiteModal, setShowMobySuiteModal] = useState(false);
 
   useEffect(() => {
     if (reservationId) {
       setLoading(true);
       Promise.all([
         fetchReservationAndCommission(reservationId),
-        fetchAppliedPromotions(reservationId)
+        fetchAppliedPromotions(reservationId),
+        fetchReservationFlowId(reservationId),
+        fetchCommissionFlowId(reservationId)
       ]).catch((err) => {
         console.error("Error en la carga inicial:", err);
         setError(err.message || "Error al cargar datos.");
@@ -255,6 +263,47 @@ const PaymentEdit = () => {
     }
   };
 
+  const fetchReservationFlowId = async (resId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('reservation_flows')
+        .select('id')
+        .eq('reservation_id', resId)
+        .maybeSingle();
+      if (!error && data && data.id) {
+        setReservationFlowId(data.id);
+      }
+    } catch (err) {
+      // No hacer nada, dejar null
+    }
+  };
+
+  // Nueva función para obtener el id del flujo de pago (commission_flow)
+  const fetchCommissionFlowId = async (resId: string) => {
+    try {
+      // Primero obtener la comisión
+      const { data: commissionData, error: commissionError } = await supabase
+        .from('broker_commissions')
+        .select('id')
+        .eq('reservation_id', resId)
+        .maybeSingle();
+      if (!commissionError && commissionData && commissionData.id) {
+        // Ahora buscar el flujo de pago
+        const { data: flowData, error: flowError } = await supabase
+          .from('commission_flows')
+          .select('id')
+          .eq('broker_commission_id', commissionData.id)
+          .eq('is_second_payment', false)
+          .maybeSingle();
+        if (!flowError && flowData && flowData.id) {
+          setCommissionFlowId(flowData.id);
+        }
+      }
+    } catch (err) {
+      // No hacer nada, dejar null
+    }
+  };
+
   const netCommission = formData.commission_includes_tax ? formData.commission_amount / 1.19 : formData.commission_amount;
   // const firstPaymentAmount = formData.commission_amount * (formData.first_payment_percentage / 100); // Ya se calcula en financialSummary
   // const secondPaymentAmount = formData.commission_amount - firstPaymentAmount; // Ya se calcula en financialSummary
@@ -364,9 +413,61 @@ const PaymentEdit = () => {
       <div className="max-w-4xl mx-auto p-4 md:p-6">
         <div className="flex items-center justify-between mb-8">
           <button onClick={() => navigate('/pagos')} className="flex items-center text-gray-600 hover:text-gray-900"><ArrowLeft className="h-5 w-5 mr-2" />Volver</button>
-          <h1 className="text-2xl font-semibold text-gray-900">Editar Comisión - Reserva {reservation.reservation_number}</h1>
-          <div /> 
+          <h1 className="text-2xl font-semibold text-gray-900 text-center flex-1">Editar Comisión - Reserva {reservation.reservation_number}</h1>
+          <div />
         </div>
+        {/* Menú de íconos alineado a la derecha, debajo del título */}
+        <div className="flex justify-end mb-8">
+          <ReservationActionIcons
+            reservationId={reservation?.id}
+            clientId={reservation?.client?.id}
+            commissionFlowId={commissionFlowId}
+            reservationFlowId={reservationFlowId}
+            onOpenDocuments={() => setShowDocumentOptions(true)}
+            onOpenMobySuite={() => setShowMobySuiteModal(true)}
+            current="commission"
+          />
+        </div>
+        {/* Modal Documentos */}
+        <Dialog open={showDocumentOptions} onClose={() => setShowDocumentOptions(false)} className="fixed z-50 inset-0 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4">
+            <div className="fixed inset-0 bg-black opacity-30 z-0"></div>
+            <Dialog.Panel className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-auto p-6 z-10">
+              <Dialog.Title className="text-xl font-bold mb-4 text-blue-700">Gestión Documental</Dialog.Title>
+              <div className="space-y-4">
+                <p>Aquí iría el contenido del modal de documentos para la reserva.</p>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowDocumentOptions(false)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </Dialog.Panel>
+          </div>
+        </Dialog>
+        {/* Modal Gestión MobySuite */}
+        <Dialog open={showMobySuiteModal} onClose={() => setShowMobySuiteModal(false)} className="fixed z-50 inset-0 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4">
+            <div className="fixed inset-0 bg-black opacity-30 z-0"></div>
+            <Dialog.Panel className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-auto p-6 z-10">
+              <Dialog.Title className="text-xl font-bold mb-4 text-blue-700">Gestión MobySuite</Dialog.Title>
+              <div className="space-y-4">
+                <p>Aquí iría el contenido del modal de gestión MobySuite para la reserva.</p>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowMobySuiteModal(false)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </Dialog.Panel>
+          </div>
+        </Dialog>
 
         {error && !submitting && (<div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6">{error}</div>)}
 

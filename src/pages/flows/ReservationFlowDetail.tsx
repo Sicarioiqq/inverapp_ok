@@ -1365,7 +1365,7 @@ const ReservationFlowDetail = () => {
           </button>
         )}
         <div className="max-w-5xl mx-auto">
-          <div className="flex items-center justify-between mb-6 sticky top-0 z-10 bg-gray-50 py-4 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
             <button
               onClick={() => navigate('/flujo-reservas')}
               className="flex items-center text-gray-600 hover:text-gray-900"
@@ -1381,8 +1381,11 @@ const ReservationFlowDetail = () => {
                 </span>
               )}
             </h1>
-            
-            {/* Navigation Icons */}
+            <div className="w-20"></div> {/* Espaciador para centrar el título */}
+          </div>
+
+          {/* Navigation Icons - Nueva fila */}
+          <div className="flex justify-end mb-6 sticky top-0 z-30 bg-gray-50 py-4 shadow-sm">
             <div className="flex space-x-3">
               <button
                 onClick={navigateToEditClient}
