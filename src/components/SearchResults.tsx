@@ -14,16 +14,17 @@ interface SearchResult {
 
 interface SearchResultsProps {
   results: SearchResult[];
-  onSelect: () => void;
+  onNavigate: (url: string) => void;
   isLoading: boolean;
   anchorRef: React.RefObject<HTMLInputElement>;
   open: boolean;
+  dropdownRef?: React.RefObject<HTMLDivElement>;
 }
 
-const SearchResults: React.FC<SearchResultsProps> = ({ results, onSelect, isLoading, anchorRef, open }) => {
-  const navigate = useNavigate();
+const SearchResults: React.FC<SearchResultsProps> = ({ results, onNavigate, isLoading, anchorRef, open, dropdownRef }) => {
   const [position, setPosition] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const localDropdownRef = useRef<HTMLDivElement>(null);
+  const refToUse = dropdownRef || localDropdownRef;
 
   useEffect(() => {
     if (open && anchorRef.current) {
@@ -58,16 +59,14 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results, onSelect, isLoad
 
   const handleSelect = (result: SearchResult) => {
     if (result.reservationFlowId) {
-      navigate(`/flujo-reservas/${result.reservationFlowId}`);
-      onSelect();
+      onNavigate(`/flujo-reservas/${result.reservationFlowId}`);
       return;
     }
     if (result.type === 'client') {
-      navigate(`/clientes/editar/${result.id}`);
+      onNavigate(`/clientes/editar/${result.id}`);
     } else if (result.type === 'reservation') {
-      navigate(`/reservas/editar/${result.id}`);
+      onNavigate(`/reservas/editar/${result.id}`);
     }
-    onSelect();
   };
 
   const getIcon = (type: string) => {
@@ -83,11 +82,18 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results, onSelect, isLoad
     }
   };
 
+  const getUrl = (result: SearchResult) => {
+    if (result.reservationFlowId) return `/flujo-reservas/${result.reservationFlowId}`;
+    if (result.type === 'client') return `/clientes/editar/${result.id}`;
+    if (result.type === 'reservation') return `/reservas/editar/${result.id}`;
+    return '#';
+  };
+
   if (!open) return null;
 
   const dropdown = (
     <div
-      ref={dropdownRef}
+      ref={refToUse}
       className="z-50 bg-white rounded-md shadow-lg max-h-96 overflow-y-auto border border-gray-200"
       style={{
         position: 'fixed',
@@ -108,8 +114,11 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results, onSelect, isLoad
               key={`${result.type}-${result.id}`}
               className={`${result.is_rescinded ? 'bg-red-50' : ''}`}
             >
-              <button
-                onClick={() => handleSelect(result)}
+              <a
+                href={getUrl(result)}
+                onClick={e => {
+                  window.location.href = getUrl(result);
+                }}
                 className={`w-full px-4 py-2 text-left flex items-center ${result.is_rescinded ? 'hover:bg-red-100' : 'hover:bg-gray-100'}`}
               >
                 <div className="flex-shrink-0 mr-3">{getIcon(result.type)}</div>
@@ -122,7 +131,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results, onSelect, isLoad
                   </p>
                   <p className={`text-sm truncate ${result.is_rescinded ? 'text-red-600' : 'text-gray-500'}`}>{result.subtitle}</p>
                 </div>
-              </button>
+              </a>
             </li>
           ))}
         </ul>

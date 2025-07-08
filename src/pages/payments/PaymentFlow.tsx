@@ -3825,7 +3825,7 @@ Volver
 
 
 
-<h1 className="text-2xl font-semibold text-gray-900">
+<h1 className="text-2xl font-semibold text-gray-900 text-center w-full">
 
 
 
@@ -3837,57 +3837,226 @@ Volver
 
 
 
-<div className="flex space-x-3 mt-4 mb-8">
-  <button
-    onClick={navigateToEditClient}
-    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-    title="Editar Cliente"
-  >
-    <Users className="h-5 w-5" />
-  </button>
-  <button
-    onClick={navigateToEditReservation}
-    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-    title="Editar Reserva"
-  >
-    <Edit2 className="h-5 w-5" />
-  </button>
-  <button
-    onClick={navigateToEditCommission}
-    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-    title="Editar Comisión"
-  >
-    <DollarSign className="h-5 w-5" />
-  </button>
-  <button
-    onClick={navigateToReservationFlow}
-    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-    title="Flujo de Reserva"
-  >
-    <ListChecks className="h-5 w-5" />
-  </button>
-  <button
-    onClick={navigateToDocuments}
-    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-    title="Documentos"
-  >
-    <FileText className="h-5 w-5" />
-  </button>
-  <button
-    onClick={navigateToTaskTracking}
-    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-    title="Gestión MobySuite"
-  >
-    <Airplay className="h-5 w-5" />
-  </button>
-  <button
-    disabled
-    className="p-2 text-blue-600 bg-blue-50 rounded-full border border-blue-200 transition-colors cursor-default"
-    title="Flujo de Pago (actual)"
-  >
-    <Wallet className="h-5 w-5" />
-  </button>
-  </div>
+<div className="w-20"></div> {/* Espaciador para centrar el título */}
+
+
+
+</div>
+
+
+
+{/* Íconos sticky en fila inferior */}
+
+
+
+<div className="flex justify-end mb-6 sticky top-0 z-30 bg-gray-50 py-4 shadow-sm">
+
+
+
+<div className="flex space-x-3">
+
+
+
+<button
+
+
+
+onClick={navigateToEditClient}
+
+
+
+className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+
+
+
+title="Editar Cliente"
+
+
+
+>
+
+
+
+<Users className="h-5 w-5" />
+
+
+
+</button>
+
+
+
+<button
+
+
+
+onClick={navigateToEditReservation}
+
+
+
+className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+
+
+
+title="Editar Reserva"
+
+
+
+>
+
+
+
+<Edit2 className="h-5 w-5" />
+
+
+
+</button>
+
+
+
+<button
+
+
+
+onClick={navigateToEditCommission}
+
+
+
+className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+
+
+
+title="Editar Comisión"
+
+
+
+>
+
+
+
+<DollarSign className="h-5 w-5" />
+
+
+
+</button>
+
+
+
+<button
+
+
+
+onClick={navigateToReservationFlow}
+
+
+
+className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+
+
+
+title="Flujo de Reserva"
+
+
+
+>
+
+
+
+<ListChecks className="h-5 w-5" />
+
+
+
+</button>
+
+
+
+<button
+
+
+
+onClick={navigateToDocuments}
+
+
+
+className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+
+
+
+title="Documentos"
+
+
+
+>
+
+
+
+<FileText className="h-5 w-5" />
+
+
+
+</button>
+
+
+
+<button
+
+
+
+onClick={navigateToTaskTracking}
+
+
+
+className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+
+
+
+title="Gestión MobySuite"
+
+
+
+>
+
+
+
+<Airplay className="h-5 w-5" />
+
+
+
+</button>
+
+
+
+<button
+
+
+
+disabled
+
+
+
+className="p-2 text-blue-600 bg-blue-50 rounded-full border border-blue-200 transition-colors cursor-default"
+
+
+
+title="Flujo de Pago (actual)"
+
+
+
+>
+
+
+
+<Wallet className="h-5 w-5" />
+
+
+
+</button>
+
+
+
+</div>
+
+
+
 </div>
 
 
@@ -4770,10 +4939,6 @@ title="Editar fecha"
 
 
 
-</div>
-
-
-
 
 
 
@@ -5218,6 +5383,7 @@ title="Editar fecha"
     </div>
   </Dialog>
 )}
+</div>
 
 </Layout>
 );

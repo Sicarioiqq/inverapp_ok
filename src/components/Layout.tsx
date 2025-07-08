@@ -41,6 +41,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (session?.user?.email) {
@@ -85,9 +86,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, [fetchUFValue]);
 
   useEffect(() => {
-    // Handle click outside to close search results
+    // Handle click outside to close search results (input y dropdown)
     const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+      const inputEl = searchRef.current;
+      const dropdownEl = (dropdownRef as any).current;
+      if (
+        inputEl &&
+        !inputEl.contains(event.target as Node) &&
+        dropdownEl &&
+        !dropdownEl.contains(event.target as Node)
+      ) {
         setShowResults(false);
       }
     };
@@ -316,6 +324,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setShowResults(false);
   };
 
+  const handleNavigate = (url: string) => {
+    navigate(url);
+    clearSearch();
+  };
+
   // Sidebar toggle handler
   const handleSidebarToggle = () => setSidebarOpen((open) => !open);
 
@@ -388,10 +401,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     {showResults && (
                       <SearchResults 
                         results={searchResults} 
-                        onSelect={clearSearch} 
+                        onNavigate={handleNavigate} 
                         isLoading={isSearching}
                         anchorRef={{ current: (searchRef as any).currentInput }}
                         open={showResults}
+                        dropdownRef={dropdownRef}
                       />
                     )}
                   </div>
