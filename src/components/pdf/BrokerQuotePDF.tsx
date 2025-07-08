@@ -951,7 +951,7 @@ const BrokerQuotePDF: React.FC<BrokerQuotePDFProps> = ({
                     {unit.isPrincipal ? 'Departamento Principal' : `${unit.tipo_bien || 'Unidad'} ${unit.unidad || ''}`}
                   </Text>
                   {imgUrl && (
-                    <Image src={imgUrl} style={{ width: '90%', height: 260, objectFit: 'cover', borderRadius: 8, border: '1px solid #ccc', alignSelf: 'center' }} />
+                    <Image src={imgUrl} style={{ width: '90%', height: 260, objectFit: 'contain', borderRadius: 8, alignSelf: 'center' }} />
                   )}
                 </View>
               );
