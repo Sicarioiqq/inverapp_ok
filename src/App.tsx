@@ -39,6 +39,7 @@ import QuotationsReport from './pages/reports/QuotationsReport';
 import Operaciones from './pages/Operaciones';
 import CalendarPage from './pages/Calendar';
 import DashboardTV from './pages/DashboardTV';
+import EmailConfig from './pages/settings/EmailConfig';
 
 function App() {
   const { session, initialize } = useAuthStore();
@@ -212,6 +213,11 @@ function App() {
           <Route path="/configuracion" element={
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          } />
+          <Route path="/configuracion/emails" element={
+            <ProtectedRoute>
+              <EmailConfig />
             </ProtectedRoute>
           } />
           <Route path="/cotizador" element={

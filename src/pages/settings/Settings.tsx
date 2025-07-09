@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Layout from '../../components/Layout';
-import { Building2, Users as UsersIcon, Shield, Home, ListChecks, BarChart3, Key } from 'lucide-react';
+import { Building2, Users as UsersIcon, Shield, Home, ListChecks, BarChart3, Key, Mail } from 'lucide-react';
 import RealEstateAgencies from './RealEstateAgencies';
 import Projects from './Projects';
 import UsersComponent from './Users';
@@ -9,8 +9,9 @@ import PaymentFlowConfig from './PaymentFlowConfig';
 import CotizadorSettings from './CotizadorSettings';
 import BrokerTokenGenerator from './components/BrokerTokenGenerator';
 import PermissionsConfig from './components/PermissionsConfig';
+import EmailConfig from './EmailConfig';
 
-type Tab = 'projects' | 'agencies' | 'users' | 'permissions' | 'flow' | 'payment-flow' | 'cotizador' | 'broker-tokens';
+type Tab = 'projects' | 'agencies' | 'users' | 'permissions' | 'flow' | 'payment-flow' | 'cotizador' | 'broker-tokens' | 'emails';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState<Tab>('projects');
@@ -56,6 +57,11 @@ const Settings = () => {
       name: 'Tokens de Broker',
       icon: <Key className="h-5 w-5" />,
     },
+    {
+      id: 'emails' as Tab,
+      name: 'Emails Automáticos',
+      icon: <Mail className="h-5 w-5" />,
+    },
   ];
 
   return (
@@ -92,6 +98,7 @@ const Settings = () => {
           {activeTab === 'permissions' && <PermissionsConfig />}
           {activeTab === 'cotizador' && <CotizadorSettings />}
           {activeTab === 'broker-tokens' && <BrokerTokenGenerator />}
+          {activeTab === 'emails' && <EmailConfig />}
         </div>
       </div>
     </Layout>
