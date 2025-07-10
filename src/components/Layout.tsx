@@ -5,8 +5,10 @@ import MiniSidebar from './MiniSidebar';
 import { useAuthStore } from '../stores/authStore';
 import { useUFStore } from '../stores/ufStore';
 import { supabase, checkSupabaseConnection } from '../lib/supabase';
-import { Bell, Search, Menu, UserCircle, ClipboardCheck, ChevronLeft, ChevronRight, CalendarCheck } from 'lucide-react';
+import { Bell, Search, Menu, UserCircle, ClipboardCheck, ChevronLeft, ChevronRight, CalendarCheck, Wifi, WifiOff } from 'lucide-react';
 import SearchResults from './SearchResults';
+import { useTaskAssignmentModal } from '../hooks/useTaskAssignmentModal';
+import { useRealtimeTaskCount } from '../hooks/useRealtimeTaskCount';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -49,17 +51,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   }, [session?.user?.email]);
 
-  useEffect(() => {
-    if (session?.user?.id) {
-      fetchPendingTasksCount();
-      
-      // Set up a timer to refresh the count every minute
-      const intervalId = setInterval(fetchPendingTasksCount, 60000);
-      
-      // Clean up the interval when the component unmounts
-      return () => clearInterval(intervalId);
-    }
-  }, [session?.user?.id]);
+  // Hook para manejar el conteo de tareas en tiempo real
+  const { isConnected: isRealtimeConnected, error: realtimeError } = useRealtimeTaskCount({
+    userId: session?.user?.id,
+    onCountUpdate: setPendingTasksCount
+  });
 
   useEffect(() => {
     // Check Supabase connection
@@ -119,6 +115,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
 
+  useTaskAssignmentModal(userProfile && session?.user?.id ? { id: session.user.id, first_name: userProfile.first_name } : undefined);
+
   const fetchUserProfile = async () => {
     try {
       const { data: profile, error } = await supabase
@@ -136,57 +134,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   };
 
-  const fetchPendingTasksCount = async () => {
-    try {
-      // Get collapsed task IDs for the current user
-      const { data: collapsedTasksData, error: collapsedError } = await supabase
-        .from('collapsed_tasks')
-        .select('task_assignment_id')
-        .eq('user_id', session!.user.id)
-        .gte('expires_at', new Date().toISOString());
 
-      if (collapsedError) throw collapsedError;
-
-      const collapsedTaskIds = new Set(collapsedTasksData?.map(ct => ct.task_assignment_id) || []);
-
-      // Count pending sale flow tasks assigned to the user (excluding collapsed ones)
-      const { data: saleTasksData, error: saleError } = await supabase
-        .from('task_assignments')
-        .select(`
-          id,
-          reservation_flow:reservation_flows!inner(status)
-        `)
-        .eq('user_id', session!.user.id)
-        .neq('reservation_flow.status', 'pending');
-
-      if (saleError) throw saleError;
-
-      // Filter out collapsed tasks
-      const visibleSaleTasks = saleTasksData?.filter(task => !collapsedTaskIds.has(task.id)) || [];
-
-      // Count pending payment flow tasks assigned to the user
-      const { data: paymentTasksData, error: paymentError } = await supabase
-        .from('commission_flow_tasks')
-        .select(`
-          id,
-          commission_flow:commission_flows!inner(status)
-        `)
-        .eq('assignee_id', session!.user.id)
-        .neq('commission_flow.status', 'pending')
-        .neq('status', 'completed')
-        .neq('status', 'blocked');
-
-      if (paymentError) throw paymentError;
-
-      // Set the total count (excluding collapsed tasks)
-      setPendingTasksCount(
-        visibleSaleTasks.length + 
-        (paymentTasksData?.length || 0)
-      );
-    } catch (err) {
-      console.error('Error fetching pending tasks count:', err);
-    }
-  };
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
@@ -419,6 +367,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </span>
                   </div>
                 )}
+
+                {/* Realtime Connection Status */}
+                <div className="hidden md:flex items-center mx-2">
+                  <div className="flex items-center space-x-1 px-2 py-1 rounded-md text-xs">
+                    {isRealtimeConnected ? (
+                      <div className="flex items-center space-x-1 text-green-600">
+                        <Wifi className="h-3 w-3" />
+                        <span className="hidden lg:inline">En vivo</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-1 text-red-600" title={realtimeError || 'Sin conexión en tiempo real'}>
+                        <WifiOff className="h-3 w-3" />
+                        <span className="hidden lg:inline">Offline</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 
                 {/* Notifications */}
                 <button

@@ -310,7 +310,7 @@ const TareasAsignadas = () => {
                 </tr>
               </thead>
               <tbody>
-                {tareasOrdenadas.map((t) => {
+                {tareasOrdenadas.map((t, idx) => {
                   const reservationFlow = Array.isArray(t.reservation_flow) ? t.reservation_flow[0] : t.reservation_flow;
                   const reservation = reservationFlow && reservationFlow.reservations ? (Array.isArray(reservationFlow.reservations) ? reservationFlow.reservations[0] : reservationFlow.reservations) : null;
                   const client = reservation && reservation.client ? (Array.isArray(reservation.client) ? reservation.client[0] : reservation.client) : null;
@@ -326,7 +326,7 @@ const TareasAsignadas = () => {
                   const reservation_number = reservation?.reservation_number || '-';
                   return (
                     <tr
-                      key={t.id}
+                      key={`${t.id}-${t.reservation_flow_id || ''}-${t.assigned_at || idx}`}
                       className="hover:bg-gray-50 cursor-pointer text-xs"
                       style={{ fontSize: '0.85rem' }}
                       onClick={() => t.reservation_flow_id && navigate(`/flujo-reservas/${t.reservation_flow_id}`)}
@@ -363,7 +363,7 @@ const TareasAsignadas = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6">
-            {tareasFiltradasPorUsuario.map((t) => {
+            {tareasFiltradasPorUsuario.map((t, idx) => {
               const reservationFlow = Array.isArray(t.reservation_flow) ? t.reservation_flow[0] : t.reservation_flow;
               const reservation = reservationFlow && reservationFlow.reservations ? (Array.isArray(reservationFlow.reservations) ? reservationFlow.reservations[0] : reservationFlow.reservations) : null;
               const client = reservation && reservation.client ? (Array.isArray(reservation.client) ? reservation.client[0] : reservation.client) : null;
@@ -379,7 +379,7 @@ const TareasAsignadas = () => {
               console.log('Tarea Kanban:', t); // Depuración
               return (
                 <div
-                  key={t.id}
+                  key={`${t.id}-${t.reservation_flow_id || ''}-${t.assigned_at || idx}`}
                   className="bg-white rounded-xl shadow-lg border border-gray-200 p-4 mb-2 hover:shadow-2xl transition-shadow cursor-pointer flex flex-col gap-2 text-[0.85rem] relative"
                   style={{ minHeight: 180 }}
                   onClick={() => t.reservation_flow_id && navigate(`/flujo-reservas/${t.reservation_flow_id}`)}
@@ -451,7 +451,7 @@ const TareasAsignadas = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...collapsedTasks].map(taskId => {
+                  {[...collapsedTasks].map((taskId, idx) => {
                     const t = tareas.find(tar => tar.id === taskId);
                     // Mismos mapeos que en la tabla principal
                     const reservationFlow = Array.isArray(t?.reservation_flow) ? t?.reservation_flow[0] : t?.reservation_flow;
@@ -465,7 +465,7 @@ const TareasAsignadas = () => {
                     const cliente = client ? `${client.first_name} ${client.last_name}` : '-';
                     const reservation_number = reservation?.reservation_number || '-';
                     return (
-                      <tr key={taskId} className="bg-orange-50">
+                      <tr key={`${taskId}-${idx}`} className="bg-orange-50">
                         <td className="px-2 py-1">{t?.task ? t.task.name : t?.task_id || '-'}</td>
                         <td className="px-2 py-1">{proyectoUnidad}</td>
                         <td className="px-2 py-1">{reservation_number}</td>
